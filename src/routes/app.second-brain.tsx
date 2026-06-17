@@ -172,9 +172,10 @@ function Page() {
                     canEdit={isOwner}
                     isConnectingSource={connectingId === b.id}
                     isConnectTarget={!!connectingId && connectingId !== b.id}
-                    onTitleChange={(v) => updateBlock.mutate({ id: b.id, patch: { title: v } })}
-                    onContentChange={(v) => updateBlock.mutate({ id: b.id, patch: { content: v } })}
-                    onColorChange={(c) => updateBlock.mutate({ id: b.id, patch: { color: c } })}
+                    onTitleChange={(v: string) => updateBlock.mutate({ id: b.id, patch: { title: v } })}
+                    onContentChange={(v: string) => updateBlock.mutate({ id: b.id, patch: { content: v } })}
+                    onColorChange={(c: string) => updateBlock.mutate({ id: b.id, patch: { color: c } })}
+
                     onDelete={() => { if (confirm("Удалить блок?")) deleteBlock.mutate(b.id); }}
                     onStartConnect={() => setConnectingId(b.id)}
                     onConnectTarget={() => handleConnectTarget(b.id)}
