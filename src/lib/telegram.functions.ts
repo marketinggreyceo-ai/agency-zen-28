@@ -210,6 +210,43 @@ export const setTelegramWebhook = createServerFn({ method: "POST" })
     return { ok: true, url: EDGE_WEBHOOK_URL };
   });
 
+export const testTelegramWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ text: z.string().min(1).max(500).default("#задача Тест webhook") }).parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const row = await loadSettingsRow(supabaseAdmin);
+    const { data: chat } = await supabaseAdmin
+      .from("telegram_chats")
+      .select("chat_id, title, type")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!chat?.chat_id) throw new Error("Нет подключённых чатов для теста");
+
+    const update = {
+      update_id: Math.floor(Date.now() / 1000),
+      message: {
+        message_id: Math.floor(Date.now() / 1000),
+        date: Math.floor(Date.now() / 1000),
+        text: data.text,
+        chat: { id: Number(chat.chat_id), title: chat.title, type: chat.type || "group" },
+        from: { id: 0, first_name: "Webhook", username: "lovable_test" },
+      },
+    };
+
+    const res = await fetch(EDGE_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(update),
+    });
+    const body = await res.text();
+    if (!res.ok) throw new Error(body || `Webhook returned ${res.status}`);
+    const response = (() => { try { return JSON.parse(body); } catch { return body; } })();
+    return { ok: true, chat: chat.title, auto_tasks_enabled: !!row.auto_tasks_enabled, response };
+  });
+
 export const deleteTelegramWebhook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
