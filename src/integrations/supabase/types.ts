@@ -318,7 +318,7 @@ export type Database = {
       can_read_task: { Args: { _assignee: string }; Returns: boolean }
       can_write_task: { Args: { _assignee: string }; Returns: boolean }
       current_assignee: { Args: never; Returns: string }
-      current_role: {
+      get_app_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
