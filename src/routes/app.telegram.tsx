@@ -159,6 +159,53 @@ function Page() {
         )}
       </section>
 
+      {/* Section 1.5: webhook status */}
+      <section className="border border-border bg-bg2 rounded-md p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Webhook (приём сообщений)</h3>
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${hook?.active ? "bg-emerald-500" : "bg-red-500"}`}
+            />
+            <span className="text-xs text-text2">
+              {hook?.active ? "Активен" : hook?.url ? "Указан чужой URL" : "Не подключён"}
+            </span>
+          </div>
+        </div>
+        <div className="text-xs text-text3 break-all">
+          Ожидаемый URL: <code className="bg-bg3 px-1 rounded">{hook?.expected_url ?? "—"}</code>
+        </div>
+        {hook?.url && (
+          <div className="text-xs text-text3 break-all">
+            Текущий URL: <code className="bg-bg3 px-1 rounded">{hook.url}</code>
+          </div>
+        )}
+        {typeof hook?.pending_update_count === "number" && (
+          <div className="text-xs text-text3">
+            Ожидает обработки: {hook.pending_update_count}
+          </div>
+        )}
+        {hook?.last_error_message && (
+          <div className="text-xs text-red">
+            Ошибка: {hook.last_error_message}
+            {hook.last_error_date ? ` · ${new Date(hook.last_error_date * 1000).toLocaleString("ru-RU")}` : ""}
+          </div>
+        )}
+        <div className="flex gap-2 pt-1">
+          <button onClick={() => installHook.mutate()} disabled={!s?.has_token || installHook.isPending}
+            className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm hover:bg-bg2 disabled:opacity-50">
+            {hook?.active ? "Переустановить webhook" : "Активировать webhook"}
+          </button>
+          <button onClick={() => refetchHook()} className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm inline-flex items-center gap-1">
+            <RefreshCw className="h-3.5 w-3.5" /> Проверить статус
+          </button>
+          <button onClick={() => removeHook.mutate()} disabled={!s?.has_token || removeHook.isPending}
+            className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm text-text3 hover:text-red">
+            Удалить
+          </button>
+        </div>
+      </section>
+
       {/* Section 2: auto tasks */}
       <section className="border border-border bg-bg2 rounded-md p-4 space-y-3">
         <div className="flex items-center justify-between">
