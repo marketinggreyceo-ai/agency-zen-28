@@ -10,6 +10,7 @@ import {
   getTelegramSettings, saveBotToken, updateTelegramSettings,
   refreshTelegramChats, disconnectTelegramChat,
   buildWeeklyReport, sendWeeklyReportNow,
+  setTelegramWebhook, deleteTelegramWebhook, getTelegramWebhookInfo,
 } from "@/lib/telegram.functions";
 
 export const Route = createFileRoute("/app/telegram")({ ssr: false, component: Page });
