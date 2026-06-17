@@ -429,6 +429,96 @@ export type Database = {
           },
         ]
       }
+      telegram_chats: {
+        Row: {
+          chat_id: string
+          created_at: string
+          id: string
+          title: string | null
+          type: string | null
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          type?: string | null
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          type?: string | null
+        }
+        Relationships: []
+      }
+      telegram_settings: {
+        Row: {
+          auto_tasks_enabled: boolean
+          bot_token: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          weekly_report_chat_id: string | null
+          weekly_report_day: string
+          weekly_report_enabled: boolean
+          weekly_report_time: string
+        }
+        Insert: {
+          auto_tasks_enabled?: boolean
+          bot_token?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          weekly_report_chat_id?: string | null
+          weekly_report_day?: string
+          weekly_report_enabled?: boolean
+          weekly_report_time?: string
+        }
+        Update: {
+          auto_tasks_enabled?: boolean
+          bot_token?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          weekly_report_chat_id?: string | null
+          weekly_report_day?: string
+          weekly_report_enabled?: boolean
+          weekly_report_time?: string
+        }
+        Relationships: []
+      }
+      telegram_task_log: {
+        Row: {
+          chat_id: string | null
+          chat_name: string | null
+          created_at: string
+          id: string
+          message_text: string
+          parsed: Json | null
+          task_id: string | null
+        }
+        Insert: {
+          chat_id?: string | null
+          chat_name?: string | null
+          created_at?: string
+          id?: string
+          message_text: string
+          parsed?: Json | null
+          task_id?: string | null
+        }
+        Update: {
+          chat_id?: string | null
+          chat_name?: string | null
+          created_at?: string
+          id?: string
+          message_text?: string
+          parsed?: Json | null
+          task_id?: string | null
+        }
+        Relationships: []
+      }
       weekly_goals: {
         Row: {
           assigned_to: string | null

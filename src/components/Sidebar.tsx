@@ -8,7 +8,7 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { MobileMenuDrawer } from "@/components/MobileMenu";
 import {
   LayoutDashboard, Brain, DollarSign, ListTodo, TrendingUp,
-  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu,
+  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu, Send,
 } from "lucide-react";
 
 type Item = { to: string; label: string; icon: any; page: string };
@@ -32,6 +32,7 @@ const GROUPS: Group[] = [
   { id: "system", label: "Система", items: [
     { to: "/app/sops",         label: "SOPs",         icon: FileText,        page: "sops" },
     { to: "/app/access",       label: "Доступы",      icon: Shield,          page: "access" },
+    { to: "/app/telegram",     label: "Telegram",     icon: Send,            page: "telegram" },
   ]},
 ];
 
