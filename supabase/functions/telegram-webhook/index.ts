@@ -10,7 +10,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const APP_URL = Deno.env.get("APP_URL") || "https://greymedia.company";
+const APP_URL = Deno.env.get("APP_URL") || "https://greymedia.company/app";
 
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim().replace(/^@/, "").toLocaleLowerCase("ru-RU");
