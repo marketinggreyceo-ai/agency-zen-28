@@ -134,6 +134,7 @@ export type Database = {
         Row: {
           assignee_name: string | null
           created_at: string
+          email: string | null
           full_name: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
@@ -142,6 +143,7 @@ export type Database = {
         Insert: {
           assignee_name?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -150,6 +152,7 @@ export type Database = {
         Update: {
           assignee_name?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -315,6 +318,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bootstrap_owner: { Args: never; Returns: undefined }
       can_read_task: { Args: { _assignee: string }; Returns: boolean }
       can_write_task: { Args: { _assignee: string }; Returns: boolean }
       current_assignee: { Args: never; Returns: string }
@@ -323,6 +327,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_owner: { Args: never; Returns: boolean }
+      owner_exists: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "owner" | "production" | "creative" | "va"

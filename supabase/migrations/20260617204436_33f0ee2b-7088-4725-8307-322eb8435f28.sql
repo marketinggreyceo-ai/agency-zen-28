@@ -1,0 +1,1 @@
+UPDATE public.profiles SET role = 'owner' WHERE id = (SELECT id FROM auth.users WHERE email = 'marketing.grey.ceo@gmail.com');

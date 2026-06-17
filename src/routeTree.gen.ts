@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -23,6 +24,11 @@ import { Route as AppModelsRouteImport } from './routes/app.models'
 import { Route as AppGrowthRouteImport } from './routes/app.growth'
 import { Route as AppFinanceRouteImport } from './routes/app.finance'
 
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/setup': typeof SetupRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/growth': typeof AppGrowthRoute
   '/app/models': typeof AppModelsRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/setup': typeof SetupRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/growth': typeof AppGrowthRoute
   '/app/models': typeof AppModelsRoute
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/setup': typeof SetupRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/growth': typeof AppGrowthRoute
   '/app/models': typeof AppModelsRoute
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
+    | '/setup'
     | '/app/finance'
     | '/app/growth'
     | '/app/models'
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/setup'
     | '/app/finance'
     | '/app/growth'
     | '/app/models'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/auth'
+    | '/setup'
     | '/app/finance'
     | '/app/growth'
     | '/app/models'
@@ -185,11 +197,19 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
+  SetupRoute: typeof SetupRoute
   SopsCategoryRoute: typeof SopsCategoryRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -314,6 +334,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
+  SetupRoute: SetupRoute,
   SopsCategoryRoute: SopsCategoryRoute,
 }
 export const routeTree = rootRouteImport

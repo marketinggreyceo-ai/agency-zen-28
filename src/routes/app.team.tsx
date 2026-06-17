@@ -47,6 +47,7 @@ function Page() {
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <PageHeader title="Команда" />
+      {isOwner && <RolesTable />}
       <div className="grid md:grid-cols-2 gap-4">
         {visible.map((m: any) => {
           const memberTasks = tasks.filter((t: any) => t.assignee === m.name && t.status !== "done");
@@ -153,6 +154,69 @@ function InviteModal({ member, onClose }: { member: any | null; onClose: () => v
           <button onClick={onClose} className="px-3 py-2 text-sm text-text2">Отмена</button>
           <button onClick={send} className="px-4 py-2 text-sm rounded bg-teal text-primary-foreground font-medium">Отправить</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+const ROLES = [
+  { value: "owner", label: "Owner" },
+  { value: "production", label: "Production" },
+  { value: "creative", label: "Creative" },
+  { value: "va", label: "VA" },
+];
+
+function RolesTable() {
+  const qc = useQueryClient();
+  const { data: rows = [] } = useQuery({
+    queryKey: ["profiles-all"],
+    queryFn: async () =>
+      (await supabase.from("profiles").select("id, full_name, email, role").order("full_name")).data ?? [],
+  });
+  const setRole = useMutation({
+    mutationFn: async ({ id, role }: { id: string; role: string }) => {
+      const { error } = await supabase.from("profiles").update({ role: role as any }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["profiles-all"] }); toast.success("Роль обновлена"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <div className="mb-6 rounded-lg border border-border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b border-border text-sm font-medium">Роли пользователей</div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-xs text-text3 uppercase">
+            <tr>
+              <th className="text-left px-4 py-2 font-normal">Имя</th>
+              <th className="text-left px-4 py-2 font-normal">Email</th>
+              <th className="text-left px-4 py-2 font-normal">Роль</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((p: any) => (
+              <tr key={p.id} className="border-t border-border">
+                <td className="px-4 py-2">{p.full_name || "—"}</td>
+                <td className="px-4 py-2 text-text2">{p.email || "—"}</td>
+                <td className="px-4 py-2">
+                  <select
+                    value={p.role}
+                    onChange={(e) => setRole.mutate({ id: p.id, role: e.target.value })}
+                    className="bg-bg3 border border-border rounded px-2 py-1 text-sm"
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr><td colSpan={3} className="px-4 py-3 text-text3">Нет пользователей</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
