@@ -30,14 +30,15 @@ function normalizeSearch(value: string | null | undefined) {
 }
 
 function parseTaskMessage(text: string) {
-  const tag = text.match(/#задача[^\S\r\n]*(.*)(?:\r?\n|$)/i);
+  const tag = text.match(/#задача\b([\s\S]*)/i);
   if (!tag) return null;
-  const mention = text.match(/@([\p{L}\p{N}_.-]+)/u)?.[1] ?? null;
-  const title = tag[1]
+  const body = tag[1] ?? "";
+  const mention = body.match(/@([\p{L}\p{N}_.-]+)/u)?.[1] ?? null;
+  let title = body
     .replace(/@[\p{L}\p{N}_.-]+/gu, "")
-    .replace(/\s{2,}/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
-  if (!title) return null;
+  if (!title) title = "Задача из Telegram";
   return { title, mention };
 }
 
