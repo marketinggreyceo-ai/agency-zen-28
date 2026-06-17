@@ -71,16 +71,54 @@ async function findModel(text: string) {
 async function resolveAssignee(mention: string | null) {
   if (!mention) return "Я";
   const key = normalize(mention);
+
+  // 1) profiles.telegram_handle (set during onboarding) — highest priority
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("full_name, assignee_name, telegram_handle")
+    .eq("status", "active");
+  const profMatch = (profiles ?? []).find((p: any) =>
+    normalize(p.telegram_handle) === key
+  );
+  if (profMatch) return profMatch.assignee_name || profMatch.full_name || mention;
+
+  // 2) team_members exact match
   const { data: members } = await admin
     .from("team_members")
     .select("name, assignee_name, telegram_handle")
     .eq("is_archived", false);
-  const match = (members ?? []).find((member: any) =>
-    normalize(member.assignee_name) === key ||
-    normalize(member.telegram_handle) === key ||
-    normalize(member.name) === key
+  const exact = (members ?? []).find((m: any) =>
+    normalize(m.telegram_handle) === key ||
+    normalize(m.assignee_name) === key ||
+    normalize(m.name) === key
   );
-  return match?.assignee_name || match?.name || mention;
+  if (exact) return exact.assignee_name || exact.name || mention;
+
+  // 3) partial name match
+  const partial = (members ?? []).find((m: any) => {
+    const n = normalize(m.name);
+    return n && (n.includes(key) || key.includes(n));
+  });
+  if (partial) return partial.assignee_name || partial.name || mention;
+
+  return mention;
+}
+
+async function resolveChatter(senderUsername: string | null, fallback: string) {
+  if (!senderUsername) return fallback;
+  const key = normalize(senderUsername);
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("full_name, assignee_name, telegram_handle")
+    .eq("status", "active");
+  const p = (profiles ?? []).find((x: any) => normalize(x.telegram_handle) === key);
+  if (p) return p.assignee_name || p.full_name || fallback;
+  const { data: members } = await admin
+    .from("team_members")
+    .select("name, assignee_name, telegram_handle")
+    .eq("is_archived", false);
+  const m = (members ?? []).find((x: any) => normalize(x.telegram_handle) === key);
+  return m?.assignee_name || m?.name || fallback;
 }
 
 async function writeLog(entry: {
@@ -164,11 +202,12 @@ Deno.serve(async (req) => {
       const senderName =
         [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") ||
         msg.from?.username || chatTitle;
+      const chatter = await resolveChatter(msg.from?.username ?? null, senderName);
       const { error } = await admin.from("customs").insert({
         customer_nickname: parsed.nickname || senderName,
         description: parsed.description,
         model_id: model?.id ?? null,
-        chatter: senderName,
+        chatter,
         status: "new",
         telegram_message_id: String(msg.message_id ?? ""),
         telegram_chat_id: chatId,
@@ -178,7 +217,7 @@ Deno.serve(async (req) => {
       await writeLog({ chat_id: chatId, message_text: text, parsed_action: "custom", success: true });
       if (botToken) {
         await sendMessage(botToken, chat.id,
-          `✅ Кастом добавлен: ${parsed.description}\n\n🎭 Модель: ${model?.name ?? "не указана"}\n\n📋 Статус: Новый`);
+          `✅ Кастом добавлен: ${parsed.description}\n\n🎭 Модель: ${model?.name ?? "не указана"}\n👤 Чаттер: ${chatter}\n\n📋 Статус: Новый`);
       }
       return Response.json({ ok: true, type: "custom" });
     }

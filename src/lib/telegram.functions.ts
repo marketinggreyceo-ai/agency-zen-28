@@ -149,6 +149,20 @@ async function gatherReport(admin: any) {
   const goalsDone = (goals ?? []).filter((g: any) => g.status === "done").length;
   const goalsTotal = (goals ?? []).length;
   const weekLabel = monday.toLocaleDateString("ru-RU");
+
+  const { data: profileMentions } = await admin
+    .from("profiles").select("telegram_handle")
+    .eq("status", "active").not("telegram_handle", "is", null);
+  const { data: memberMentions } = await admin
+    .from("team_members").select("telegram_handle")
+    .eq("is_archived", false).not("telegram_handle", "is", null);
+  const mentionSet = new Set<string>();
+  for (const r of [...(profileMentions ?? []), ...(memberMentions ?? [])]) {
+    const h = String((r as any).telegram_handle ?? "").trim().replace(/^@/, "");
+    if (h) mentionSet.add(`@${h}`);
+  }
+  const mentionsLine = mentionSet.size ? `\n\n${[...mentionSet].join(" ")}` : "";
+
   return `📊 Отчёт агентства — ${weekLabel}
 💰 Выручка:
 ${lines.join("\n")}
@@ -158,7 +172,7 @@ ${lines.join("\n")}
 ⚠️ Заблокировано: ${blockedCount ?? 0}
 📋 Аккаунты:
 • Active: ${counts.active} | Appeal: ${counts.appeal} | Deactivated: ${counts.deactivated} | Banned: ${counts.banned}
-🎯 Цели недели: ${goalsDone} из ${goalsTotal} выполнено`;
+🎯 Цели недели: ${goalsDone} из ${goalsTotal} выполнено${mentionsLine}`;
 }
 
 export const buildWeeklyReport = createServerFn({ method: "GET" })

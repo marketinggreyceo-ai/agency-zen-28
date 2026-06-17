@@ -6,7 +6,7 @@ import { TaskBadge, TaskModal } from "@/components/TaskCard";
 import { useProfile } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Send } from "lucide-react";
 
 export const Route = createFileRoute("/app/team")({
   ssr: false, component: Page,
@@ -56,14 +56,30 @@ function Page() {
             <div key={m.id} className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-bg3 flex items-center justify-center text-sm font-medium">{initials}</div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="font-medium">{m.name}</div>
-                  <div className="text-xs text-text2">{m.role_label} • {m.telegram_handle}</div>
+                  <div className="text-xs text-text2 flex items-center gap-2 flex-wrap">
+                    <span>{m.role_label}</span>
+                    {m.telegram_handle ? (
+                      <a href={`tg://resolve?domain=${String(m.telegram_handle).replace(/^@/, "")}`}
+                        className="inline-flex items-center gap-1 text-teal hover:underline">
+                        <Send className="h-3 w-3" />
+                        @{String(m.telegram_handle).replace(/^@/, "")}
+                      </a>
+                    ) : (
+                      <span className="text-text3 italic">без telegram</span>
+                    )}
+                  </div>
                 </div>
                 {isOwner && !m.profile_id && (
                   <button onClick={() => setInviteFor(m)} className="text-xs text-teal">Пригласить</button>
                 )}
               </div>
+              {isOwner && (
+                <EditInline label="Telegram username (без @)" value={m.telegram_handle}
+                  placeholder="andrew_grey"
+                  onSave={(v) => update.mutate({ id: m.id, patch: { telegram_handle: v.replace(/^@/, "") || null }})} />
+              )}
               <EditArea label="Зона ответственности" value={m.responsibilities} disabled={!isOwner}
                 onSave={(v) => update.mutate({ id: m.id, patch: { responsibilities: v }})} />
               <EditArea label="Еженедельные задачи" value={m.weekly_tasks} disabled={!isOwner}
@@ -117,6 +133,23 @@ function EditArea({ label, value, disabled, onSave }: {
     </div>
   );
 }
+
+function EditInline({ label, value, placeholder, onSave }: {
+  label: string; value: string | null; placeholder?: string; onSave: (v: string) => void;
+}) {
+  const [v, setV] = useState(value ?? "");
+  return (
+    <div className="mb-3">
+      <div className="text-[10px] uppercase tracking-wide text-text3 mb-1">{label}</div>
+      <input value={v} placeholder={placeholder}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => v !== (value ?? "") && onSave(v)}
+        className="w-full bg-bg3 border border-border rounded px-2 py-1.5 text-sm focus:border-teal outline-none" />
+    </div>
+  );
+}
+
+
 
 function InviteModal({ member, onClose }: { member: any | null; onClose: () => void }) {
   const [email, setEmail] = useState("");
