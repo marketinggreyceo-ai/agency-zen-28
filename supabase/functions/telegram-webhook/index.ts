@@ -127,6 +127,10 @@ Deno.serve(async (req) => {
   const text: string = msg?.text ?? msg?.caption ?? "";
   const chat = msg?.chat;
   const chatId = chat?.id ? String(chat.id) : null;
+  console.log("[telegram-webhook] incoming", { chatId, text, update_id: update.update_id });
+  const action = /#кастом/i.test(text) ? "custom" : /#задача/i.test(text) ? "task" : "ignored";
+  console.log("[telegram-webhook] parsed action", action);
+
 
   try {
     if (!chat) {
