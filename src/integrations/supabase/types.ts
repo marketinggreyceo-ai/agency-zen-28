@@ -420,7 +420,9 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          invited_role: Database["public"]["Enums"]["app_role"] | null
           role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["profile_status"]
           telegram_handle: string | null
         }
         Insert: {
@@ -429,7 +431,9 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          invited_role?: Database["public"]["Enums"]["app_role"] | null
           role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["profile_status"]
           telegram_handle?: string | null
         }
         Update: {
@@ -438,7 +442,9 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          invited_role?: Database["public"]["Enums"]["app_role"] | null
           role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["profile_status"]
           telegram_handle?: string | null
         }
         Relationships: []
@@ -883,6 +889,7 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "production" | "creative" | "va"
+      profile_status: "pending" | "active" | "suspended"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1011,6 +1018,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "production", "creative", "va"],
+      profile_status: ["pending", "active", "suspended"],
     },
   },
 } as const
