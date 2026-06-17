@@ -272,12 +272,8 @@ Deno.serve(async (req) => {
         return Response.json({ ok: true, skipped: "auto_tasks_disabled" });
       }
 
-      const parsed = parseTaskMessage(text);
-      if (!parsed) {
-        await writeLog({ chat_id: chatId, message_text: text, parsed_action: "task", success: false, error_message: "parse_failed" });
-        if (botToken) await sendMessage(botToken, chat.id, "❌ Не удалось создать задачу. Формат: #задача название @исполнитель");
-        return Response.json({ ok: true, type: "task", error: "parse_failed" });
-      }
+      const parsed = parseTaskMessage(text) ?? { title: "Задача из Telegram", mention: null };
+
 
       const [assignee, model] = await Promise.all([
         resolveAssignee(parsed.mention),
