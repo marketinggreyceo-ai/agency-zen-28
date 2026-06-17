@@ -317,7 +317,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
     if (settings?.bot_token && chat?.id && /#задача/i.test(text)) {
-      await sendMessage(settings.bot_token, chat.id, "❌ Не удалось создать задачу. Формат: #задача название @исполнитель");
+      await sendMessage(settings.bot_token, chat.id, `❌ Ошибка при создании задачи: ${message}`);
     }
     return Response.json({ ok: true, error: message });
   }
