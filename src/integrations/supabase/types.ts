@@ -14,11 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      expense_categories: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number | null
           category: string | null
           created_at: string
+          date: string | null
           id: string
           month: number
           name: string
@@ -29,6 +51,7 @@ export type Database = {
           amount?: number | null
           category?: string | null
           created_at?: string
+          date?: string | null
           id?: string
           month: number
           name: string
@@ -39,6 +62,7 @@ export type Database = {
           amount?: number | null
           category?: string | null
           created_at?: string
+          date?: string | null
           id?: string
           month?: number
           name?: string
