@@ -103,6 +103,50 @@ export type Database = {
           },
         ]
       }
+      model_brain_blocks: {
+        Row: {
+          color: string
+          connections: string[]
+          content: string
+          created_at: string
+          id: string
+          model_id: string
+          position: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          connections?: string[]
+          content?: string
+          created_at?: string
+          id?: string
+          model_id: string
+          position?: number
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          connections?: string[]
+          content?: string
+          created_at?: string
+          id?: string
+          model_id?: string
+          position?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_brain_blocks_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       models: {
         Row: {
           agency_cut: number | null
