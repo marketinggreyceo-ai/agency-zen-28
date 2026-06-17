@@ -3,12 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, Empty } from "@/components/ui-shared";
-import { useProfile, ROLE_LABELS, type Role } from "@/lib/auth";
+import { useProfile, ROLE_LABELS, type Role, type ProfileStatus } from "@/lib/auth";
 import { PAGE_KEYS, FEATURE_GROUPS, ROLES_ORDER, useRolePermissions } from "@/lib/permissions";
 import { inviteUser, listInvites, cancelInvite } from "@/lib/invites.functions";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Mail, Trash2 } from "lucide-react";
+import { Mail, Trash2, Check, X } from "lucide-react";
 
 export const Route = createFileRoute("/app/access")({
   ssr: false, component: Page,
