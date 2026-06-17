@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader, PlatformBadge, PriorityBadge, fmt, Empty } from "@/components/ui-shared";
+import { PageHeader, PlatformBadge, PriorityBadge, fmt, Empty, SkeletonPage } from "@/components/ui-shared";
 import { useProfile } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -126,7 +126,7 @@ function Page() {
     setDraggingId(null);
   }
 
-  if (isLoading) return <div className="p-8 text-text2">Загрузка...</div>;
+  if (isLoading) return <SkeletonPage rows={4} />;
 
   const blockById = (id: string) => blocks.find((b: any) => b.id === id);
   const modelById = (id: string) => models.find((m: any) => m.id === id);

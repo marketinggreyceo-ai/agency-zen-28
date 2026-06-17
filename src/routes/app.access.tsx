@@ -95,7 +95,13 @@ function Page() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (!isOwner) return <div className="p-8 text-text2">Загрузка…</div>;
+  if (!isOwner) return (
+    <div className="p-8 space-y-3 max-w-3xl">
+      <div className="h-8 w-40 animate-pulse rounded bg-bg3" />
+      <div className="h-32 animate-pulse rounded bg-bg3" />
+      <div className="h-32 animate-pulse rounded bg-bg3" />
+    </div>
+  );
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">

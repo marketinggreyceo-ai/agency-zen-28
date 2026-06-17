@@ -48,8 +48,12 @@ function SetupPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-text2">
-        Загрузка…
+      <div className="min-h-screen flex items-center justify-center px-4 bg-background">
+        <div className="w-full max-w-md space-y-3">
+          <div className="h-6 w-48 animate-pulse rounded bg-bg3" />
+          <div className="h-24 animate-pulse rounded bg-bg3" />
+          <div className="h-10 animate-pulse rounded bg-bg3" />
+        </div>
       </div>
     );
   }

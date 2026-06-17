@@ -25,7 +25,13 @@ function Page() {
       <div className="max-w-3xl mx-auto px-4 md:px-8 py-10">
         <h1 className="text-3xl font-semibold mb-1">{LABELS[category] ?? category}</h1>
         <p className="text-sm text-text2 mb-8">Стандарты и инструкции</p>
-        {isLoading && <p className="text-text2">Загрузка...</p>}
+        {isLoading && (
+          <div className="space-y-3">
+            <div className="h-20 animate-pulse rounded-md bg-bg3" />
+            <div className="h-20 animate-pulse rounded-md bg-bg3" />
+            <div className="h-20 animate-pulse rounded-md bg-bg3" />
+          </div>
+        )}
         {!isLoading && sops.length === 0 && <p className="text-text2">Нет инструкций в этой категории.</p>}
         <div className="space-y-10">
           {sops.map((s: any) => (
