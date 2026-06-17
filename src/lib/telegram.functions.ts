@@ -29,7 +29,9 @@ export const getTelegramSettings = createServerFn({ method: "GET" })
     const row = await loadSettingsRow(supabaseAdmin);
     const { data: chats = [] } = await supabaseAdmin
       .from("telegram_chats").select("*").order("created_at", { ascending: false });
-    const { data: logs = [] } = await supabaseAdmin
+    const { data: logs = [] } = await (supabaseAdmin as any)
+      .from("telegram_logs").select("*").order("created_at", { ascending: false }).limit(20);
+    const { data: taskLogs = [] } = await supabaseAdmin
       .from("telegram_task_log").select("*").order("created_at", { ascending: false }).limit(10);
     return {
       id: row.id,
@@ -42,6 +44,7 @@ export const getTelegramSettings = createServerFn({ method: "GET" })
       auto_tasks_enabled: row.auto_tasks_enabled,
       chats: chats ?? [],
       logs: logs ?? [],
+      task_logs: taskLogs ?? [],
     };
   });
 
