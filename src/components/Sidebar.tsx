@@ -1,32 +1,35 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useProfile, ROLE_LABELS, type Role } from "@/lib/auth";
+import { useProfile, ROLE_LABELS } from "@/lib/auth";
+import { useCan } from "@/lib/permissions";
 import {
   LayoutDashboard, Brain, DollarSign, ListTodo, TrendingUp,
-  Users, FileText, UserCircle, LogOut, Menu, X,
+  Users, FileText, UserCircle, Shield, LogOut, Menu, X,
 } from "lucide-react";
 
-const ITEMS: { to: string; label: string; icon: any; roles: Role[] }[] = [
-  { to: "/app", label: "Обзор", icon: LayoutDashboard, roles: ["owner"] },
-  { to: "/app/second-brain", label: "Second Brain", icon: Brain, roles: ["owner"] },
-  { to: "/app/finance", label: "Финансы", icon: DollarSign, roles: ["owner"] },
-  { to: "/app/tasks", label: "Задачи", icon: ListTodo, roles: ["owner","production","creative","va"] },
-  { to: "/app/growth", label: "Рост", icon: TrendingUp, roles: ["owner"] },
-  { to: "/app/team", label: "Команда", icon: Users, roles: ["owner","production","creative"] },
-  { to: "/app/sops", label: "SOPs", icon: FileText, roles: ["owner","production","creative","va"] },
-  { to: "/app/models", label: "Модели", icon: UserCircle, roles: ["owner","production","creative"] },
+const ITEMS: { to: string; label: string; icon: any; page: string }[] = [
+  { to: "/app",               label: "Обзор",        icon: LayoutDashboard, page: "overview" },
+  { to: "/app/second-brain",  label: "Second Brain", icon: Brain,           page: "second-brain" },
+  { to: "/app/finance",       label: "Финансы",      icon: DollarSign,      page: "finance" },
+  { to: "/app/tasks",         label: "Задачи",       icon: ListTodo,        page: "tasks" },
+  { to: "/app/growth",        label: "Рост",         icon: TrendingUp,      page: "growth" },
+  { to: "/app/team",          label: "Команда",      icon: Users,           page: "team" },
+  { to: "/app/sops",          label: "SOPs",         icon: FileText,        page: "sops" },
+  { to: "/app/models",        label: "Модели",       icon: UserCircle,      page: "models" },
+  { to: "/app/access",        label: "Доступы",      icon: Shield,          page: "access" },
 ];
 
 export function Sidebar() {
   const { data: profile } = useProfile();
+  const { can } = useCan();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
 
   if (!profile) return null;
   const role = profile.role;
-  const items = ITEMS.filter((i) => i.roles.includes(role));
+  const items = ITEMS.filter((i) => can("page", i.page));
 
   async function logout() {
     await supabase.auth.signOut();
