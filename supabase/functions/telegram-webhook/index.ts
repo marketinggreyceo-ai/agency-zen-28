@@ -30,14 +30,15 @@ function normalizeSearch(value: string | null | undefined) {
 }
 
 function parseTaskMessage(text: string) {
-  const tag = text.match(/#задача[^\S\r\n]*(.*)(?:\r?\n|$)/i);
+  const tag = text.match(/#задача\b([\s\S]*)/i);
   if (!tag) return null;
-  const mention = text.match(/@([\p{L}\p{N}_.-]+)/u)?.[1] ?? null;
-  const title = tag[1]
+  const body = tag[1] ?? "";
+  const mention = body.match(/@([\p{L}\p{N}_.-]+)/u)?.[1] ?? null;
+  let title = body
     .replace(/@[\p{L}\p{N}_.-]+/gu, "")
-    .replace(/\s{2,}/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
-  if (!title) return null;
+  if (!title) title = "Задача из Telegram";
   return { title, mention };
 }
 
@@ -271,12 +272,8 @@ Deno.serve(async (req) => {
         return Response.json({ ok: true, skipped: "auto_tasks_disabled" });
       }
 
-      const parsed = parseTaskMessage(text);
-      if (!parsed) {
-        await writeLog({ chat_id: chatId, message_text: text, parsed_action: "task", success: false, error_message: "parse_failed" });
-        if (botToken) await sendMessage(botToken, chat.id, "❌ Не удалось создать задачу. Формат: #задача название @исполнитель");
-        return Response.json({ ok: true, type: "task", error: "parse_failed" });
-      }
+      const parsed = parseTaskMessage(text) ?? { title: "Задача из Telegram", mention: null };
+
 
       const [assignee, model] = await Promise.all([
         resolveAssignee(parsed.mention),
@@ -320,7 +317,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
     if (settings?.bot_token && chat?.id && /#задача/i.test(text)) {
-      await sendMessage(settings.bot_token, chat.id, "❌ Не удалось создать задачу. Формат: #задача название @исполнитель");
+      await sendMessage(settings.bot_token, chat.id, `❌ Ошибка при создании задачи: ${message}`);
     }
     return Response.json({ ok: true, error: message });
   }
