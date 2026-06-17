@@ -47,14 +47,46 @@ export function TaskBadge({ name }: { name: string | null }) {
 export function TaskCard({ task, models, onClick }: {
   task: Task; models: Map<string,string>; onClick: () => void;
 }) {
+  const qc = useQueryClient();
+  const [dx, setDx] = useState(0);
+  const [startX, setStartX] = useState<number | null>(null);
+
   const overdueStyle: React.CSSProperties = task.status === "blocked"
     ? { background: "color-mix(in srgb, var(--red) 8%, var(--card))" }
     : {};
   const muted = task.status === "done" ? "opacity-50" : "";
+
+  async function updateStatus(status: string) {
+    const { error } = await supabase.from("tasks").update({ status }).eq("id", task.id);
+    if (error) { toast.error(error.message); return; }
+    qc.invalidateQueries({ queryKey: ["tasks"] });
+    qc.invalidateQueries({ queryKey: ["tasks-blocked-count"] });
+    toast.success(status === "done" ? "Готово" : status === "blocked" ? "Заблокировано" : "Обновлено");
+  }
+
+  function onTouchStart(e: React.TouchEvent) { setStartX(e.touches[0].clientX); }
+  function onTouchMove(e: React.TouchEvent) {
+    if (startX == null) return;
+    setDx(e.touches[0].clientX - startX);
+  }
+  function onTouchEnd() {
+    if (Math.abs(dx) > 80) {
+      if (dx > 0) updateStatus("done");
+      else updateStatus("blocked");
+    }
+    setDx(0); setStartX(null);
+  }
+
+  const bgHint =
+    dx > 30 ? "color-mix(in srgb, var(--green) 18%, var(--card))" :
+    dx < -30 ? "color-mix(in srgb, var(--red) 18%, var(--card))" :
+    undefined;
+
   return (
     <button onClick={onClick}
-      className={`w-full text-left rounded-md border border-border bg-card p-2.5 hover:border-border/40 hover:bg-bg3 transition ${muted}`}
-      style={overdueStyle}>
+      onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+      className={`w-full text-left rounded-md border border-border bg-card p-2.5 hover:border-border/40 hover:bg-bg3 transition touch-pan-y ${muted}`}
+      style={{ ...overdueStyle, transform: `translateX(${dx}px)`, background: bgHint }}>
       <div className="text-sm font-medium leading-snug">{task.title}</div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <TaskBadge name={task.assignee} />

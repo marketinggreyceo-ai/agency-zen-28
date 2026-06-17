@@ -5,9 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile, ROLE_LABELS } from "@/lib/auth";
 import { useCan } from "@/lib/permissions";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { MobileMenuDrawer } from "@/components/MobileMenu";
 import {
   LayoutDashboard, Brain, DollarSign, ListTodo, TrendingUp,
-  Users, FileText, UserCircle, Shield, LogOut, Search,
+  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu,
 } from "lucide-react";
 
 type Item = { to: string; label: string; icon: any; page: string };
@@ -33,12 +34,16 @@ const GROUPS: Group[] = [
   ]},
 ];
 
-const MOBILE_TABS: Item[] = [
+// 5 mobile bottom-bar tabs (Обзор, Задачи, Цели, Модели, Меню).
+const MOBILE_TABS: { to?: string; label: string; icon: any; page?: string; menu?: boolean }[] = [
   { to: "/app",         label: "Обзор",  icon: LayoutDashboard, page: "overview" },
   { to: "/app/tasks",   label: "Задачи", icon: ListTodo,        page: "tasks" },
+  { to: "/app/growth",  label: "Цели",   icon: Target,          page: "growth" },
   { to: "/app/models",  label: "Модели", icon: UserCircle,      page: "models" },
-  { to: "/app/sops",    label: "SOPs",   icon: FileText,        page: "sops" },
+  { label: "Меню",      icon: Menu,     menu: true },
 ];
+
+const ACTIVE_COLOR = "#5DCAA5";
 
 export function Sidebar() {
   const { data: profile } = useProfile();
@@ -46,6 +51,7 @@ export function Sidebar() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [searchOpen, setSearchOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const { data: blockedCount = 0 } = useQuery({
     queryKey: ["tasks-blocked-count"],
@@ -85,11 +91,10 @@ export function Sidebar() {
     .map((g) => ({ ...g, items: g.items.filter((i) => can("page", i.page)) }))
     .filter((g) => g.items.length > 0);
 
-  const mobileTabs = MOBILE_TABS.filter((i) => can("page", i.page));
-
   return (
     <>
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <MobileMenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} onLogout={logout} can={can} />
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-[240px] shrink-0 border-r border-border bg-bg2 flex-col">
@@ -106,9 +111,7 @@ export function Sidebar() {
         <nav className="flex-1 overflow-y-auto py-2">
           {visibleGroups.map((g, gi) => (
             <div key={g.id}>
-              {gi > 0 && (
-                <div className="mx-3 my-1" style={{ borderTop: "0.5px solid var(--border)" }} />
-              )}
+              {gi > 0 && <div className="mx-3 my-1" style={{ borderTop: "0.5px solid var(--border)" }} />}
               <div className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-wider text-text3">{g.label}</div>
               <ul className="px-2 space-y-0.5">
                 {g.items.map((it) => {
@@ -154,27 +157,42 @@ export function Sidebar() {
       {/* Mobile top bar */}
       <div className="md:hidden flex items-center justify-between p-3 border-b border-border bg-bg2">
         <span className="text-sm font-semibold">GA Agency OS</span>
-        <button onClick={() => setSearchOpen(true)} className="text-text2">
-          <Search className="h-4 w-4" />
+        <button onClick={() => setSearchOpen(true)} className="text-text2 p-2">
+          <Search className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Mobile bottom tab bar */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-bg2 flex justify-around py-1.5">
-        {mobileTabs.map((it) => {
+      {/* Mobile bottom tab bar — 5 fixed tabs */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-bg2 flex justify-around py-1.5"
+        style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom))" }}>
+        {MOBILE_TABS.map((it, idx) => {
           const Icon = it.icon;
-          const active = isActive(it.to);
+          const active = it.to ? isActive(it.to) : false;
           const showBlocked = it.page === "tasks" && blockedCount > 0;
-          return (
-            <Link key={it.to} to={it.to}
-              className={`relative flex flex-col items-center gap-0.5 px-3 py-1 rounded-md text-[10px] ${
-                active ? "text-foreground" : "text-text2"
-              }`}>
-              <Icon className="h-5 w-5" />
-              {it.label}
+          const color = active ? ACTIVE_COLOR : "var(--text2)";
+          const inner = (
+            <>
+              <Icon className="h-5 w-5" style={{ color }} />
+              <span className="text-[10px]" style={{ color }}>{it.label}</span>
               {showBlocked && (
-                <span className="absolute top-0 right-2 h-2 w-2 rounded-full bg-red" />
+                <span className="absolute top-0 right-2 h-2 w-2 rounded-full" style={{ background: "var(--red)" }} />
               )}
+            </>
+          );
+          if (it.menu) {
+            return (
+              <button key="menu" onClick={() => setMenuOpen(true)}
+                className="relative flex flex-col items-center gap-0.5 px-3 py-1 rounded-md"
+                style={{ minHeight: 44 }}>
+                {inner}
+              </button>
+            );
+          }
+          return (
+            <Link key={it.to ?? idx} to={it.to!}
+              className="relative flex flex-col items-center gap-0.5 px-3 py-1 rounded-md"
+              style={{ minHeight: 44 }}>
+              {inner}
             </Link>
           );
         })}
