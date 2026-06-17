@@ -191,6 +191,7 @@ function Page() {
           defaultAssignee={modal.assignee}
           defaultModelId={modal.modelId}
           models={models}
+          workers={WORKERS}
           createdBy={profile?.full_name ?? myName}
           onClose={() => setModal(null)}
           onSaved={() => qc.invalidateQueries({ queryKey: ["weekly_goals", weekISO] })}
