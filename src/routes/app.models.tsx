@@ -11,10 +11,41 @@ export const Route = createFileRoute("/app/models")({
   ssr: false, component: Page,
 });
 
+const ACCOUNT_PLATFORMS = ["Instagram","X","Reddit","Facebook","Fansly","OnlyFans"];
+const ACCOUNT_STATUSES = [
+  { value: "active", label: "Active", color: "#1D9E75" },
+  { value: "appeal", label: "Appeal", color: "#BA7517" },
+  { value: "deactivated", label: "Deactivated", color: "#555555" },
+  { value: "banned", label: "Banned", color: "#E24B4A" },
+];
+
+function statusMeta(s: string | null) {
+  return ACCOUNT_STATUSES.find((x) => x.value === s) ?? { value: s ?? "", label: s ?? "—", color: "#555555" };
+}
+function fmtRuDate(iso: string | null) {
+  if (!iso) return "";
+  try { return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }); } catch { return ""; }
+}
+function StatusBadge({ status, changedAt }: { status: string | null; changedAt?: string | null }) {
+  const m = statusMeta(status);
+  const d = fmtRuDate(changedAt ?? null);
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded text-white"
+      style={{ background: m.color }}>
+      {m.label}{d && <span className="opacity-80">· {d}</span>}
+    </span>
+  );
+}
+
 function Page() {
   const { data: profile } = useProfile();
   const qc = useQueryClient();
   const isOwner = profile?.role === "owner";
+  const canManageAccounts = profile?.role === "owner" || profile?.role === "creative";
+  const isVa = profile?.role === "va";
+  const myAssignee = profile?.assignee_name ?? "";
+  const myName = profile?.full_name ?? profile?.assignee_name ?? "unknown";
+
 
   const { data: models = [] } = useQuery({
     queryKey: ["models"],
