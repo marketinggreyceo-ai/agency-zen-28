@@ -451,6 +451,16 @@ function ModelModal({ model, onClose }: { model: any; onClose: () => void }) {
               className="w-full bg-bg3 border border-border rounded px-3 py-2" />
           </div>
           <div>
+            <label className="text-xs text-text2 block mb-1">English name (для Telegram)</label>
+            <input value={form.english_name}
+              onChange={(e) => setForm({ ...form, english_name: e.target.value })}
+              placeholder="Loona / Linjey / Tanya..."
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+            <p className="text-[11px] text-text3 mt-1">
+              Имя, которое бот распознаёт в сообщениях вида <code>#кастом @Loona ...</code>
+            </p>
+          </div>
+          <div>
             <label className="text-xs text-text2 block mb-1">Платформы</label>
             <div className="flex flex-wrap gap-1.5">
               {PLATFORM_OPTIONS.map((p) => (
