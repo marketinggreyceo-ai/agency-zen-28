@@ -10,7 +10,7 @@ import {
   getTelegramSettings, saveBotToken, updateTelegramSettings,
   refreshTelegramChats, disconnectTelegramChat,
   buildWeeklyReport, sendWeeklyReportNow,
-  setTelegramWebhook, deleteTelegramWebhook, getTelegramWebhookInfo,
+  setTelegramWebhook, deleteTelegramWebhook, getTelegramWebhookInfo, testTelegramWebhook,
 } from "@/lib/telegram.functions";
 
 export const Route = createFileRoute("/app/telegram")({ ssr: false, component: Page });
@@ -46,6 +46,7 @@ function Page() {
   const setHook = useServerFn(setTelegramWebhook);
   const delHook = useServerFn(deleteTelegramWebhook);
   const getHook = useServerFn(getTelegramWebhookInfo);
+  const testHook = useServerFn(testTelegramWebhook);
 
   const { data: hook, refetch: refetchHook } = useQuery({
     queryKey: ["telegram_webhook"],
@@ -66,6 +67,7 @@ function Page() {
 
   const [token, setToken] = useState("");
   const [previewText, setPreviewText] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const saveToken = useMutation({
     mutationFn: () => save({ data: { token } }),
@@ -103,11 +105,19 @@ function Page() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const testWebhook = useMutation({
+    mutationFn: () => testHook({ data: { text: "#задача Тест webhook" } }),
+    onSuccess: (r: any) => {
+      setTestResult(JSON.stringify(r.response, null, 2));
+      toast.success("Тест webhook выполнен");
+      qc.invalidateQueries({ queryKey: ["telegram_settings"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   if (!isOwner) return null;
 
-  const webhookUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/api/public/webhook/tasks`
-    : "/api/public/webhook/tasks";
+  const webhookUrl = hook?.expected_url ?? "https://fxijkbcpkjuorgzxsoyj.supabase.co/functions/v1/telegram-webhook";
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl">
@@ -203,7 +213,14 @@ function Page() {
             className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm text-text3 hover:text-red">
             Удалить
           </button>
+          <button onClick={() => testWebhook.mutate()} disabled={!s?.has_token || testWebhook.isPending || (s?.chats?.length ?? 0) === 0}
+            className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm hover:bg-bg2 disabled:opacity-50">
+            Test webhook
+          </button>
         </div>
+        {testResult && (
+          <pre className="text-xs whitespace-pre-wrap bg-bg3 border border-border rounded p-3">{testResult}</pre>
+        )}
       </section>
 
       {/* Section 2: auto tasks */}
@@ -223,16 +240,20 @@ function Page() {
           Пример: <code className="bg-bg3 px-1 rounded">#задача Размытые превью @Андрей Линджей сегодня</code>
         </div>
         <div className="pt-2">
-          <div className="text-xs text-text3 mb-1">Последние 10 автозадач</div>
+          <div className="text-xs text-text3 mb-1">Последние события webhook</div>
           {(s?.logs?.length ?? 0) === 0 ? (
-            <Empty message="Автосозданные задачи появятся здесь" />
+            <Empty message="Входящие сообщения появятся здесь" />
           ) : (
             <ul className="space-y-1">
               {s!.logs.map((l: any) => (
                 <li key={l.id} className="text-xs px-3 py-2 bg-bg3 border border-border rounded">
-                  <div className="text-text2">{l.message_text}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-text2">{l.message_text || "—"}</span>
+                    <span className={l.success ? "text-emerald-400" : "text-red"}>{l.success ? "ok" : "error"}</span>
+                  </div>
                   <div className="text-text3 mt-1">
-                    → {l.parsed?.title || "—"} {l.parsed?.assignee && `· @${l.parsed.assignee}`} · {l.chat_name} · {new Date(l.created_at).toLocaleString("ru-RU")}
+                    → {l.parsed_action || "—"} · {l.chat_id || "—"} · {new Date(l.created_at).toLocaleString("ru-RU")}
+                    {l.error_message ? ` · ${l.error_message}` : ""}
                   </div>
                 </li>
               ))}
