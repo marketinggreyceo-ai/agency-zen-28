@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, Empty, SkeletonPage } from "@/components/ui-shared";
 import { TaskCard, TaskModal, STATUSES, type Task } from "@/components/TaskCard";
-import { useProfile, ASSIGNEES } from "@/lib/auth";
+import { useProfile } from "@/lib/auth";
+import { useAssignees } from "@/lib/lookups";
 import { useState, useMemo } from "react";
 import { Plus, ListTodo } from "lucide-react";
 
