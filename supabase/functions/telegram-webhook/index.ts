@@ -118,7 +118,10 @@ Deno.serve(async (req) => {
 
   let update: any = null;
   try { update = await req.json(); } catch { /* noop */ }
-  if (!update) return new Response("bad", { status: 400 });
+  if (!update) {
+    await writeLog({ parsed_action: "invalid", success: false, error_message: "bad_json" });
+    return new Response("bad", { status: 400 });
+  }
 
   const msg = update.message ?? update.edited_message ?? update.channel_post;
   const text: string = msg?.text ?? msg?.caption ?? "";
