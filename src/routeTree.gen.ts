@@ -15,6 +15,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as SopsCategoryRouteImport } from './routes/sops.$category'
+import { Route as AppTelegramRouteImport } from './routes/app.telegram'
 import { Route as AppTeamRouteImport } from './routes/app.team'
 import { Route as AppTasksRouteImport } from './routes/app.tasks'
 import { Route as AppSopsRouteImport } from './routes/app.sops'
@@ -57,6 +58,11 @@ const SopsCategoryRoute = SopsCategoryRouteImport.update({
   id: '/sops/$category',
   path: '/sops/$category',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppTelegramRoute = AppTelegramRouteImport.update({
+  id: '/telegram',
+  path: '/telegram',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppTeamRoute = AppTeamRouteImport.update({
   id: '/team',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/app/sops': typeof AppSopsRoute
   '/app/tasks': typeof AppTasksRoute
   '/app/team': typeof AppTeamRoute
+  '/app/telegram': typeof AppTelegramRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/app/sops': typeof AppSopsRoute
   '/app/tasks': typeof AppTasksRoute
   '/app/team': typeof AppTeamRoute
+  '/app/telegram': typeof AppTelegramRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app': typeof AppIndexRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/app/sops': typeof AppSopsRoute
   '/app/tasks': typeof AppTasksRoute
   '/app/team': typeof AppTeamRoute
+  '/app/telegram': typeof AppTelegramRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/app/sops'
     | '/app/tasks'
     | '/app/team'
+    | '/app/telegram'
     | '/sops/$category'
     | '/app/'
     | '/api/public/telegram/webhook'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/app/sops'
     | '/app/tasks'
     | '/app/team'
+    | '/app/telegram'
     | '/sops/$category'
     | '/app'
     | '/api/public/telegram/webhook'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/app/sops'
     | '/app/tasks'
     | '/app/team'
+    | '/app/telegram'
     | '/sops/$category'
     | '/app/'
     | '/api/public/telegram/webhook'
@@ -295,6 +307,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sops/$category'
       preLoaderRoute: typeof SopsCategoryRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/app/telegram': {
+      id: '/app/telegram'
+      path: '/telegram'
+      fullPath: '/app/telegram'
+      preLoaderRoute: typeof AppTelegramRouteImport
+      parentRoute: typeof AppRoute
     }
     '/app/team': {
       id: '/app/team'
@@ -394,6 +413,7 @@ interface AppRouteChildren {
   AppSopsRoute: typeof AppSopsRoute
   AppTasksRoute: typeof AppTasksRoute
   AppTeamRoute: typeof AppTeamRoute
+  AppTelegramRoute: typeof AppTelegramRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -408,6 +428,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSopsRoute: AppSopsRoute,
   AppTasksRoute: AppTasksRoute,
   AppTeamRoute: AppTeamRoute,
+  AppTelegramRoute: AppTelegramRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
