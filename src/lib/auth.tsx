@@ -25,16 +25,15 @@ export function useProfile() {
   });
 }
 
-export const ASSIGNEES = ["Андрей", "Даша", "Ника", "Ольга", "Сильвестр", "Я"] as const;
+/**
+ * @deprecated Use `useAssignees()` from `@/lib/lookups` instead.
+ * Kept only as a transitional fallback for code paths that haven't been
+ * migrated yet. New code must read assignee names from the team_members table.
+ */
+export const ASSIGNEES = [] as readonly string[];
 
-export function assigneeColor(name: string | null | undefined): string {
-  switch (name) {
-    case "Андрей": return "var(--teal)";
-    case "Даша": return "var(--coral)";
-    case "Я": return "var(--purple)";
-    default: return "#666";
-  }
-}
+import { colorFromName } from "@/lib/lookups";
+export const assigneeColor = colorFromName;
 
 export const ROLE_LABELS: Record<Role, string> = {
   owner: "Owner", production: "Production", creative: "Creative", va: "VA",

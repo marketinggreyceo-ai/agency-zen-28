@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, Empty, SkeletonPage } from "@/components/ui-shared";
-import { useProfile, ASSIGNEES } from "@/lib/auth";
+import { useProfile } from "@/lib/auth";
+import { useAssignees } from "@/lib/lookups";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Plus, Target, Users, UserCircle, X, Check, Trash2 } from "lucide-react";
@@ -10,8 +11,6 @@ import { ChevronLeft, ChevronRight, Plus, Target, Users, UserCircle, X, Check, T
 export const Route = createFileRoute("/app/goals")({
   ssr: false, component: Page,
 });
-
-const WORKERS = ASSIGNEES.filter((a) => a !== "Я");
 
 function getMonday(d: Date): Date {
   const x = new Date(d);
@@ -40,8 +39,10 @@ function Page() {
   const qc = useQueryClient();
   const isOwner = profile?.role === "owner";
   const myName = profile?.assignee_name ?? "";
+  const WORKERS = useAssignees().filter((a) => a !== "Я");
   const [weekStart, setWeekStart] = useState<Date>(getMonday(new Date()));
   const [modal, setModal] = useState<null | { type: "company" | "worker" | "model"; assignee?: string; modelId?: string }>(null);
+
 
   const weekISO = fmtISO(weekStart);
   const { data: goals = [], isLoading } = useQuery({

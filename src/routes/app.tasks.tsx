@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, Empty, SkeletonPage } from "@/components/ui-shared";
 import { TaskCard, TaskModal, STATUSES, type Task } from "@/components/TaskCard";
-import { useProfile, ASSIGNEES } from "@/lib/auth";
+import { useProfile } from "@/lib/auth";
+import { useAssignees } from "@/lib/lookups";
 import { useState, useMemo } from "react";
 import { Plus, ListTodo } from "lucide-react";
 
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/app/tasks")({
 
 function Page() {
   const { data: profile } = useProfile();
+  const assignees = useAssignees();
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ["tasks"],
     queryFn: async () => (await supabase.from("tasks").select("*").order("created_at", { ascending: false })).data ?? [],
@@ -56,7 +58,7 @@ function Page() {
         <select value={filterAssignee} onChange={(e) => { setFilterAssignee(e.target.value); setFilterMine(false); }}
           className="px-3 py-1.5 rounded-md bg-bg3 border border-border">
           <option value="">Все исполнители</option>
-          {ASSIGNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+          {assignees.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)}
           className="px-3 py-1.5 rounded-md bg-bg3 border border-border">

@@ -1,23 +1,22 @@
 import { X } from "lucide-react";
-
-const STATUSES = [
-  { value: "active",      label: "Active",      color: "#1D9E75" },
-  { value: "appeal",      label: "Appeal",      color: "#BA7517" },
-  { value: "deactivated", label: "Deactivated", color: "#555555" },
-  { value: "banned",      label: "Banned",      color: "#E24B4A" },
-];
+import { useAccountStatuses, useCustomStatuses } from "@/lib/lookups";
 
 export function StatusBottomSheet({
-  open,
-  current,
-  onClose,
-  onSelect,
+  open, current, onClose, onSelect, kind = "account",
 }: {
   open: boolean;
   current: string | null;
   onClose: () => void;
   onSelect: (status: string) => void;
+  /** which lookup table to pull options from */
+  kind?: "account" | "custom";
 }) {
+  const { data: accounts = [] } = useAccountStatuses();
+  const { data: customs  = [] } = useCustomStatuses();
+  const rows = kind === "custom"
+    ? customs.map((s) => ({ value: s.key, label: s.name, color: s.color }))
+    : accounts.map((s) => ({ value: s.key, label: s.name, color: s.color }));
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[120] bg-black/60 flex items-end" onClick={onClose}>
@@ -28,7 +27,7 @@ export function StatusBottomSheet({
           <button onClick={onClose} className="p-1"><X className="h-4 w-4" /></button>
         </div>
         <div className="space-y-1">
-          {STATUSES.map((s) => {
+          {rows.map((s) => {
             const active = current === s.value;
             return (
               <button key={s.value}
@@ -43,6 +42,7 @@ export function StatusBottomSheet({
               </button>
             );
           })}
+          {rows.length === 0 && <p className="text-xs text-text3 px-3 py-3">Список пуст</p>}
         </div>
       </div>
     </div>
