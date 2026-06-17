@@ -39,8 +39,10 @@ function Page() {
   const qc = useQueryClient();
   const isOwner = profile?.role === "owner";
   const myName = profile?.assignee_name ?? "";
+  const WORKERS = useAssignees().filter((a) => a !== "Я");
   const [weekStart, setWeekStart] = useState<Date>(getMonday(new Date()));
   const [modal, setModal] = useState<null | { type: "company" | "worker" | "model"; assignee?: string; modelId?: string }>(null);
+
 
   const weekISO = fmtISO(weekStart);
   const { data: goals = [], isLoading } = useQuery({
