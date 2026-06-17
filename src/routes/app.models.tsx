@@ -169,9 +169,16 @@ function Page() {
                   <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-bg3 border border-border text-text2">{t}</span>
                 ))}
                 {isOwner && (
-                  <span onClick={(e) => { e.stopPropagation(); setEditingModel(m); }}
-                    className="ml-auto text-xs text-teal flex items-center gap-1 cursor-pointer">
-                    <Edit className="h-3 w-3" /> Изменить
+                  <span className="ml-auto flex items-center gap-3">
+                    <span onClick={(e) => { e.stopPropagation(); setEditingModel(m); }}
+                      className="text-xs text-teal flex items-center gap-1 cursor-pointer">
+                      <Edit className="h-3 w-3" /> Изменить
+                    </span>
+                    <span onClick={(e) => { e.stopPropagation(); setDeletingModel(m); }}
+                      className="text-xs text-red-500 flex items-center gap-1 cursor-pointer"
+                      title="Удалить модель">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </span>
                   </span>
                 )}
               </button>
