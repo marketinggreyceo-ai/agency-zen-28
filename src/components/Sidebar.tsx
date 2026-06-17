@@ -21,6 +21,7 @@ const GROUPS: Group[] = [
   { id: "work", label: "Работа", items: [
     { to: "/app/second-brain", label: "Second Brain", icon: Brain,           page: "second-brain" },
     { to: "/app/tasks",        label: "Задачи",       icon: ListTodo,        page: "tasks" },
+    { to: "/app/goals",        label: "Цели недели",  icon: Target,          page: "goals" },
     { to: "/app/growth",       label: "Рост",         icon: TrendingUp,      page: "growth" },
   ]},
   { id: "management", label: "Управление", items: [
@@ -38,7 +39,7 @@ const GROUPS: Group[] = [
 const MOBILE_TABS: { to?: string; label: string; icon: any; page?: string; menu?: boolean }[] = [
   { to: "/app",         label: "Обзор",  icon: LayoutDashboard, page: "overview" },
   { to: "/app/tasks",   label: "Задачи", icon: ListTodo,        page: "tasks" },
-  { to: "/app/growth",  label: "Цели",   icon: Target,          page: "growth" },
+  { to: "/app/goals",   label: "Цели",   icon: Target,          page: "goals" },
   { to: "/app/models",  label: "Модели", icon: UserCircle,      page: "models" },
   { label: "Меню",      icon: Menu,     menu: true },
 ];
