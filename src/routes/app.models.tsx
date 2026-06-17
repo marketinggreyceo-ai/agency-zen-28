@@ -214,38 +214,100 @@ function AccountModal({ account, modelId, onClose }: { account: any | null; mode
   );
 }
 
+const PLATFORM_OPTIONS = ["Fansly","OnlyFans","Instagram","X","Reddit","AI","Other"];
+
 function ModelModal({ model, onClose }: { model: any; onClose: () => void }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
-    name: model.name, platform: model.platform ?? "",
-    agency_cut: model.agency_cut, status: model.status, priority: model.priority,
+    name: model.name,
+    platforms: (model.platforms && model.platforms.length ? model.platforms : (model.platform ? [model.platform] : [])) as string[],
+    agency_cut: model.agency_cut,
+    status: model.status,
+    priority: model.priority,
+    tags: (model.tags ?? []) as string[],
   });
+  const [tagInput, setTagInput] = useState("");
+
+  function togglePlatform(p: string) {
+    setForm((f) => ({ ...f, platforms: f.platforms.includes(p) ? f.platforms.filter((x) => x !== p) : [...f.platforms, p] }));
+  }
+  function addTag(t: string) {
+    const v = t.trim();
+    if (!v || form.tags.includes(v)) return;
+    setForm((f) => ({ ...f, tags: [...f.tags, v] }));
+    setTagInput("");
+  }
+
   async function save() {
     try {
-      const { error } = await supabase.from("models").update(form).eq("id", model.id);
+      const patch: any = { ...form, platform: form.platforms[0] ?? null };
+      const { error } = await supabase.from("models").update(patch).eq("id", model.id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["models"] }); toast.success("Сохранено"); onClose();
     } catch (e: any) { toast.error(e.message); }
   }
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="w-full max-w-md bg-card border border-border rounded-lg p-5" onClick={(e) => e.stopPropagation()}>
-        <h3 className="font-semibold mb-4">Редактировать модель</h3>
+      <div className="w-full max-w-md bg-card border border-border rounded-lg p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between mb-4">
+          <h3 className="font-semibold">Редактировать модель</h3>
+          <button onClick={onClose}><X className="h-4 w-4" /></button>
+        </div>
         <div className="space-y-3 text-sm">
-          <input placeholder="Имя" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
-          <input placeholder="Платформа" value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
-          <input type="number" placeholder="Cut %" value={form.agency_cut} onChange={(e) => setForm({ ...form, agency_cut: Number(e.target.value) })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2">
-            <option value="active">active</option><option value="paused">paused</option>
-          </select>
-          <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2">
-            <option value="high">High</option><option value="medium">Mid</option><option value="low">Low</option>
-          </select>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Имя</label>
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Платформы</label>
+            <div className="flex flex-wrap gap-1.5">
+              {PLATFORM_OPTIONS.map((p) => (
+                <button key={p} type="button" onClick={() => togglePlatform(p)}
+                  className={`text-xs px-2 py-1 rounded-full border ${form.platforms.includes(p) ? "bg-teal text-primary-foreground border-teal" : "bg-bg3 border-border text-text2"}`}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Agency cut %</label>
+            <input type="number" value={form.agency_cut} onChange={(e) => setForm({ ...form, agency_cut: Number(e.target.value) })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div className="flex items-center justify-between bg-bg3 border border-border rounded px-3 py-2">
+            <span className="text-xs text-text2">Статус: {form.status === "active" ? "Active" : "Paused"}</span>
+            <button type="button" onClick={() => setForm({ ...form, status: form.status === "active" ? "paused" : "active" })}
+              className={`relative w-10 h-5 rounded-full transition-colors ${form.status === "active" ? "bg-teal" : "bg-border"}`}>
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${form.status === "active" ? "left-5" : "left-0.5"}`} />
+            </button>
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Приоритет</label>
+            <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2">
+              <option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Теги</label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {form.tags.map((t) => (
+                <span key={t} className="text-xs px-2 py-1 rounded-full bg-bg3 border border-border flex items-center gap-1">
+                  {t}
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, tags: f.tags.filter((x) => x !== t) }))}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(tagInput); } }}
+              placeholder="Введите тег и нажмите Enter"
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} className="px-3 py-2 text-sm text-text2">Отмена</button>
@@ -255,3 +317,4 @@ function ModelModal({ model, onClose }: { model: any; onClose: () => void }) {
     </div>
   );
 }
+
