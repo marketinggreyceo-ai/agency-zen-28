@@ -16,6 +16,19 @@ function normalize(value: string | null | undefined) {
   return (value ?? "").trim().replace(/^@/, "").toLocaleLowerCase("ru-RU");
 }
 
+function normalizeSearch(value: string | null | undefined) {
+  return normalize(value)
+    .replace(/дж/g, "j")
+    .replace(/ей/g, "ey")
+    .replace(/[а-яё]/g, (char) => ({
+      а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i",
+      й: "y", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t",
+      у: "u", ф: "f", х: "h", ц: "c", ч: "ch", ш: "sh", щ: "sch", ы: "y", э: "e", ю: "yu", я: "ya",
+      ь: "", ъ: "",
+    } as Record<string, string>)[char] ?? char)
+    .replace(/[^a-z0-9а-яё]+/gi, "");
+}
+
 function parseTaskMessage(text: string) {
   const tag = text.match(/#задача[^\S\r\n]*(.*)(?:\r?\n|$)/i);
   if (!tag) return null;
@@ -45,9 +58,14 @@ async function findModel(text: string) {
     .eq("is_archived", false)
     .order("name", { ascending: true });
   const haystack = text.toLocaleLowerCase("ru-RU");
+  const normalizedHaystack = normalizeSearch(text);
   return (models ?? [])
     .sort((a: any, b: any) => String(b.name).length - String(a.name).length)
-    .find((m: any) => haystack.includes(String(m.name).toLocaleLowerCase("ru-RU"))) ?? null;
+    .find((m: any) => {
+      const modelName = String(m.name).trim();
+      return haystack.includes(modelName.toLocaleLowerCase("ru-RU")) ||
+        normalizedHaystack.includes(normalizeSearch(modelName));
+    }) ?? null;
 }
 
 async function resolveAssignee(mention: string | null) {
