@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MetricCard, PageHeader, PlatformBadge, fmt, Empty } from "@/components/ui-shared";
 import { TaskBadge } from "@/components/TaskCard";
 import { useState, useEffect } from "react";
+import { Target } from "lucide-react";
 
 export const Route = createFileRoute("/app/overview")({
   ssr: false, component: Page,
@@ -28,6 +29,22 @@ function Page() {
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks"],
     queryFn: async () => (await supabase.from("tasks").select("*")).data ?? [],
+  });
+
+  // Current week's company goals
+  const monday = (() => {
+    const d = new Date(); const day = d.getDay();
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    d.setHours(0,0,0,0);
+    return d.toISOString().slice(0,10);
+  })();
+  const { data: companyGoals = [] } = useQuery({
+    queryKey: ["weekly_goals_company", monday],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("weekly_goals")
+        .select("*").eq("week_start", monday).eq("goal_type", "company");
+      return data ?? [];
+    },
   });
 
   const totals = models.reduce((acc, m: any) => {
@@ -145,11 +162,46 @@ function Page() {
           )}
         </Section>
       </div>
+      <div className="mt-6">
+        <Section title={
+          <span className="flex items-center justify-between w-full">
+            <span className="flex items-center gap-2"><Target className="h-4 w-4 text-teal" /> Цели недели</span>
+            <span className="text-xs text-text2">
+              {companyGoals.filter((g: any) => g.status === "done").length} из {companyGoals.length} выполнено
+              {" · "}
+              <Link to="/app/goals" className="text-teal">все цели →</Link>
+            </span>
+          </span>
+        }>
+          {companyGoals.length === 0 ? (
+            <Empty message="Целей на эту неделю ещё нет" action={
+              <Link to="/app/goals" className="text-teal text-sm">+ Добавить</Link>
+            } />
+          ) : (
+            <ul className="space-y-2">
+              {companyGoals.map((g: any) => (
+                <li key={g.id} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="truncate">{g.title}</span>
+                    <span className="text-xs text-text2">{g.progress}%</span>
+                  </div>
+                  <div className="h-1.5 bg-bg3 rounded overflow-hidden">
+                    <div className="h-full" style={{
+                      width: `${g.progress}%`,
+                      background: g.status === "failed" ? "#E24B4A" : g.status === "done" ? "#5DCAA5" : "#5DCAA5",
+                    }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      </div>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <h3 className="text-sm font-semibold mb-3">{title}</h3>

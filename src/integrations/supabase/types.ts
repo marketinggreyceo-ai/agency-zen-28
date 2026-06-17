@@ -429,6 +429,59 @@ export type Database = {
           },
         ]
       }
+      weekly_goals: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          goal_type: string
+          id: string
+          model_id: string | null
+          progress: number
+          status: string
+          title: string
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          goal_type: string
+          id?: string
+          model_id?: string | null
+          progress?: number
+          status?: string
+          title: string
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          goal_type?: string
+          id?: string
+          model_id?: string | null
+          progress?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_goals_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
