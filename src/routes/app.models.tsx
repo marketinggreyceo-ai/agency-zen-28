@@ -42,19 +42,38 @@ function Page() {
     const s = new Set(expanded); s.has(id) ? s.delete(id) : s.add(id); setExpanded(s);
   }
 
+  const allTags = Array.from(new Set(models.flatMap((m: any) => m.tags ?? []))) as string[];
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const filteredModels = tagFilter ? models.filter((m: any) => (m.tags ?? []).includes(tagFilter)) : models;
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <PageHeader title="Модели" />
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button onClick={() => setTagFilter(null)}
+            className={`text-xs px-2 py-1 rounded-full border ${tagFilter === null ? "bg-teal text-primary-foreground border-teal" : "bg-bg3 border-border text-text2"}`}>
+            Все
+          </button>
+          {allTags.map((t) => (
+            <button key={t} onClick={() => setTagFilter(t === tagFilter ? null : t)}
+              className={`text-xs px-2 py-1 rounded-full border ${tagFilter === t ? "bg-teal text-primary-foreground border-teal" : "bg-bg3 border-border text-text2"}`}>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="space-y-2">
-        {models.map((m: any) => {
+        {filteredModels.map((m: any) => {
           const open = expanded.has(m.id);
           const modelAccs = accounts.filter((a: any) => a.model_id === m.id);
+          const platformList: string[] = (m.platforms && m.platforms.length ? m.platforms : (m.platform ? [m.platform] : []));
           return (
             <div key={m.id} className="rounded-lg border border-border bg-card">
-              <button onClick={() => toggle(m.id)} className="w-full flex items-center gap-3 p-4">
+              <button onClick={() => toggle(m.id)} className="w-full flex flex-wrap items-center gap-2 p-4 text-left">
                 {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                 <span className="font-medium">{m.name}</span>
-                <PlatformBadge platform={m.platform} />
+                {platformList.map((p) => <PlatformBadge key={p} platform={p} />)}
                 <span className="text-xs text-text2">{m.agency_cut}%</span>
                 {isOwner ? (
                   <select value={m.status} onChange={(e) => { e.stopPropagation(); updateModel.mutate({ id: m.id, patch: { status: e.target.value }}); }}
@@ -65,14 +84,18 @@ function Page() {
                   </select>
                 ) : <span className="text-xs text-text2">{m.status}</span>}
                 <PriorityBadge priority={m.priority} />
+                {(m.tags ?? []).map((t: string) => (
+                  <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-bg3 border border-border text-text2">{t}</span>
+                ))}
+                {isOwner && (
+                  <span onClick={(e) => { e.stopPropagation(); setEditingModel(m); }}
+                    className="ml-auto text-xs text-teal flex items-center gap-1 cursor-pointer">
+                    <Edit className="h-3 w-3" /> Изменить
+                  </span>
+                )}
               </button>
               {open && (
                 <div className="border-t border-border p-4 space-y-4">
-                  {isOwner && (
-                    <button onClick={() => setEditingModel(m)} className="text-xs text-teal flex items-center gap-1">
-                      <Edit className="h-3 w-3" /> Редактировать модель
-                    </button>
-                  )}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-semibold">Аккаунты</h4>
@@ -119,7 +142,7 @@ function Page() {
             </div>
           );
         })}
-        {models.length === 0 && <Empty message="Нет моделей" />}
+        {filteredModels.length === 0 && <Empty message="Нет моделей" />}
       </div>
 
       {(editingAccount || accountForModel) && (
@@ -130,6 +153,7 @@ function Page() {
     </div>
   );
 }
+
 
 function AccountModal({ account, modelId, onClose }: { account: any | null; modelId: string | null; onClose: () => void }) {
   const qc = useQueryClient();
