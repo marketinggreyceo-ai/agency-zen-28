@@ -44,28 +44,67 @@ function parseTaskMessage(text: string) {
 function parseCustomMessage(text: string) {
   const tag = text.match(/#кастом[^\S\r\n]*([\s\S]*)/i);
   if (!tag) return null;
-  const description = tag[1].trim();
-  if (!description) return null;
-  const firstWord = description.split(/\s+/).find(Boolean) ?? "";
-  const nickname = firstWord ? firstWord.replace(/^@/, "") : "";
-  return { description, nickname };
+  const body = tag[1].trim();
+  if (!body) return null;
+  // First token: if starts with @ → model token. Else → customer nickname.
+  const tokens = body.split(/\s+/);
+  let modelToken: string | null = null;
+  let nickname = "";
+  let rest = body;
+  if (tokens[0]?.startsWith("@")) {
+    modelToken = tokens[0].replace(/^@/, "");
+    nickname = (tokens[1] ?? "").replace(/^@/, "");
+    rest = tokens.slice(2).join(" ");
+  } else {
+    nickname = tokens[0]?.replace(/^@/, "") ?? "";
+    rest = tokens.slice(1).join(" ");
+  }
+  const description = rest.trim() || body;
+  return { description, nickname, modelToken };
 }
 
-async function findModel(text: string) {
+async function findModel(text: string, explicitToken?: string | null) {
   const { data: models } = await admin
     .from("models")
-    .select("id, name")
-    .eq("is_archived", false)
-    .order("name", { ascending: true });
+    .select("id, name, english_name")
+    .eq("is_archived", false);
+  const list = (models ?? []) as Array<{ id: string; name: string; english_name: string | null }>;
+
+  function nameVariants(m: { name: string; english_name: string | null }) {
+    return [m.name, m.english_name].filter(Boolean).map((s) => String(s).trim()) as string[];
+  }
+
+  // 1) Explicit @Token → exact then partial match on name or english_name
+  if (explicitToken) {
+    const key = normalize(explicitToken);
+    const keyN = normalizeSearch(explicitToken);
+    const exact = list.find((m) => nameVariants(m).some((v) =>
+      normalize(v) === key || normalizeSearch(v) === keyN
+    ));
+    if (exact) return exact;
+    const partial = list.find((m) => nameVariants(m).some((v) => {
+      const n = normalize(v);
+      const ns = normalizeSearch(v);
+      return (n && (n.includes(key) || key.includes(n))) ||
+        (ns && (ns.includes(keyN) || keyN.includes(ns)));
+    }));
+    if (partial) return partial;
+  }
+
+  // 2) Scan full text for any model name (English or Russian)
   const haystack = text.toLocaleLowerCase("ru-RU");
   const normalizedHaystack = normalizeSearch(text);
-  return (models ?? [])
-    .sort((a: any, b: any) => String(b.name).length - String(a.name).length)
-    .find((m: any) => {
-      const modelName = String(m.name).trim();
-      return haystack.includes(modelName.toLocaleLowerCase("ru-RU")) ||
-        normalizedHaystack.includes(normalizeSearch(modelName));
-    }) ?? null;
+  return list
+    .slice()
+    .sort((a, b) => {
+      const al = Math.max(...nameVariants(a).map((v) => v.length));
+      const bl = Math.max(...nameVariants(b).map((v) => v.length));
+      return bl - al;
+    })
+    .find((m) => nameVariants(m).some((v) => {
+      const lower = v.toLocaleLowerCase("ru-RU");
+      return haystack.includes(lower) || normalizedHaystack.includes(normalizeSearch(v));
+    })) ?? null;
 }
 
 async function resolveAssignee(mention: string | null) {
