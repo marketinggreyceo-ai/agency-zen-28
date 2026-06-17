@@ -105,95 +105,114 @@ Deno.serve(async (req) => {
   const msg = update.message ?? update.edited_message ?? update.channel_post;
   const text: string = msg?.text ?? msg?.caption ?? "";
   const chat = msg?.chat;
-  if (!chat) return Response.json({ ok: true });
+  const chatId = chat?.id ? String(chat.id) : null;
 
-  const chatTitle =
-    chat.title ||
-    [chat.first_name, chat.last_name].filter(Boolean).join(" ") ||
-    chat.username ||
-    String(chat.id);
+  try {
+    if (!chat) {
+      await writeLog({ parsed_action: "ignored", success: true, message_text: text });
+      return Response.json({ ok: true, ignored: true });
+    }
 
-  await admin.from("telegram_chats").upsert(
-    { chat_id: String(chat.id), title: chatTitle, type: chat.type },
-    { onConflict: "chat_id" },
-  );
+    const chatTitle =
+      chat.title ||
+      [chat.first_name, chat.last_name].filter(Boolean).join(" ") ||
+      chat.username ||
+      String(chat.id);
 
-  const { data: settings } = await admin
-    .from("telegram_settings")
-    .select("auto_tasks_enabled, bot_token")
-    .limit(1)
-    .maybeSingle();
-  const botToken: string | null = settings?.bot_token ?? null;
+    await admin.from("telegram_chats").upsert(
+      { chat_id: chatId, title: chatTitle, type: chat.type },
+      { onConflict: "chat_id" },
+    );
 
-  // #кастом
-  if (/#кастом|\/custom|\bкастом\b/i.test(text)) {
-    const parsed = parseCustomMessage(text);
-    if (parsed && parsed.nickname) {
-      let model_id: string | null = null;
-      let modelName: string | null = null;
-      if (parsed.modelHint) {
-        const { data: m } = await admin
-          .from("models").select("id, name").ilike("name", parsed.modelHint).maybeSingle();
-        if (m) { model_id = m.id; modelName = m.name; }
-      }
+    const { data: settings } = await admin
+      .from("telegram_settings")
+      .select("auto_tasks_enabled, bot_token")
+      .limit(1)
+      .maybeSingle();
+    const botToken: string | null = settings?.bot_token ?? null;
+
+    if (/#кастом/i.test(text)) {
+      const parsed = parseCustomMessage(text);
+      if (!parsed) throw new Error("Не удалось распознать #кастом");
+
+      const model = await findModel(text);
       const senderName =
         [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") ||
         msg.from?.username || chatTitle;
-      await admin.from("customs").insert({
-        customer_nickname: parsed.nickname,
-        description: text,
-        price: parsed.price,
-        model_id,
+      const { error } = await admin.from("customs").insert({
+        customer_nickname: parsed.nickname || senderName,
+        description: parsed.description,
+        model_id: model?.id ?? null,
         chatter: senderName,
         status: "new",
         telegram_message_id: String(msg.message_id ?? ""),
-        telegram_chat_id: String(chat.id),
+        telegram_chat_id: chatId,
       });
+      if (error) throw error;
+
+      await writeLog({ chat_id: chatId, message_text: text, parsed_action: "custom", success: true });
       if (botToken) {
         await sendMessage(botToken, chat.id,
-          `✅ Кастом добавлен для ${modelName ?? parsed.modelHint ?? "—"} от ${parsed.nickname}. Статус: Новый`);
+          `✅ Кастом добавлен: ${parsed.description}\n\n🎭 Модель: ${model?.name ?? "не указана"}\n\n📋 Статус: Новый`);
       }
       return Response.json({ ok: true, type: "custom" });
     }
+
+    if (/#задача/i.test(text)) {
+      if (!settings?.auto_tasks_enabled) {
+        await writeLog({ chat_id: chatId, message_text: text, parsed_action: "task_skipped", success: true, error_message: "auto_tasks_disabled" });
+        return Response.json({ ok: true, skipped: "auto_tasks_disabled" });
+      }
+
+      const parsed = parseTaskMessage(text);
+      if (!parsed) {
+        await writeLog({ chat_id: chatId, message_text: text, parsed_action: "task", success: false, error_message: "parse_failed" });
+        if (botToken) await sendMessage(botToken, chat.id, "❌ Не удалось создать задачу. Формат: #задача название @исполнитель");
+        return Response.json({ ok: true, type: "task", error: "parse_failed" });
+      }
+
+      const [assignee, model] = await Promise.all([
+        resolveAssignee(parsed.mention),
+        findModel(text),
+      ]);
+      const { data: task, error: taskErr } = await admin.from("tasks").insert({
+        title: parsed.title,
+        assignee,
+        model_id: model?.id ?? null,
+        status: "incoming",
+        telegram_message_id: String(msg.message_id ?? ""),
+      }).select("id").single();
+      if (taskErr) throw taskErr;
+
+      await admin.from("telegram_task_log").insert({
+        chat_id: chatId,
+        chat_name: chatTitle,
+        message_text: text,
+        parsed: { ...parsed, assignee, model: model?.name ?? null } as any,
+        task_id: task?.id ?? null,
+      });
+      await writeLog({ chat_id: chatId, message_text: text, parsed_action: "task", success: true });
+
+      if (botToken) {
+        await sendMessage(botToken, chat.id,
+          `✅ Задача добавлена: ${parsed.title}\n\n👤 Исполнитель: ${assignee}\n\n📋 Статус: Входящие\n\n🔗 Открыть: ${APP_URL}/tasks`);
+      }
+      return Response.json({ ok: true, type: "task", task_id: task?.id });
+    }
+
+    await writeLog({ chat_id: chatId, message_text: text, parsed_action: "ignored", success: true });
+    return Response.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await writeLog({ chat_id: chatId, message_text: text, parsed_action: /#кастом/i.test(text) ? "custom" : /#задача/i.test(text) ? "task" : "error", success: false, error_message: message });
+    const { data: settings } = await admin
+      .from("telegram_settings")
+      .select("bot_token")
+      .limit(1)
+      .maybeSingle();
+    if (settings?.bot_token && chat?.id && /#задача/i.test(text)) {
+      await sendMessage(settings.bot_token, chat.id, "❌ Не удалось создать задачу. Формат: #задача название @исполнитель");
+    }
+    return Response.json({ ok: true, error: message });
   }
-
-  // #задача
-  if (/#задача/i.test(text)) {
-    if (!settings?.auto_tasks_enabled) {
-      return Response.json({ ok: true, skipped: "auto_tasks_disabled" });
-    }
-    const parsed = parseTaskMessage(text);
-    if (!parsed) return Response.json({ ok: true });
-
-    let model_id: string | null = null;
-    if (parsed.modelHint) {
-      const { data: m } = await admin
-        .from("models").select("id").ilike("name", parsed.modelHint).maybeSingle();
-      model_id = m?.id ?? null;
-    }
-    const { data: task, error: taskErr } = await admin.from("tasks").insert({
-      title: parsed.title,
-      assignee: parsed.assignee,
-      model_id,
-      deadline: parsed.deadline,
-      status: "incoming",
-      telegram_message_id: String(msg.message_id ?? ""),
-    }).select("id").single();
-
-    await admin.from("telegram_task_log").insert({
-      chat_id: String(chat.id),
-      chat_name: chatTitle,
-      message_text: text,
-      parsed: parsed as any,
-      task_id: task?.id ?? null,
-    });
-
-    if (botToken && !taskErr) {
-      await sendMessage(botToken, chat.id,
-        `✅ Задача создана: ${parsed.title}${parsed.assignee ? ` · @${parsed.assignee}` : ""}`);
-    }
-    return Response.json({ ok: true, type: "task", task_id: task?.id });
-  }
-
-  return Response.json({ ok: true });
 });
