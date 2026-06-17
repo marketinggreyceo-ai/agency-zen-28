@@ -91,6 +91,29 @@ function Page() {
   const [editingAccount, setEditingAccount] = useState<any>(null);
   const [accountForModel, setAccountForModel] = useState<{ modelId: string; platform: string } | null>(null);
   const [editingModel, setEditingModel] = useState<any>(null);
+  const [deletingModel, setDeletingModel] = useState<any>(null);
+
+  const deleteModel = useMutation({
+    mutationFn: async (id: string) => {
+      const tables = ["tasks", "customs", "revenue", "model_accounts", "model_brain_blocks"] as const;
+      for (const t of tables) {
+        const { error } = await supabase.from(t).delete().eq("model_id", id);
+        if (error) throw error;
+      }
+      const { error } = await supabase.from("models").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["models"] });
+      qc.invalidateQueries({ queryKey: ["model_accounts"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["customs"] });
+      qc.invalidateQueries({ queryKey: ["revenue"] });
+      toast.success("Модель удалена");
+      setDeletingModel(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
   const [tabByModel, setTabByModel] = useState<Record<string, string>>({});
   const [sheetAccount, setSheetAccount] = useState<any>(null);
   const isMobile = useIsMobile();
