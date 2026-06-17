@@ -202,11 +202,12 @@ Deno.serve(async (req) => {
       const senderName =
         [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") ||
         msg.from?.username || chatTitle;
+      const chatter = await resolveChatter(msg.from?.username ?? null, senderName);
       const { error } = await admin.from("customs").insert({
         customer_nickname: parsed.nickname || senderName,
         description: parsed.description,
         model_id: model?.id ?? null,
-        chatter: senderName,
+        chatter,
         status: "new",
         telegram_message_id: String(msg.message_id ?? ""),
         telegram_chat_id: chatId,
@@ -216,7 +217,7 @@ Deno.serve(async (req) => {
       await writeLog({ chat_id: chatId, message_text: text, parsed_action: "custom", success: true });
       if (botToken) {
         await sendMessage(botToken, chat.id,
-          `✅ Кастом добавлен: ${parsed.description}\n\n🎭 Модель: ${model?.name ?? "не указана"}\n\n📋 Статус: Новый`);
+          `✅ Кастом добавлен: ${parsed.description}\n\n🎭 Модель: ${model?.name ?? "не указана"}\n👤 Чаттер: ${chatter}\n\n📋 Статус: Новый`);
       }
       return Response.json({ ok: true, type: "custom" });
     }
