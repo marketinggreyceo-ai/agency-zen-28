@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { ASSIGNEES, assigneeColor } from "@/lib/auth";
+import { assigneeColor } from "@/lib/auth";
+import { useAssignees, useTaskTypes } from "@/lib/lookups";
 import { X } from "lucide-react";
 
 export interface Task {
@@ -17,7 +18,8 @@ export interface Task {
   created_at: string;
 }
 
-export const TASK_TYPES = ["Монтаж","Постинг","Кастом","Техника","Контент","Найм"];
+/** @deprecated read from `useTaskTypes()` instead */
+export const TASK_TYPES: string[] = [];
 export const STATUSES: { value: string; label: string }[] = [
   { value: "incoming", label: "Входящие" },
   { value: "inprog", label: "В работе" },
