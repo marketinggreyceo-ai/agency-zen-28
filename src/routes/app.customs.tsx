@@ -54,7 +54,7 @@ function Page() {
   });
   const { data: customs = [], isLoading } = useQuery<Custom[]>({
     queryKey: ["customs"],
-    queryFn: async () => ((await supabase.from("customs").select("*").order("created_at", { ascending: false })).data ?? []) as Custom[],
+    queryFn: async () => ((await (supabase as any).from("customs").select("*").order("created_at", { ascending: false })).data ?? []) as Custom[],
   });
 
   const modelMap = useMemo(() => new Map(models.map((m: any) => [m.id, m.name])), [models]);
@@ -84,10 +84,10 @@ function Page() {
     mutationFn: async (row: Partial<Custom> & { id?: string }) => {
       if (row.id) {
         const { id, ...patch } = row;
-        const { error } = await supabase.from("customs").update(patch).eq("id", id);
+        const { error } = await (supabase as any).from("customs").update(patch).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("customs").insert(row as any);
+        const { error } = await (supabase as any).from("customs").insert(row as any);
         if (error) throw error;
       }
     },
@@ -96,7 +96,7 @@ function Page() {
   });
   const del = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("customs").delete().eq("id", id);
+      const { error } = await (supabase as any).from("customs").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["customs"] }); toast.success("Удалено"); },
