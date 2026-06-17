@@ -14,16 +14,318 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      expenses: {
+        Row: {
+          amount: number | null
+          category: string | null
+          created_at: string
+          id: string
+          month: number
+          name: string
+          notes: string | null
+          year: number
+        }
+        Insert: {
+          amount?: number | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          month: number
+          name: string
+          notes?: string | null
+          year: number
+        }
+        Update: {
+          amount?: number | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          month?: number
+          name?: string
+          notes?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
+      model_accounts: {
+        Row: {
+          account_url: string | null
+          followers: number | null
+          id: string
+          model_id: string | null
+          notes: string | null
+          platform: string | null
+          status: string | null
+          va_owner: string | null
+        }
+        Insert: {
+          account_url?: string | null
+          followers?: number | null
+          id?: string
+          model_id?: string | null
+          notes?: string | null
+          platform?: string | null
+          status?: string | null
+          va_owner?: string | null
+        }
+        Update: {
+          account_url?: string | null
+          followers?: number | null
+          id?: string
+          model_id?: string | null
+          notes?: string | null
+          platform?: string | null
+          status?: string | null
+          va_owner?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_accounts_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      models: {
+        Row: {
+          agency_cut: number | null
+          created_at: string
+          growth_ideas: string | null
+          id: string
+          kpi_notes: string | null
+          name: string
+          notes: string | null
+          platform: string | null
+          priority: string | null
+          status: string | null
+          weak_points: string | null
+        }
+        Insert: {
+          agency_cut?: number | null
+          created_at?: string
+          growth_ideas?: string | null
+          id?: string
+          kpi_notes?: string | null
+          name: string
+          notes?: string | null
+          platform?: string | null
+          priority?: string | null
+          status?: string | null
+          weak_points?: string | null
+        }
+        Update: {
+          agency_cut?: number | null
+          created_at?: string
+          growth_ideas?: string | null
+          id?: string
+          kpi_notes?: string | null
+          name?: string
+          notes?: string | null
+          platform?: string | null
+          priority?: string | null
+          status?: string | null
+          weak_points?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          assignee_name: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          telegram_handle: string | null
+        }
+        Insert: {
+          assignee_name?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          role?: Database["public"]["Enums"]["app_role"]
+          telegram_handle?: string | null
+        }
+        Update: {
+          assignee_name?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          telegram_handle?: string | null
+        }
+        Relationships: []
+      }
+      revenue: {
+        Row: {
+          agency_cut_override: number | null
+          gross_amount: number | null
+          id: string
+          model_id: string | null
+          month: number
+          year: number
+        }
+        Insert: {
+          agency_cut_override?: number | null
+          gross_amount?: number | null
+          id?: string
+          model_id?: string | null
+          month: number
+          year: number
+        }
+        Update: {
+          agency_cut_override?: number | null
+          gross_amount?: number | null
+          id?: string
+          model_id?: string | null
+          month?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sops: {
+        Row: {
+          category: string
+          content: string | null
+          created_at: string
+          id: string
+          public_slug: string | null
+          title: string
+          updated_at: string
+          visible_to: string | null
+        }
+        Insert: {
+          category: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          public_slug?: string | null
+          title: string
+          updated_at?: string
+          visible_to?: string | null
+        }
+        Update: {
+          category?: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          public_slug?: string | null
+          title?: string
+          updated_at?: string
+          visible_to?: string | null
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assignee: string | null
+          created_at: string
+          deadline: string | null
+          id: string
+          model_id: string | null
+          notes: string | null
+          status: string | null
+          task_type: string | null
+          telegram_message_id: string | null
+          title: string
+        }
+        Insert: {
+          assignee?: string | null
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          model_id?: string | null
+          notes?: string | null
+          status?: string | null
+          task_type?: string | null
+          telegram_message_id?: string | null
+          title: string
+        }
+        Update: {
+          assignee?: string | null
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          model_id?: string | null
+          notes?: string | null
+          status?: string | null
+          task_type?: string | null
+          telegram_message_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          id: string
+          name: string
+          profile_id: string | null
+          responsibilities: string | null
+          role_label: string | null
+          telegram_handle: string | null
+          weekly_tasks: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          profile_id?: string | null
+          responsibilities?: string | null
+          role_label?: string | null
+          telegram_handle?: string | null
+          weekly_tasks?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          profile_id?: string | null
+          responsibilities?: string | null
+          role_label?: string | null
+          telegram_handle?: string | null
+          weekly_tasks?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_read_task: { Args: { _assignee: string }; Returns: boolean }
+      can_write_task: { Args: { _assignee: string }; Returns: boolean }
+      current_assignee: { Args: never; Returns: string }
+      current_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      is_owner: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "owner" | "production" | "creative" | "va"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +452,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["owner", "production", "creative", "va"],
+    },
   },
 } as const
