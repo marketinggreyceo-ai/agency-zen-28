@@ -113,54 +113,57 @@ export const disconnectTelegramChat = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+async function gatherReport(admin: any) {
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const monthIdx = now.getMonth() + 1, yearIdx = now.getFullYear();
+  const { data: models } = await admin.from("models").select("id, name, agency_cut");
+  const { data: revenue } = await admin.from("revenue")
+    .select("model_id, gross_amount, agency_cut_override")
+    .eq("year", yearIdx).eq("month", monthIdx);
+  const sinceISO = monday.toISOString();
+  const { count: doneCount } = await admin.from("tasks")
+    .select("id", { count: "exact", head: true }).eq("status", "done").gte("created_at", sinceISO);
+  const { count: blockedCount } = await admin.from("tasks")
+    .select("id", { count: "exact", head: true }).eq("status", "blocked");
+  const { data: accs } = await admin.from("model_accounts").select("status");
+  const { data: goals } = await admin.from("weekly_goals").select("status, week_start")
+    .eq("week_start", monday.toISOString().slice(0, 10));
+
+  const lines: string[] = [];
+  let totalNet = 0;
+  for (const m of (models ?? [])) {
+    const r = (revenue ?? []).find((x: any) => x.model_id === m.id);
+    const gross = Number(r?.gross_amount ?? 0);
+    const cutPct = Number(r?.agency_cut_override ?? m.agency_cut ?? 40);
+    const net = gross * (1 - cutPct / 100);
+    totalNet += net;
+    lines.push(`• ${m.name}: $${gross.toFixed(0)} gross → $${net.toFixed(0)} нетто`);
+  }
+  const counts: Record<string, number> = { active: 0, appeal: 0, deactivated: 0, banned: 0 };
+  for (const a of (accs ?? [])) counts[a.status as string] = (counts[a.status as string] ?? 0) + 1;
+  const goalsDone = (goals ?? []).filter((g: any) => g.status === "done").length;
+  const goalsTotal = (goals ?? []).length;
+  const weekLabel = monday.toLocaleDateString("ru-RU");
+  return `📊 Отчёт агентства — ${weekLabel}
+💰 Выручка:
+${lines.join("\n")}
+
+Итого нетто: $${totalNet.toFixed(0)}
+✅ Задачи выполнено: ${doneCount ?? 0}
+⚠️ Заблокировано: ${blockedCount ?? 0}
+📋 Аккаунты:
+• Active: ${counts.active} | Appeal: ${counts.appeal} | Deactivated: ${counts.deactivated} | Banned: ${counts.banned}
+🎯 Цели недели: ${goalsDone} из ${goalsTotal} выполнено`;
+}
+
 export const buildWeeklyReport = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertOwner(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const now = new Date();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-    const monthIdx = now.getMonth() + 1, yearIdx = now.getFullYear();
-
-    const { data: models = [] } = await supabaseAdmin.from("models").select("id, name");
-    const { data: revenue = [] } = await supabaseAdmin.from("revenue").select("*")
-      .eq("year", yearIdx).eq("month", monthIdx);
-    const lines: string[] = [];
-    let totalNet = 0;
-    for (const m of models ?? []) {
-      const r = (revenue ?? []).find((x: any) => x.model_id === m.id);
-      const gross = Number(r?.gross_input ?? 0);
-      const net = Number(r?.net ?? gross);
-      totalNet += net;
-      lines.push(`• ${m.name}: $${gross.toFixed(0)} gross → $${net.toFixed(0)} нетто`);
-    }
-    const sinceISO = monday.toISOString();
-    const { count: doneCount = 0 } = await supabaseAdmin.from("tasks")
-      .select("id", { count: "exact", head: true }).eq("status", "done").gte("created_at", sinceISO);
-    const { count: blockedCount = 0 } = await supabaseAdmin.from("tasks")
-      .select("id", { count: "exact", head: true }).eq("status", "blocked");
-    const { data: accs = [] } = await supabaseAdmin.from("model_accounts").select("status");
-    const counts = { active: 0, appeal: 0, deactivated: 0, banned: 0 } as Record<string, number>;
-    for (const a of accs ?? []) counts[a.status as string] = (counts[a.status as string] ?? 0) + 1;
-    const { data: goals = [] } = await supabaseAdmin.from("weekly_goals").select("status, week_start")
-      .eq("week_start", monday.toISOString().slice(0, 10));
-    const goalsDone = (goals ?? []).filter((g: any) => g.status === "done").length;
-    const goalsTotal = (goals ?? []).length;
-
-    const weekLabel = monday.toLocaleDateString("ru-RU");
-    const text =
-`📊 Отчёт агентства — ${weekLabel}
-💰 Выручка:
-${lines.join("\n")}
-
-Итого нетто: $${totalNet.toFixed(0)}
-✅ Задачи выполнено: ${doneCount}
-⚠️ Заблокировано: ${blockedCount}
-📋 Аккаунты:
-• Active: ${counts.active ?? 0} | Appeal: ${counts.appeal ?? 0} | Deactivated: ${counts.deactivated ?? 0} | Banned: ${counts.banned ?? 0}
-🎯 Цели недели: ${goalsDone} из ${goalsTotal} выполнено`;
-    return { text };
+    return { text: await gatherReport(supabaseAdmin) };
   });
 
 export const sendWeeklyReportNow = createServerFn({ method: "POST" })
@@ -171,16 +174,10 @@ export const sendWeeklyReportNow = createServerFn({ method: "POST" })
     const row = await loadSettingsRow(supabaseAdmin);
     if (!row.bot_token) throw new Error("Нет токена");
     if (!row.weekly_report_chat_id) throw new Error("Не выбран чат");
-    const reportFn = buildWeeklyReport as any;
-    // Reuse logic inline to avoid recursive server call
-    const url = `https://api.telegram.org/bot${row.bot_token}/sendMessage`;
-    const { text } = await (async () => {
-      const res = await fetch(`${process.env.SUPABASE_URL}`); void res; // noop
-      return { text: "preview" };
-    })();
-    const r = await fetch(url, {
+    const text = await gatherReport(supabaseAdmin);
+    const r = await fetch(`https://api.telegram.org/bot${row.bot_token}/sendMessage`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: row.weekly_report_chat_id, text, parse_mode: "HTML" }),
+      body: JSON.stringify({ chat_id: row.weekly_report_chat_id, text }),
     });
     const j: any = await r.json();
     if (!j.ok) throw new Error(j.description || "send failed");
