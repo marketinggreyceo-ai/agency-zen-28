@@ -29,9 +29,11 @@ function Page() {
 
   const { data: users = [] } = useQuery({
     queryKey: ["profiles_all"],
-    queryFn: async () => (await supabase.from("profiles").select("id, full_name, email, role, assignee_name").order("full_name")).data ?? [],
+    queryFn: async () => (await supabase.from("profiles").select("id, full_name, email, role, assignee_name, status, invited_role, created_at").order("full_name")).data ?? [],
     enabled: isOwner,
   });
+
+  const pending = users.filter((u: any) => u.status === "pending");
 
   const updateProfile = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: any }) => {
