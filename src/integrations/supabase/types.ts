@@ -49,33 +49,48 @@ export type Database = {
       }
       model_accounts: {
         Row: {
+          account_name: string | null
           account_url: string | null
           followers: number | null
           id: string
+          linkinbio_url: string | null
           model_id: string | null
           notes: string | null
+          pixel_phone: string | null
           platform: string | null
           status: string | null
+          status_changed_at: string | null
+          status_changed_by: string | null
           va_owner: string | null
         }
         Insert: {
+          account_name?: string | null
           account_url?: string | null
           followers?: number | null
           id?: string
+          linkinbio_url?: string | null
           model_id?: string | null
           notes?: string | null
+          pixel_phone?: string | null
           platform?: string | null
           status?: string | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
           va_owner?: string | null
         }
         Update: {
+          account_name?: string | null
           account_url?: string | null
           followers?: number | null
           id?: string
+          linkinbio_url?: string | null
           model_id?: string | null
           notes?: string | null
+          pixel_phone?: string | null
           platform?: string | null
           status?: string | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
           va_owner?: string | null
         }
         Relationships: [
