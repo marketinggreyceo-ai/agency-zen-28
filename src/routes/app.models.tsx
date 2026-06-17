@@ -410,6 +410,7 @@ function ModelModal({ model, onClose }: { model: any; onClose: () => void }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     name: model.name,
+    english_name: model.english_name ?? "",
     platforms: (model.platforms && model.platforms.length ? model.platforms : (model.platform ? [model.platform] : [])) as string[],
     agency_cut: model.agency_cut,
     status: model.status,
@@ -448,6 +449,16 @@ function ModelModal({ model, onClose }: { model: any; onClose: () => void }) {
             <label className="text-xs text-text2 block mb-1">Имя</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">English name (для Telegram)</label>
+            <input value={form.english_name}
+              onChange={(e) => setForm({ ...form, english_name: e.target.value })}
+              placeholder="Loona / Linjey / Tanya..."
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+            <p className="text-[11px] text-text3 mt-1">
+              Имя, которое бот распознаёт в сообщениях вида <code>#кастом @Loona ...</code>
+            </p>
           </div>
           <div>
             <label className="text-xs text-text2 block mb-1">Платформы</label>

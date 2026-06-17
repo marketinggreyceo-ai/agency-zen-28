@@ -336,6 +336,7 @@ export type Database = {
         Row: {
           agency_cut: number | null
           created_at: string
+          english_name: string | null
           growth_ideas: string | null
           id: string
           is_archived: boolean
@@ -352,6 +353,7 @@ export type Database = {
         Insert: {
           agency_cut?: number | null
           created_at?: string
+          english_name?: string | null
           growth_ideas?: string | null
           id?: string
           is_archived?: boolean
@@ -368,6 +370,7 @@ export type Database = {
         Update: {
           agency_cut?: number | null
           created_at?: string
+          english_name?: string | null
           growth_ideas?: string | null
           id?: string
           is_archived?: boolean
