@@ -410,6 +410,7 @@ function ModelModal({ model, onClose }: { model: any; onClose: () => void }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     name: model.name,
+    english_name: model.english_name ?? "",
     platforms: (model.platforms && model.platforms.length ? model.platforms : (model.platform ? [model.platform] : [])) as string[],
     agency_cut: model.agency_cut,
     status: model.status,
