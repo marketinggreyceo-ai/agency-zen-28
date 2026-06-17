@@ -90,7 +90,7 @@ function Page() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl">
-      <PageHeader title="Telegram" subtitle="Бот, автозадачи и еженедельный отчёт" />
+      <PageHeader title="Telegram" />
 
       {/* Section 1: bot connection */}
       <section className="border border-border bg-bg2 rounded-md p-4 space-y-3">
@@ -120,7 +120,7 @@ function Page() {
           </button>
         </div>
         {(s?.chats?.length ?? 0) === 0 ? (
-          <Empty title="Чатов пока нет" subtitle="Добавь бота в чат и нажми «Обновить»" />
+          <Empty message="Чатов пока нет · добавь бота в чат и нажми «Обновить»" />
         ) : (
           <ul className="space-y-1">
             {s!.chats.map((c: any) => (
@@ -157,7 +157,7 @@ function Page() {
         <div className="pt-2">
           <div className="text-xs text-text3 mb-1">Последние 10 автозадач</div>
           {(s?.logs?.length ?? 0) === 0 ? (
-            <Empty title="Пока ничего" subtitle="Автосозданные задачи появятся здесь" />
+            <Empty message="Автосозданные задачи появятся здесь" />
           ) : (
             <ul className="space-y-1">
               {s!.logs.map((l: any) => (
