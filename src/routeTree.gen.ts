@@ -25,6 +25,7 @@ import { Route as AppGrowthRouteImport } from './routes/app.growth'
 import { Route as AppGoalsRouteImport } from './routes/app.goals'
 import { Route as AppFinanceRouteImport } from './routes/app.finance'
 import { Route as AppAccessRouteImport } from './routes/app.access'
+import { Route as ApiPublicWebhookTasksRouteImport } from './routes/api/public/webhook.tasks'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -106,6 +107,11 @@ const AppAccessRoute = AppAccessRouteImport.update({
   path: '/access',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiPublicWebhookTasksRoute = ApiPublicWebhookTasksRouteImport.update({
+  id: '/api/public/webhook/tasks',
+  path: '/api/public/webhook/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/app/team': typeof AppTeamRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
+  '/api/public/webhook/tasks': typeof ApiPublicWebhookTasksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByTo {
   '/app/team': typeof AppTeamRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app': typeof AppIndexRoute
+  '/api/public/webhook/tasks': typeof ApiPublicWebhookTasksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/app/team': typeof AppTeamRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
+  '/api/public/webhook/tasks': typeof ApiPublicWebhookTasksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
     | '/app/team'
     | '/sops/$category'
     | '/app/'
+    | '/api/public/webhook/tasks'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/app/team'
     | '/sops/$category'
     | '/app'
+    | '/api/public/webhook/tasks'
   id:
     | '__root__'
     | '/'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/app/team'
     | '/sops/$category'
     | '/app/'
+    | '/api/public/webhook/tasks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   SetupRoute: typeof SetupRoute
   SopsCategoryRoute: typeof SopsCategoryRoute
+  ApiPublicWebhookTasksRoute: typeof ApiPublicWebhookTasksRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -339,6 +352,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccessRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/webhook/tasks': {
+      id: '/api/public/webhook/tasks'
+      path: '/api/public/webhook/tasks'
+      fullPath: '/api/public/webhook/tasks'
+      preLoaderRoute: typeof ApiPublicWebhookTasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -378,6 +398,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   SetupRoute: SetupRoute,
   SopsCategoryRoute: SopsCategoryRoute,
+  ApiPublicWebhookTasksRoute: ApiPublicWebhookTasksRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
