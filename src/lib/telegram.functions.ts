@@ -183,3 +183,63 @@ export const sendWeeklyReportNow = createServerFn({ method: "POST" })
     if (!j.ok) throw new Error(j.description || "send failed");
     return { ok: true };
   });
+
+const EDGE_WEBHOOK_URL = `https://fxijkbcpkjuorgzxsoyj.supabase.co/functions/v1/telegram-webhook`;
+
+export const setTelegramWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const row = await loadSettingsRow(supabaseAdmin);
+    if (!row.bot_token) throw new Error("Сначала сохрани токен");
+    const r = await fetch(`https://api.telegram.org/bot${row.bot_token}/setWebhook`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        url: EDGE_WEBHOOK_URL,
+        allowed_updates: ["message", "edited_message", "channel_post"],
+        drop_pending_updates: false,
+      }),
+    });
+    const j: any = await r.json();
+    if (!j.ok) throw new Error(j.description || "setWebhook failed");
+    return { ok: true, url: EDGE_WEBHOOK_URL };
+  });
+
+export const deleteTelegramWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const row = await loadSettingsRow(supabaseAdmin);
+    if (!row.bot_token) throw new Error("Нет токена");
+    const r = await fetch(`https://api.telegram.org/bot${row.bot_token}/deleteWebhook`, { method: "POST" });
+    const j: any = await r.json();
+    if (!j.ok) throw new Error(j.description || "deleteWebhook failed");
+    return { ok: true };
+  });
+
+export const getTelegramWebhookInfo = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const row = await loadSettingsRow(supabaseAdmin);
+    if (!row.bot_token) return { configured: false, expected_url: EDGE_WEBHOOK_URL };
+    const r = await fetch(`https://api.telegram.org/bot${row.bot_token}/getWebhookInfo`);
+    const j: any = await r.json();
+    if (!j.ok) throw new Error(j.description || "getWebhookInfo failed");
+    const info = j.result || {};
+    return {
+      configured: true,
+      expected_url: EDGE_WEBHOOK_URL,
+      url: info.url as string,
+      pending_update_count: info.pending_update_count as number,
+      last_error_date: info.last_error_date as number | undefined,
+      last_error_message: info.last_error_message as string | undefined,
+      max_connections: info.max_connections as number | undefined,
+      ip_address: info.ip_address as string | undefined,
+      active: !!info.url && info.url === EDGE_WEBHOOK_URL,
+    };
+  });
