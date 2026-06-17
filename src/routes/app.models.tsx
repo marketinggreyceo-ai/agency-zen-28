@@ -271,6 +271,12 @@ function Page() {
           onClose={() => { setEditingAccount(null); setAccountForModel(null); }} />
       )}
       {editingModel && <ModelModal model={editingModel} onClose={() => setEditingModel(null)} />}
+      <StatusBottomSheet
+        open={!!sheetAccount}
+        current={sheetAccount?.status ?? null}
+        onClose={() => setSheetAccount(null)}
+        onSelect={(status) => sheetAccount && changeAccountStatus.mutate({ id: sheetAccount.id, status })}
+      />
     </div>
   );
 }
