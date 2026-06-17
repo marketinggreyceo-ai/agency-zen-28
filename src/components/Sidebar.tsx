@@ -21,6 +21,7 @@ const GROUPS: Group[] = [
   { id: "work", label: "Работа", items: [
     { to: "/app/second-brain", label: "Second Brain", icon: Brain,           page: "second-brain" },
     { to: "/app/tasks",        label: "Задачи",       icon: ListTodo,        page: "tasks" },
+    { to: "/app/customs",      label: "Кастомы",      icon: Video,           page: "customs" },
     { to: "/app/goals",        label: "Цели недели",  icon: Target,          page: "goals" },
     { to: "/app/growth",       label: "Рост",         icon: TrendingUp,      page: "growth" },
   ]},
