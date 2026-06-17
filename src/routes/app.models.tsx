@@ -11,10 +11,41 @@ export const Route = createFileRoute("/app/models")({
   ssr: false, component: Page,
 });
 
+const ACCOUNT_PLATFORMS = ["Instagram","X","Reddit","Facebook","Fansly","OnlyFans"];
+const ACCOUNT_STATUSES = [
+  { value: "active", label: "Active", color: "#1D9E75" },
+  { value: "appeal", label: "Appeal", color: "#BA7517" },
+  { value: "deactivated", label: "Deactivated", color: "#555555" },
+  { value: "banned", label: "Banned", color: "#E24B4A" },
+];
+
+function statusMeta(s: string | null) {
+  return ACCOUNT_STATUSES.find((x) => x.value === s) ?? { value: s ?? "", label: s ?? "—", color: "#555555" };
+}
+function fmtRuDate(iso: string | null) {
+  if (!iso) return "";
+  try { return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }); } catch { return ""; }
+}
+function StatusBadge({ status, changedAt }: { status: string | null; changedAt?: string | null }) {
+  const m = statusMeta(status);
+  const d = fmtRuDate(changedAt ?? null);
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded text-white"
+      style={{ background: m.color }}>
+      {m.label}{d && <span className="opacity-80">· {d}</span>}
+    </span>
+  );
+}
+
 function Page() {
   const { data: profile } = useProfile();
   const qc = useQueryClient();
   const isOwner = profile?.role === "owner";
+  const canManageAccounts = profile?.role === "owner" || profile?.role === "creative";
+  const isVa = profile?.role === "va";
+  const myAssignee = profile?.assignee_name ?? "";
+  const myName = profile?.full_name ?? profile?.assignee_name ?? "unknown";
+
 
   const { data: models = [] } = useQuery({
     queryKey: ["models"],
@@ -22,7 +53,11 @@ function Page() {
   });
   const { data: accounts = [] } = useQuery({
     queryKey: ["model_accounts"],
-    queryFn: async () => (await supabase.from("model_accounts").select("*")).data ?? [],
+    queryFn: async () => (await supabase.from("model_accounts").select("*").order("account_name")).data ?? [],
+  });
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ["team_members_vas"],
+    queryFn: async () => (await supabase.from("team_members").select("name,role_label")).data ?? [],
   });
 
   const updateModel = useMutation({
@@ -33,14 +68,29 @@ function Page() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["models"] }); },
   });
 
+  const changeAccountStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from("model_accounts").update({
+        status,
+        status_changed_at: new Date().toISOString(),
+        status_changed_by: myName,
+      }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["model_accounts"] }); toast.success("Статус обновлён"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editingAccount, setEditingAccount] = useState<any>(null);
-  const [accountForModel, setAccountForModel] = useState<string | null>(null);
+  const [accountForModel, setAccountForModel] = useState<{ modelId: string; platform: string } | null>(null);
   const [editingModel, setEditingModel] = useState<any>(null);
+  const [tabByModel, setTabByModel] = useState<Record<string, string>>({});
 
   function toggle(id: string) {
     const s = new Set(expanded); s.has(id) ? s.delete(id) : s.add(id); setExpanded(s);
   }
+
 
   const allTags = Array.from(new Set(models.flatMap((m: any) => m.tags ?? []))) as string[];
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -95,48 +145,102 @@ function Page() {
                 )}
               </button>
               {open && (
-                <div className="border-t border-border p-4 space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold">Аккаунты</h4>
-                      {isOwner && (
-                        <button onClick={() => setAccountForModel(m.id)} className="text-xs text-teal flex items-center gap-1">
-                          <Plus className="h-3 w-3" /> Добавить
-                        </button>
-                      )}
-                    </div>
-                    {modelAccs.length === 0 ? <p className="text-xs text-text3">нет аккаунтов</p> : (
-                      <table className="w-full text-sm">
-                        <thead><tr className="text-xs text-text2">
-                          <th className="text-left py-1">Платформа</th><th className="text-left">URL</th>
-                          <th className="text-right">Подп.</th><th>VA</th><th>Статус</th>{isOwner && <th></th>}
-                        </tr></thead>
-                        <tbody>
-                          {modelAccs.map((a: any) => (
-                            <tr key={a.id} className="border-t border-border">
-                              <td className="py-1.5">{a.platform}</td>
-                              <td><a href={a.account_url} target="_blank" rel="noopener" className="text-teal inline-flex items-center gap-1">
-                                {a.account_url?.slice(0, 30)}<ExternalLink className="h-3 w-3" />
-                              </a></td>
-                              <td className="text-right">{a.followers}</td>
-                              <td className="text-center text-text2">{a.va_owner}</td>
-                              <td className="text-center text-text2">{a.status}</td>
-                              {isOwner && (
-                                <td className="text-right">
-                                  <button onClick={() => setEditingAccount(a)}><Edit className="h-3 w-3 text-text2 inline" /></button>
-                                  <button onClick={async () => {
-                                    if (!confirm("Удалить?")) return;
-                                    await supabase.from("model_accounts").delete().eq("id", a.id);
-                                    qc.invalidateQueries({ queryKey: ["model_accounts"] });
-                                  }}><Trash2 className="h-3 w-3 text-text2 inline ml-2" /></button>
-                                </td>
-                              )}
-                            </tr>
+                <div className="border-t border-border p-4 space-y-3">
+                  {(() => {
+                    const presentPlatforms = ACCOUNT_PLATFORMS.filter((p) => modelAccs.some((a: any) => a.platform === p));
+                    const tabs = presentPlatforms.length ? presentPlatforms : ACCOUNT_PLATFORMS;
+                    const activeTab = tabByModel[m.id] ?? tabs[0];
+                    const tabAccs = modelAccs.filter((a: any) => a.platform === activeTab);
+                    return (
+                      <>
+                        <div className="flex flex-wrap gap-1 border-b border-border">
+                          {tabs.map((p) => (
+                            <button key={p}
+                              onClick={() => setTabByModel({ ...tabByModel, [m.id]: p })}
+                              className={`text-xs px-3 py-1.5 -mb-px border-b-2 ${activeTab === p ? "border-teal text-foreground" : "border-transparent text-text2"}`}>
+                              {p}
+                            </button>
                           ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-text2">{tabAccs.length} аккаунт(ов)</span>
+                          {canManageAccounts && (
+                            <button onClick={() => setAccountForModel({ modelId: m.id, platform: activeTab })}
+                              className="text-xs text-teal flex items-center gap-1">
+                              <Plus className="h-3 w-3" /> Добавить аккаунт
+                            </button>
+                          )}
+                        </div>
+                        {tabAccs.length === 0 ? (
+                          <p className="text-xs text-text3">нет аккаунтов</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {tabAccs.map((a: any) => {
+                              const vaCanEditStatus = isVa && a.va_owner === myAssignee;
+                              const canEditStatus = canManageAccounts || vaCanEditStatus;
+                              const canEditAll = canManageAccounts;
+                              return (
+                                <div key={a.id} className="rounded border border-border bg-bg2 p-3 text-sm">
+                                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                                    <span className="font-medium">{a.account_name || a.account_url?.replace(/^https?:\/\//, "").slice(0, 40) || "—"}</span>
+                                    {canEditStatus ? (
+                                      <select
+                                        value={a.status ?? "active"}
+                                        onChange={(e) => changeAccountStatus.mutate({ id: a.id, status: e.target.value })}
+                                        className="text-[10px] font-medium px-1.5 py-0.5 rounded text-white border-0"
+                                        style={{ background: statusMeta(a.status).color }}>
+                                        {ACCOUNT_STATUSES.map((s) => (
+                                          <option key={s.value} value={s.value} style={{ color: "black", background: "white" }}>{s.label}</option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <StatusBadge status={a.status} changedAt={a.status_changed_at} />
+                                    )}
+                                    {a.status_changed_at && (
+                                      <span className="text-[10px] text-text3">· {fmtRuDate(a.status_changed_at)}{a.status_changed_by ? ` · ${a.status_changed_by}` : ""}</span>
+                                    )}
+                                    {canEditAll && (
+                                      <div className="ml-auto flex items-center gap-2">
+                                        <button onClick={() => setEditingAccount(a)} className="text-text2 hover:text-foreground"><Edit className="h-3.5 w-3.5" /></button>
+                                        <button onClick={async () => {
+                                          if (!confirm("Удалить аккаунт?")) return;
+                                          const { error } = await supabase.from("model_accounts").delete().eq("id", a.id);
+                                          if (error) return toast.error(error.message);
+                                          qc.invalidateQueries({ queryKey: ["model_accounts"] });
+                                        }} className="text-text2 hover:text-red"><Trash2 className="h-3.5 w-3.5" /></button>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-xs text-text2">
+                                    {a.account_url && (
+                                      <div className="truncate">
+                                        <span className="text-text3">Ссылка: </span>
+                                        <a href={a.account_url} target="_blank" rel="noopener" className="text-teal inline-flex items-center gap-1">
+                                          {a.account_url.replace(/^https?:\/\//, "").slice(0, 40)}<ExternalLink className="h-3 w-3" />
+                                        </a>
+                                      </div>
+                                    )}
+                                    {a.va_owner && (<div><span className="text-text3">VA: </span>{a.va_owner}</div>)}
+                                    {a.pixel_phone && (<div><span className="text-text3">Pixel/Phone: </span>{a.pixel_phone}</div>)}
+                                    {a.linkinbio_url && (
+                                      <div className="truncate">
+                                        <span className="text-text3">Linkinbio: </span>
+                                        <a href={a.linkinbio_url} target="_blank" rel="noopener" className="text-teal inline-flex items-center gap-1">
+                                          {a.linkinbio_url.replace(/^https?:\/\//, "").slice(0, 40)}<ExternalLink className="h-3 w-3" />
+                                        </a>
+                                      </div>
+                                    )}
+                                    {typeof a.followers === "number" && (<div><span className="text-text3">Подписчики: </span>{a.followers.toLocaleString("ru-RU")}</div>)}
+                                  </div>
+                                  {a.notes && <p className="mt-2 text-xs text-text2 whitespace-pre-wrap">{a.notes}</p>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -146,7 +250,11 @@ function Page() {
       </div>
 
       {(editingAccount || accountForModel) && (
-        <AccountModal account={editingAccount} modelId={accountForModel}
+        <AccountModal
+          account={editingAccount}
+          modelId={accountForModel?.modelId ?? null}
+          defaultPlatform={accountForModel?.platform}
+          teamMembers={teamMembers}
           onClose={() => { setEditingAccount(null); setAccountForModel(null); }} />
       )}
       {editingModel && <ModelModal model={editingModel} onClose={() => setEditingModel(null)} />}
@@ -155,24 +263,43 @@ function Page() {
 }
 
 
-function AccountModal({ account, modelId, onClose }: { account: any | null; modelId: string | null; onClose: () => void }) {
+
+function AccountModal({ account, modelId, defaultPlatform, teamMembers, onClose }: {
+  account: any | null;
+  modelId: string | null;
+  defaultPlatform?: string;
+  teamMembers: { name: string; role_label: string | null }[];
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
+  const { data: profile } = useProfile();
+  const myName = profile?.full_name ?? profile?.assignee_name ?? "unknown";
   const [form, setForm] = useState({
-    platform: account?.platform ?? "Instagram",
+    account_name: account?.account_name ?? "",
+    platform: account?.platform ?? defaultPlatform ?? "Instagram",
     account_url: account?.account_url ?? "",
-    followers: account?.followers ?? 0,
     va_owner: account?.va_owner ?? "",
+    pixel_phone: account?.pixel_phone ?? "",
+    linkinbio_url: account?.linkinbio_url ?? "",
+    followers: account?.followers ?? 0,
     status: account?.status ?? "active",
     notes: account?.notes ?? "",
   });
 
+  const statusChanged = account ? form.status !== (account.status ?? "active") : true;
+
   async function save() {
     try {
+      const payload: any = { ...form };
+      if (statusChanged) {
+        payload.status_changed_at = new Date().toISOString();
+        payload.status_changed_by = myName;
+      }
       if (account) {
-        const { error } = await supabase.from("model_accounts").update(form).eq("id", account.id);
+        const { error } = await supabase.from("model_accounts").update(payload).eq("id", account.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("model_accounts").insert({ ...form, model_id: modelId });
+        const { error } = await supabase.from("model_accounts").insert({ ...payload, model_id: modelId });
         if (error) throw error;
       }
       qc.invalidateQueries({ queryKey: ["model_accounts"] });
@@ -180,30 +307,73 @@ function AccountModal({ account, modelId, onClose }: { account: any | null; mode
     } catch (e: any) { toast.error(e.message); }
   }
 
+  const vaOptions = teamMembers.filter((t) =>
+    (t.role_label ?? "").toLowerCase().includes("va") ||
+    ["Ника","Ольга","Сильвестр"].includes(t.name)
+  );
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="w-full max-w-md bg-card border border-border rounded-lg p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md bg-card border border-border rounded-lg p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between mb-4">
-          <h3 className="font-semibold">Аккаунт</h3>
+          <h3 className="font-semibold">{account ? "Редактировать аккаунт" : "Новый аккаунт"}</h3>
           <button onClick={onClose}><X className="h-4 w-4" /></button>
         </div>
         <div className="space-y-3 text-sm">
-          <select value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2">
-            {["Instagram","X","Fansly","OnlyFans","Reddit","Other"].map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <input placeholder="URL" value={form.account_url} onChange={(e) => setForm({ ...form, account_url: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
-          <input type="number" placeholder="Подписчики" value={form.followers} onChange={(e) => setForm({ ...form, followers: Number(e.target.value) })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
-          <input placeholder="Ответственный VA" value={form.va_owner} onChange={(e) => setForm({ ...form, va_owner: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2">
-            {["active","paused","banned"].map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <textarea placeholder="Заметки" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          <div>
+            <label className="text-xs text-text2 block mb-1">Название аккаунта</label>
+            <input value={form.account_name} onChange={(e) => setForm({ ...form, account_name: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Платформа</label>
+            <select value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2">
+              {ACCOUNT_PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Ссылка (URL)</label>
+            <input value={form.account_url} onChange={(e) => setForm({ ...form, account_url: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">VA</label>
+            <select value={form.va_owner} onChange={(e) => setForm({ ...form, va_owner: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2">
+              <option value="">—</option>
+              {vaOptions.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Pixel / Phone</label>
+            <input placeholder="Pixel, Main phone, Pixel 2..." value={form.pixel_phone}
+              onChange={(e) => setForm({ ...form, pixel_phone: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Linkinbio URL</label>
+            <input value={form.linkinbio_url} onChange={(e) => setForm({ ...form, linkinbio_url: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Подписчики</label>
+            <input type="number" value={form.followers}
+              onChange={(e) => setForm({ ...form, followers: Number(e.target.value) })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Статус</label>
+            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2">
+              {ACCOUNT_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Заметки</label>
+            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} className="px-3 py-2 text-sm text-text2">Отмена</button>
@@ -213,6 +383,7 @@ function AccountModal({ account, modelId, onClose }: { account: any | null; mode
     </div>
   );
 }
+
 
 const PLATFORM_OPTIONS = ["Fansly","OnlyFans","Instagram","X","Reddit","AI","Other"];
 
