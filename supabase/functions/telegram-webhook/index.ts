@@ -10,42 +10,75 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+const APP_URL = Deno.env.get("APP_URL") || "https://greymedia.company";
+
+function normalize(value: string | null | undefined) {
+  return (value ?? "").trim().replace(/^@/, "").toLocaleLowerCase("ru-RU");
+}
+
 function parseTaskMessage(text: string) {
-  const m = text.match(/#задача\s+(.+)/is);
-  if (!m) return null;
-  let rest = m[1].trim();
-  const assigneeMatch = rest.match(/@(\S+)/);
-  const assignee = assigneeMatch?.[1] ?? null;
-  if (assigneeMatch) rest = rest.replace(assigneeMatch[0], "").replace(/\s{2,}/g, " ").trim();
-  const today = new Date().toISOString().slice(0, 10);
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  const deadlineMap: Record<string, string> = { "сегодня": today, "завтра": tomorrow };
-  let deadline: string | null = null;
-  for (const k of Object.keys(deadlineMap)) {
-    const re = new RegExp(`\\b${k}\\b`, "i");
-    if (re.test(rest)) { deadline = deadlineMap[k]; rest = rest.replace(re, "").trim(); break; }
-  }
-  const tokens = rest.split(/\s+/).filter(Boolean);
-  const modelHint = tokens.length > 1 ? tokens[tokens.length - 1] : null;
-  const title = (tokens.length > 1 ? tokens.slice(0, -1).join(" ") : tokens.join(" ")).trim();
-  return { title: title || rest, assignee, modelHint, deadline };
+  const tag = text.match(/#задача[^\S\r\n]*(.*)(?:\r?\n|$)/i);
+  if (!tag) return null;
+  const mention = text.match(/@([\p{L}\p{N}_.-]+)/u)?.[1] ?? null;
+  const title = tag[1]
+    .replace(/@[\p{L}\p{N}_.-]+/gu, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (!title) return null;
+  return { title, mention };
 }
 
 function parseCustomMessage(text: string) {
-  const m = text.match(/(?:#кастом|\/custom|\bкастом)\s+(.+)/is);
-  if (!m) return null;
-  let rest = m[1].trim();
-  let price: number | null = null;
-  const priceMatch = rest.match(/(\d+(?:[.,]\d+)?)\s*$/);
-  if (priceMatch) {
-    price = Number(priceMatch[1].replace(",", "."));
-    rest = rest.slice(0, priceMatch.index!).trim();
-  }
-  const tokens = rest.split(/\s+/).filter(Boolean);
-  const nickname = tokens[0] ?? "";
-  const modelHint = tokens[1] ?? null;
-  const description = tokens.slice(2).join(" ") || rest;
-  return { nickname, modelHint, description, price };
+  const tag = text.match(/#кастом[^\S\r\n]*([\s\S]*)/i);
+  if (!tag) return null;
+  const description = tag[1].trim();
+  if (!description) return null;
+  const firstWord = description.split(/\s+/).find(Boolean) ?? "";
+  const nickname = firstWord ? firstWord.replace(/^@/, "") : "";
+  return { description, nickname };
+}
+
+async function findModel(text: string) {
+  const { data: models } = await admin
+    .from("models")
+    .select("id, name")
+    .eq("is_archived", false)
+    .order("name", { ascending: true });
+  const haystack = text.toLocaleLowerCase("ru-RU");
+  return (models ?? [])
+    .sort((a: any, b: any) => String(b.name).length - String(a.name).length)
+    .find((m: any) => haystack.includes(String(m.name).toLocaleLowerCase("ru-RU"))) ?? null;
+}
+
+async function resolveAssignee(mention: string | null) {
+  if (!mention) return "Я";
+  const key = normalize(mention);
+  const { data: members } = await admin
+    .from("team_members")
+    .select("name, assignee_name, telegram_handle")
+    .eq("is_archived", false);
+  const match = (members ?? []).find((member: any) =>
+    normalize(member.assignee_name) === key ||
+    normalize(member.telegram_handle) === key ||
+    normalize(member.name) === key
+  );
+  return match?.assignee_name || match?.name || mention;
+}
+
+async function writeLog(entry: {
+  chat_id?: string | null;
+  message_text?: string | null;
+  parsed_action: string;
+  success: boolean;
+  error_message?: string | null;
+}) {
+  await admin.from("telegram_logs").insert({
+    chat_id: entry.chat_id ?? null,
+    message_text: entry.message_text ?? null,
+    parsed_action: entry.parsed_action,
+    success: entry.success,
+    error_message: entry.error_message ?? null,
+  });
 }
 
 async function sendMessage(token: string, chatId: string | number, text: string) {
