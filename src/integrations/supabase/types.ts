@@ -722,6 +722,36 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_logs: {
+        Row: {
+          chat_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          message_text: string | null
+          parsed_action: string | null
+          success: boolean
+        }
+        Insert: {
+          chat_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_text?: string | null
+          parsed_action?: string | null
+          success?: boolean
+        }
+        Update: {
+          chat_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_text?: string | null
+          parsed_action?: string | null
+          success?: boolean
+        }
+        Relationships: []
+      }
       telegram_settings: {
         Row: {
           auto_tasks_enabled: boolean
