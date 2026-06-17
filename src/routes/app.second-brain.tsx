@@ -126,7 +126,10 @@ function Page() {
     setDraggingId(null);
   }
 
-  if (isLoading) return <div className="p-8 text-text2">Загрузка...</div>;
+  if (isLoading) {
+    const { SkeletonPage } = require("@/components/ui-shared");
+    return <SkeletonPage rows={4} />;
+  }
 
   const blockById = (id: string) => blocks.find((b: any) => b.id === id);
   const modelById = (id: string) => models.find((m: any) => m.id === id);

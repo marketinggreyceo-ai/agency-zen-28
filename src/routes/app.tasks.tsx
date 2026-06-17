@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader, Empty } from "@/components/ui-shared";
+import { PageHeader, Empty, SkeletonPage } from "@/components/ui-shared";
 import { TaskCard, TaskModal, STATUSES, type Task } from "@/components/TaskCard";
 import { useProfile, ASSIGNEES } from "@/lib/auth";
 import { useState, useMemo } from "react";
-import { Plus } from "lucide-react";
+import { Plus, ListTodo } from "lucide-react";
 
 export const Route = createFileRoute("/app/tasks")({
   ssr: false, component: Page,
@@ -36,7 +36,7 @@ function Page() {
     return true;
   });
 
-  if (isLoading) return <div className="p-8 text-text2">Загрузка...</div>;
+  if (isLoading) return <SkeletonPage rows={6} />;
 
   return (
     <div className="p-4 md:p-8 max-w-[1400px] mx-auto">
@@ -87,9 +87,14 @@ function Page() {
       </div>
 
       {filtered.length === 0 && tasks.length === 0 && (
-        <div className="mt-6"><Empty message="Нет задач" action={
-          <button onClick={() => setCreating(true)} className="text-teal text-sm">+ Создать первую</button>
-        } /></div>
+        <div className="mt-6"><Empty
+          icon={<ListTodo className="h-10 w-10" />}
+          message="Задач пока нет"
+          action={
+            <button onClick={() => setCreating(true)} className="px-3 py-1.5 rounded-md bg-teal text-primary-foreground text-sm font-medium">
+              + Создать первую
+            </button>
+          } /></div>
       )}
 
       <TaskModal task={null} open={creating} onClose={() => setCreating(false)} />
