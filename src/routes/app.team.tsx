@@ -47,6 +47,7 @@ function Page() {
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <PageHeader title="Команда" />
+      {isOwner && <RolesTable />}
       <div className="grid md:grid-cols-2 gap-4">
         {visible.map((m: any) => {
           const memberTasks = tasks.filter((t: any) => t.assignee === m.name && t.status !== "done");
