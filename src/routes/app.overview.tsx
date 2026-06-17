@@ -30,6 +30,10 @@ function Page() {
     queryKey: ["tasks"],
     queryFn: async () => (await supabase.from("tasks").select("*")).data ?? [],
   });
+  const { data: customs = [] } = useQuery({
+    queryKey: ["customs_overview"],
+    queryFn: async () => (await (supabase as any).from("customs").select("id,status,created_at")).data ?? [],
+  });
 
   // Current week's company goals
   const monday = (() => {
@@ -195,6 +199,38 @@ function Page() {
               ))}
             </ul>
           )}
+        </Section>
+      </div>
+      <div className="mt-6">
+        <Section title={
+          <span className="flex items-center justify-between w-full">
+            <span>Кастомы</span>
+            <Link to="/app/customs" className="text-xs text-teal">все →</Link>
+          </span>
+        }>
+          {(() => {
+            const newCount = customs.filter((c: any) => c.status === "new").length;
+            const inprogCount = customs.filter((c: any) => c.status === "inprog").length;
+            const doneCount = customs.filter((c: any) => c.status === "done").length;
+            const overdue = customs.filter((c: any) =>
+              c.status !== "sent" && (Date.now() - new Date(c.created_at).getTime()) / 86400000 >= 6
+            );
+            return (
+              <div className="space-y-2 text-sm">
+                <div className="flex gap-4 text-text2">
+                  <span><b className="text-foreground">{newCount}</b> новых</span>
+                  <span><b className="text-foreground">{inprogCount}</b> в работе</span>
+                  <span><b className="text-foreground">{doneCount}</b> готово</span>
+                </div>
+                {overdue.length > 0 && (
+                  <div className="text-xs px-2 py-1.5 rounded"
+                    style={{ background: "rgba(186,117,23,0.15)", color: "#BA7517" }}>
+                    ⚠ {overdue.length} кастомов в работе 6+ дней
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </Section>
       </div>
     </div>

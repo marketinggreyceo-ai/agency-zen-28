@@ -25,6 +25,7 @@ import { Route as AppModelsRouteImport } from './routes/app.models'
 import { Route as AppGrowthRouteImport } from './routes/app.growth'
 import { Route as AppGoalsRouteImport } from './routes/app.goals'
 import { Route as AppFinanceRouteImport } from './routes/app.finance'
+import { Route as AppCustomsRouteImport } from './routes/app.customs'
 import { Route as AppAccessRouteImport } from './routes/app.access'
 import { Route as ApiPublicWebhookTasksRouteImport } from './routes/api/public/webhook.tasks'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
@@ -109,6 +110,11 @@ const AppFinanceRoute = AppFinanceRouteImport.update({
   path: '/finance',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCustomsRoute = AppCustomsRouteImport.update({
+  id: '/customs',
+  path: '/customs',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccessRoute = AppAccessRouteImport.update({
   id: '/access',
   path: '/access',
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/setup': typeof SetupRoute
   '/app/access': typeof AppAccessRoute
+  '/app/customs': typeof AppCustomsRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/growth': typeof AppGrowthRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/setup': typeof SetupRoute
   '/app/access': typeof AppAccessRoute
+  '/app/customs': typeof AppCustomsRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/growth': typeof AppGrowthRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/setup': typeof SetupRoute
   '/app/access': typeof AppAccessRoute
+  '/app/customs': typeof AppCustomsRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/growth': typeof AppGrowthRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/setup'
     | '/app/access'
+    | '/app/customs'
     | '/app/finance'
     | '/app/goals'
     | '/app/growth'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/setup'
     | '/app/access'
+    | '/app/customs'
     | '/app/finance'
     | '/app/goals'
     | '/app/growth'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/setup'
     | '/app/access'
+    | '/app/customs'
     | '/app/finance'
     | '/app/goals'
     | '/app/growth'
@@ -378,6 +390,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFinanceRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/customs': {
+      id: '/app/customs'
+      path: '/customs'
+      fullPath: '/app/customs'
+      preLoaderRoute: typeof AppCustomsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/access': {
       id: '/app/access'
       path: '/access'
@@ -404,6 +423,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccessRoute: typeof AppAccessRoute
+  AppCustomsRoute: typeof AppCustomsRoute
   AppFinanceRoute: typeof AppFinanceRoute
   AppGoalsRoute: typeof AppGoalsRoute
   AppGrowthRoute: typeof AppGrowthRoute
@@ -419,6 +439,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccessRoute: AppAccessRoute,
+  AppCustomsRoute: AppCustomsRoute,
   AppFinanceRoute: AppFinanceRoute,
   AppGoalsRoute: AppGoalsRoute,
   AppGrowthRoute: AppGrowthRoute,

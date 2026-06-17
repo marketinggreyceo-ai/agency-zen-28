@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      customs: {
+        Row: {
+          chatter: string | null
+          created_at: string
+          customer_nickname: string
+          description: string | null
+          id: string
+          model_id: string | null
+          notes: string | null
+          platform: string | null
+          price: number | null
+          status: string
+          telegram_chat_id: string | null
+          telegram_message_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          chatter?: string | null
+          created_at?: string
+          customer_nickname: string
+          description?: string | null
+          id?: string
+          model_id?: string | null
+          notes?: string | null
+          platform?: string | null
+          price?: number | null
+          status?: string
+          telegram_chat_id?: string | null
+          telegram_message_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          chatter?: string | null
+          created_at?: string
+          customer_nickname?: string
+          description?: string | null
+          id?: string
+          model_id?: string | null
+          notes?: string | null
+          platform?: string | null
+          price?: number | null
+          status?: string
+          telegram_chat_id?: string | null
+          telegram_message_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customs_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_categories: {
         Row: {
           color: string
