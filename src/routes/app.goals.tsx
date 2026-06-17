@@ -351,7 +351,7 @@ function GoalModal({ type, weekISO, defaultAssignee, defaultModelId, models, wor
               <label className="text-xs text-text2 block mb-1">Сотрудник</label>
               <select value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}
                 className="w-full bg-bg3 border border-border rounded-md px-3 py-2">
-                {WORKERS.map((w) => <option key={w} value={w}>{w}</option>)}
+                {workers.map((w: string) => <option key={w} value={w}>{w}</option>)}
               </select>
             </div>
           )}
