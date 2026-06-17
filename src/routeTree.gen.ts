@@ -13,6 +13,15 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as SopsCategoryRouteImport } from './routes/sops.$category'
+import { Route as AppTeamRouteImport } from './routes/app.team'
+import { Route as AppTasksRouteImport } from './routes/app.tasks'
+import { Route as AppSopsRouteImport } from './routes/app.sops'
+import { Route as AppSecondBrainRouteImport } from './routes/app.second-brain'
+import { Route as AppOverviewRouteImport } from './routes/app.overview'
+import { Route as AppModelsRouteImport } from './routes/app.models'
+import { Route as AppGrowthRouteImport } from './routes/app.growth'
+import { Route as AppFinanceRouteImport } from './routes/app.finance'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -34,16 +43,79 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const SopsCategoryRoute = SopsCategoryRouteImport.update({
+  id: '/sops/$category',
+  path: '/sops/$category',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppTeamRoute = AppTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTasksRoute = AppTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSopsRoute = AppSopsRouteImport.update({
+  id: '/sops',
+  path: '/sops',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSecondBrainRoute = AppSecondBrainRouteImport.update({
+  id: '/second-brain',
+  path: '/second-brain',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOverviewRoute = AppOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppModelsRoute = AppModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGrowthRoute = AppGrowthRouteImport.update({
+  id: '/growth',
+  path: '/growth',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFinanceRoute = AppFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/app/finance': typeof AppFinanceRoute
+  '/app/growth': typeof AppGrowthRoute
+  '/app/models': typeof AppModelsRoute
+  '/app/overview': typeof AppOverviewRoute
+  '/app/second-brain': typeof AppSecondBrainRoute
+  '/app/sops': typeof AppSopsRoute
+  '/app/tasks': typeof AppTasksRoute
+  '/app/team': typeof AppTeamRoute
+  '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/app/finance': typeof AppFinanceRoute
+  '/app/growth': typeof AppGrowthRoute
+  '/app/models': typeof AppModelsRoute
+  '/app/overview': typeof AppOverviewRoute
+  '/app/second-brain': typeof AppSecondBrainRoute
+  '/app/sops': typeof AppSopsRoute
+  '/app/tasks': typeof AppTasksRoute
+  '/app/team': typeof AppTeamRoute
+  '/sops/$category': typeof SopsCategoryRoute
   '/app': typeof AppIndexRoute
 }
 export interface FileRoutesById {
@@ -51,20 +123,69 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/app/finance': typeof AppFinanceRoute
+  '/app/growth': typeof AppGrowthRoute
+  '/app/models': typeof AppModelsRoute
+  '/app/overview': typeof AppOverviewRoute
+  '/app/second-brain': typeof AppSecondBrainRoute
+  '/app/sops': typeof AppSopsRoute
+  '/app/tasks': typeof AppTasksRoute
+  '/app/team': typeof AppTeamRoute
+  '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/auth' | '/app/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/auth'
+    | '/app/finance'
+    | '/app/growth'
+    | '/app/models'
+    | '/app/overview'
+    | '/app/second-brain'
+    | '/app/sops'
+    | '/app/tasks'
+    | '/app/team'
+    | '/sops/$category'
+    | '/app/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/app'
-  id: '__root__' | '/' | '/app' | '/auth' | '/app/'
+  to:
+    | '/'
+    | '/auth'
+    | '/app/finance'
+    | '/app/growth'
+    | '/app/models'
+    | '/app/overview'
+    | '/app/second-brain'
+    | '/app/sops'
+    | '/app/tasks'
+    | '/app/team'
+    | '/sops/$category'
+    | '/app'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/auth'
+    | '/app/finance'
+    | '/app/growth'
+    | '/app/models'
+    | '/app/overview'
+    | '/app/second-brain'
+    | '/app/sops'
+    | '/app/tasks'
+    | '/app/team'
+    | '/sops/$category'
+    | '/app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
+  SopsCategoryRoute: typeof SopsCategoryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -97,14 +218,93 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/sops/$category': {
+      id: '/sops/$category'
+      path: '/sops/$category'
+      fullPath: '/sops/$category'
+      preLoaderRoute: typeof SopsCategoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/team': {
+      id: '/app/team'
+      path: '/team'
+      fullPath: '/app/team'
+      preLoaderRoute: typeof AppTeamRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/tasks': {
+      id: '/app/tasks'
+      path: '/tasks'
+      fullPath: '/app/tasks'
+      preLoaderRoute: typeof AppTasksRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/sops': {
+      id: '/app/sops'
+      path: '/sops'
+      fullPath: '/app/sops'
+      preLoaderRoute: typeof AppSopsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/second-brain': {
+      id: '/app/second-brain'
+      path: '/second-brain'
+      fullPath: '/app/second-brain'
+      preLoaderRoute: typeof AppSecondBrainRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/overview': {
+      id: '/app/overview'
+      path: '/overview'
+      fullPath: '/app/overview'
+      preLoaderRoute: typeof AppOverviewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/models': {
+      id: '/app/models'
+      path: '/models'
+      fullPath: '/app/models'
+      preLoaderRoute: typeof AppModelsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/growth': {
+      id: '/app/growth'
+      path: '/growth'
+      fullPath: '/app/growth'
+      preLoaderRoute: typeof AppGrowthRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/finance': {
+      id: '/app/finance'
+      path: '/finance'
+      fullPath: '/app/finance'
+      preLoaderRoute: typeof AppFinanceRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppFinanceRoute: typeof AppFinanceRoute
+  AppGrowthRoute: typeof AppGrowthRoute
+  AppModelsRoute: typeof AppModelsRoute
+  AppOverviewRoute: typeof AppOverviewRoute
+  AppSecondBrainRoute: typeof AppSecondBrainRoute
+  AppSopsRoute: typeof AppSopsRoute
+  AppTasksRoute: typeof AppTasksRoute
+  AppTeamRoute: typeof AppTeamRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppFinanceRoute: AppFinanceRoute,
+  AppGrowthRoute: AppGrowthRoute,
+  AppModelsRoute: AppModelsRoute,
+  AppOverviewRoute: AppOverviewRoute,
+  AppSecondBrainRoute: AppSecondBrainRoute,
+  AppSopsRoute: AppSopsRoute,
+  AppTasksRoute: AppTasksRoute,
+  AppTeamRoute: AppTeamRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
@@ -114,6 +314,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
+  SopsCategoryRoute: SopsCategoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

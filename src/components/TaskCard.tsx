@@ -11,7 +11,7 @@ export interface Task {
   assignee: string | null;
   model_id: string | null;
   task_type: string | null;
-  status: string;
+  status: string | null;
   deadline: string | null;
   notes: string | null;
   created_at: string;
