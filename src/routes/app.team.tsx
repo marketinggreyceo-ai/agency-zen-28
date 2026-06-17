@@ -147,6 +147,9 @@ function EditInline({ label, value, placeholder, onSave }: {
         className="w-full bg-bg3 border border-border rounded px-2 py-1.5 text-sm focus:border-teal outline-none" />
     </div>
   );
+}
+
+
 
 function InviteModal({ member, onClose }: { member: any | null; onClose: () => void }) {
   const [email, setEmail] = useState("");
