@@ -338,3 +338,17 @@ function MatrixTable({ title, columns, resource, isAllowed, onToggle }: {
     </div>
   );
 }
+
+function StatusBadge({ status }: { status: ProfileStatus }) {
+  const map: Record<ProfileStatus, { label: string; cls: string }> = {
+    active:    { label: "Активен",  cls: "bg-teal/15 text-teal border-teal/30" },
+    pending:   { label: "Ожидает",  cls: "bg-amber/15 text-amber border-amber/30" },
+    suspended: { label: "Заблокирован", cls: "bg-red/15 text-red border-red/30" },
+  };
+  const v = map[status] ?? map.pending;
+  return (
+    <span className={`inline-block text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${v.cls}`}>
+      {v.label}
+    </span>
+  );
+}
