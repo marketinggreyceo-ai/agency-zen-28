@@ -264,24 +264,42 @@ function Page() {
 
 
 
-function AccountModal({ account, modelId, onClose }: { account: any | null; modelId: string | null; onClose: () => void }) {
+function AccountModal({ account, modelId, defaultPlatform, teamMembers, onClose }: {
+  account: any | null;
+  modelId: string | null;
+  defaultPlatform?: string;
+  teamMembers: { name: string; role_label: string | null }[];
+  onClose: () => void;
+}) {
   const qc = useQueryClient();
+  const { data: profile } = useProfile();
+  const myName = profile?.full_name ?? profile?.assignee_name ?? "unknown";
   const [form, setForm] = useState({
-    platform: account?.platform ?? "Instagram",
+    account_name: account?.account_name ?? "",
+    platform: account?.platform ?? defaultPlatform ?? "Instagram",
     account_url: account?.account_url ?? "",
-    followers: account?.followers ?? 0,
     va_owner: account?.va_owner ?? "",
+    pixel_phone: account?.pixel_phone ?? "",
+    linkinbio_url: account?.linkinbio_url ?? "",
+    followers: account?.followers ?? 0,
     status: account?.status ?? "active",
     notes: account?.notes ?? "",
   });
 
+  const statusChanged = account ? form.status !== (account.status ?? "active") : true;
+
   async function save() {
     try {
+      const payload: any = { ...form };
+      if (statusChanged) {
+        payload.status_changed_at = new Date().toISOString();
+        payload.status_changed_by = myName;
+      }
       if (account) {
-        const { error } = await supabase.from("model_accounts").update(form).eq("id", account.id);
+        const { error } = await supabase.from("model_accounts").update(payload).eq("id", account.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("model_accounts").insert({ ...form, model_id: modelId });
+        const { error } = await supabase.from("model_accounts").insert({ ...payload, model_id: modelId });
         if (error) throw error;
       }
       qc.invalidateQueries({ queryKey: ["model_accounts"] });
@@ -289,30 +307,73 @@ function AccountModal({ account, modelId, onClose }: { account: any | null; mode
     } catch (e: any) { toast.error(e.message); }
   }
 
+  const vaOptions = teamMembers.filter((t) =>
+    (t.role_label ?? "").toLowerCase().includes("va") ||
+    ["Ника","Ольга","Сильвестр"].includes(t.name)
+  );
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="w-full max-w-md bg-card border border-border rounded-lg p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md bg-card border border-border rounded-lg p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between mb-4">
-          <h3 className="font-semibold">Аккаунт</h3>
+          <h3 className="font-semibold">{account ? "Редактировать аккаунт" : "Новый аккаунт"}</h3>
           <button onClick={onClose}><X className="h-4 w-4" /></button>
         </div>
         <div className="space-y-3 text-sm">
-          <select value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2">
-            {["Instagram","X","Fansly","OnlyFans","Reddit","Other"].map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <input placeholder="URL" value={form.account_url} onChange={(e) => setForm({ ...form, account_url: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
-          <input type="number" placeholder="Подписчики" value={form.followers} onChange={(e) => setForm({ ...form, followers: Number(e.target.value) })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
-          <input placeholder="Ответственный VA" value={form.va_owner} onChange={(e) => setForm({ ...form, va_owner: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2">
-            {["active","paused","banned"].map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <textarea placeholder="Заметки" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2}
-            className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          <div>
+            <label className="text-xs text-text2 block mb-1">Название аккаунта</label>
+            <input value={form.account_name} onChange={(e) => setForm({ ...form, account_name: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Платформа</label>
+            <select value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2">
+              {ACCOUNT_PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Ссылка (URL)</label>
+            <input value={form.account_url} onChange={(e) => setForm({ ...form, account_url: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">VA</label>
+            <select value={form.va_owner} onChange={(e) => setForm({ ...form, va_owner: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2">
+              <option value="">—</option>
+              {vaOptions.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Pixel / Phone</label>
+            <input placeholder="Pixel, Main phone, Pixel 2..." value={form.pixel_phone}
+              onChange={(e) => setForm({ ...form, pixel_phone: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Linkinbio URL</label>
+            <input value={form.linkinbio_url} onChange={(e) => setForm({ ...form, linkinbio_url: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Подписчики</label>
+            <input type="number" value={form.followers}
+              onChange={(e) => setForm({ ...form, followers: Number(e.target.value) })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Статус</label>
+            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2">
+              {ACCOUNT_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text2 block mb-1">Заметки</label>
+            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3}
+              className="w-full bg-bg3 border border-border rounded px-3 py-2" />
+          </div>
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} className="px-3 py-2 text-sm text-text2">Отмена</button>
@@ -322,6 +383,7 @@ function AccountModal({ account, modelId, onClose }: { account: any | null; mode
     </div>
   );
 }
+
 
 const PLATFORM_OPTIONS = ["Fansly","OnlyFans","Instagram","X","Reddit","AI","Other"];
 
