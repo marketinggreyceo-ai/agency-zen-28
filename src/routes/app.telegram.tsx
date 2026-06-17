@@ -10,7 +10,7 @@ import {
   getTelegramSettings, saveBotToken, updateTelegramSettings,
   refreshTelegramChats, disconnectTelegramChat,
   buildWeeklyReport, sendWeeklyReportNow,
-  setTelegramWebhook, deleteTelegramWebhook, getTelegramWebhookInfo,
+  setTelegramWebhook, deleteTelegramWebhook, getTelegramWebhookInfo, testTelegramWebhook,
 } from "@/lib/telegram.functions";
 
 export const Route = createFileRoute("/app/telegram")({ ssr: false, component: Page });
@@ -46,6 +46,7 @@ function Page() {
   const setHook = useServerFn(setTelegramWebhook);
   const delHook = useServerFn(deleteTelegramWebhook);
   const getHook = useServerFn(getTelegramWebhookInfo);
+  const testHook = useServerFn(testTelegramWebhook);
 
   const { data: hook, refetch: refetchHook } = useQuery({
     queryKey: ["telegram_webhook"],
@@ -66,6 +67,7 @@ function Page() {
 
   const [token, setToken] = useState("");
   const [previewText, setPreviewText] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const saveToken = useMutation({
     mutationFn: () => save({ data: { token } }),
@@ -103,11 +105,19 @@ function Page() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const testWebhook = useMutation({
+    mutationFn: () => testHook({ data: { text: "#задача Тест webhook" } }),
+    onSuccess: (r: any) => {
+      setTestResult(JSON.stringify(r.response, null, 2));
+      toast.success("Тест webhook выполнен");
+      qc.invalidateQueries({ queryKey: ["telegram_settings"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   if (!isOwner) return null;
 
-  const webhookUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/api/public/webhook/tasks`
-    : "/api/public/webhook/tasks";
+  const webhookUrl = hook?.expected_url ?? "https://fxijkbcpkjuorgzxsoyj.supabase.co/functions/v1/telegram-webhook";
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl">
