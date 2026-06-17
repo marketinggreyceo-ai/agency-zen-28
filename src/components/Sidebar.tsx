@@ -65,6 +65,15 @@ export function Sidebar() {
     refetchInterval: 30000,
   });
 
+  const { data: pendingUsersCount = 0 } = useQuery({
+    queryKey: ["profiles-pending-count"],
+    queryFn: async () => {
+      const { count } = await supabase.from("profiles").select("id", { count: "exact", head: true }).eq("status", "pending");
+      return count ?? 0;
+    },
+    refetchInterval: 30000,
+  });
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
