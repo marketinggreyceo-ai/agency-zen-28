@@ -14,6 +14,7 @@ export const Route = createFileRoute("/app/tasks")({
 
 function Page() {
   const { data: profile } = useProfile();
+  const assignees = useAssignees();
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ["tasks"],
     queryFn: async () => (await supabase.from("tasks").select("*").order("created_at", { ascending: false })).data ?? [],
