@@ -53,7 +53,11 @@ function Page() {
   });
   const { data: accounts = [] } = useQuery({
     queryKey: ["model_accounts"],
-    queryFn: async () => (await supabase.from("model_accounts").select("*")).data ?? [],
+    queryFn: async () => (await supabase.from("model_accounts").select("*").order("account_name")).data ?? [],
+  });
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ["team_members_vas"],
+    queryFn: async () => (await supabase.from("team_members").select("name,role_label")).data ?? [],
   });
 
   const updateModel = useMutation({
@@ -64,14 +68,29 @@ function Page() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["models"] }); },
   });
 
+  const changeAccountStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from("model_accounts").update({
+        status,
+        status_changed_at: new Date().toISOString(),
+        status_changed_by: myName,
+      }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["model_accounts"] }); toast.success("Статус обновлён"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editingAccount, setEditingAccount] = useState<any>(null);
-  const [accountForModel, setAccountForModel] = useState<string | null>(null);
+  const [accountForModel, setAccountForModel] = useState<{ modelId: string; platform: string } | null>(null);
   const [editingModel, setEditingModel] = useState<any>(null);
+  const [tabByModel, setTabByModel] = useState<Record<string, string>>({});
 
   function toggle(id: string) {
     const s = new Set(expanded); s.has(id) ? s.delete(id) : s.add(id); setExpanded(s);
   }
+
 
   const allTags = Array.from(new Set(models.flatMap((m: any) => m.tags ?? []))) as string[];
   const [tagFilter, setTagFilter] = useState<string | null>(null);
