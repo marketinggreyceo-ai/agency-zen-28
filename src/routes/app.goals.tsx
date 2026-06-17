@@ -191,6 +191,7 @@ function Page() {
           defaultAssignee={modal.assignee}
           defaultModelId={modal.modelId}
           models={models}
+          workers={WORKERS}
           createdBy={profile?.full_name ?? myName}
           onClose={() => setModal(null)}
           onSaved={() => qc.invalidateQueries({ queryKey: ["weekly_goals", weekISO] })}
@@ -289,12 +290,13 @@ function GoalCard({ goal, weekPassed, canEdit, canProgress, onUpdate, onDelete }
   );
 }
 
-function GoalModal({ type, weekISO, defaultAssignee, defaultModelId, models, createdBy, onClose, onSaved }: {
+function GoalModal({ type, weekISO, defaultAssignee, defaultModelId, models, workers, createdBy, onClose, onSaved }: {
   type: "company" | "worker" | "model";
   weekISO: string;
   defaultAssignee?: string;
   defaultModelId?: string;
   models: any[];
+  workers: string[];
   createdBy: string;
   onClose: () => void;
   onSaved: () => void;
@@ -302,7 +304,7 @@ function GoalModal({ type, weekISO, defaultAssignee, defaultModelId, models, cre
   const [form, setForm] = useState({
     title: "",
     description: "",
-    assigned_to: defaultAssignee ?? WORKERS[0],
+    assigned_to: defaultAssignee ?? workers[0] ?? "",
     model_id: defaultModelId ?? (models[0]?.id ?? ""),
   });
   const save = useMutation({
@@ -349,7 +351,7 @@ function GoalModal({ type, weekISO, defaultAssignee, defaultModelId, models, cre
               <label className="text-xs text-text2 block mb-1">Сотрудник</label>
               <select value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}
                 className="w-full bg-bg3 border border-border rounded-md px-3 py-2">
-                {WORKERS.map((w) => <option key={w} value={w}>{w}</option>)}
+                {workers.map((w: string) => <option key={w} value={w}>{w}</option>)}
               </select>
             </div>
           )}
