@@ -98,8 +98,10 @@ export type Database = {
           name: string
           notes: string | null
           platform: string | null
+          platforms: string[]
           priority: string | null
           status: string | null
+          tags: string[]
           weak_points: string | null
         }
         Insert: {
@@ -111,8 +113,10 @@ export type Database = {
           name: string
           notes?: string | null
           platform?: string | null
+          platforms?: string[]
           priority?: string | null
           status?: string | null
+          tags?: string[]
           weak_points?: string | null
         }
         Update: {
@@ -124,8 +128,10 @@ export type Database = {
           name?: string
           notes?: string | null
           platform?: string | null
+          platforms?: string[]
           priority?: string | null
           status?: string | null
+          tags?: string[]
           weak_points?: string | null
         }
         Relationships: []
