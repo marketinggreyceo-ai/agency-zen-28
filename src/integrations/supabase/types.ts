@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_statuses: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          is_archived: boolean
+          key: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          key: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          key?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      app_settings: {
+        Row: {
+          agency_name: string
+          created_at: string
+          currency_symbol: string
+          date_format: string
+          id: string
+          timezone: string
+          updated_at: string
+          weekly_report_day: string
+          weekly_report_time: string
+        }
+        Insert: {
+          agency_name?: string
+          created_at?: string
+          currency_symbol?: string
+          date_format?: string
+          id?: string
+          timezone?: string
+          updated_at?: string
+          weekly_report_day?: string
+          weekly_report_time?: string
+        }
+        Update: {
+          agency_name?: string
+          created_at?: string
+          currency_symbol?: string
+          date_format?: string
+          id?: string
+          timezone?: string
+          updated_at?: string
+          weekly_report_day?: string
+          weekly_report_time?: string
+        }
+        Relationships: []
+      }
+      custom_statuses: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          is_archived: boolean
+          key: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          key: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          key?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customs: {
         Row: {
           chatter: string | null
@@ -75,18 +177,21 @@ export type Database = {
           color: string
           created_at: string
           id: string
+          is_archived: boolean
           name: string
         }
         Insert: {
           color?: string
           created_at?: string
           id?: string
+          is_archived?: boolean
           name: string
         }
         Update: {
           color?: string
           created_at?: string
           id?: string
+          is_archived?: boolean
           name?: string
         }
         Relationships: []
@@ -233,6 +338,7 @@ export type Database = {
           created_at: string
           growth_ideas: string | null
           id: string
+          is_archived: boolean
           kpi_notes: string | null
           name: string
           notes: string | null
@@ -248,6 +354,7 @@ export type Database = {
           created_at?: string
           growth_ideas?: string | null
           id?: string
+          is_archived?: boolean
           kpi_notes?: string | null
           name: string
           notes?: string | null
@@ -263,6 +370,7 @@ export type Database = {
           created_at?: string
           growth_ideas?: string | null
           id?: string
+          is_archived?: boolean
           kpi_notes?: string | null
           name?: string
           notes?: string | null
@@ -272,6 +380,36 @@ export type Database = {
           status?: string | null
           tags?: string[]
           weak_points?: string | null
+        }
+        Relationships: []
+      }
+      platforms: {
+        Row: {
+          created_at: string
+          icon_name: string | null
+          id: string
+          is_archived: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          icon_name?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          icon_name?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -367,6 +505,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sop_categories: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          is_archived: boolean
+          key: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          key: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          key?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sops: {
         Row: {
           category: string
@@ -397,6 +568,36 @@ export type Database = {
           title?: string
           updated_at?: string
           visible_to?: string | null
+        }
+        Relationships: []
+      }
+      task_types: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          is_archived: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -449,7 +650,9 @@ export type Database = {
       }
       team_members: {
         Row: {
+          assignee_name: string | null
           id: string
+          is_archived: boolean
           name: string
           profile_id: string | null
           responsibilities: string | null
@@ -458,7 +661,9 @@ export type Database = {
           weekly_tasks: string | null
         }
         Insert: {
+          assignee_name?: string | null
           id?: string
+          is_archived?: boolean
           name: string
           profile_id?: string | null
           responsibilities?: string | null
@@ -467,7 +672,9 @@ export type Database = {
           weekly_tasks?: string | null
         }
         Update: {
+          assignee_name?: string | null
           id?: string
+          is_archived?: boolean
           name?: string
           profile_id?: string | null
           responsibilities?: string | null
@@ -572,6 +779,36 @@ export type Database = {
           message_text?: string
           parsed?: Json | null
           task_id?: string | null
+        }
+        Relationships: []
+      }
+      weekly_goal_types: {
+        Row: {
+          created_at: string
+          id: string
+          is_archived: boolean
+          key: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          key: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_archived?: boolean
+          key?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
