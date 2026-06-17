@@ -311,6 +311,24 @@ function Page() {
         onClose={() => setSheetAccount(null)}
         onSelect={(status) => sheetAccount && changeAccountStatus.mutate({ id: sheetAccount.id, status })}
       />
+      <AlertDialog open={!!deletingModel} onOpenChange={(o) => !o && setDeletingModel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить модель {deletingModel?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Все связанные задачи, кастомы, аккаунты и данные о выручке будут также удалены. Это действие нельзя отменить.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingModel && deleteModel.mutate(deletingModel.id)}
+              className="bg-red-600 text-white hover:bg-red-700">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
