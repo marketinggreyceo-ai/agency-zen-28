@@ -58,7 +58,7 @@ function Page() {
         <select value={filterAssignee} onChange={(e) => { setFilterAssignee(e.target.value); setFilterMine(false); }}
           className="px-3 py-1.5 rounded-md bg-bg3 border border-border">
           <option value="">Все исполнители</option>
-          {ASSIGNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+          {assignees.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)}
           className="px-3 py-1.5 rounded-md bg-bg3 border border-border">
