@@ -115,10 +115,12 @@ export function TaskModal({ task, open, onClose, defaultAssignee }: {
   const { data: models = [] } = useQuery({
     queryKey: ["models-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("models").select("id, name").order("name");
-      return data ?? [];
+      const { data } = await supabase.from("models").select("id, name, is_archived").order("name");
+      return (data ?? []).filter((m: any) => !m.is_archived);
     },
   });
+  const assignees = useAssignees();
+  const { data: taskTypes = [] } = useTaskTypes();
   const [form, setForm] = useState<Partial<Task>>({});
 
   useEffect(() => {
@@ -171,11 +173,11 @@ export function TaskModal({ task, open, onClose, defaultAssignee }: {
         <div className="space-y-3 text-sm">
           <Input label="Название" value={form.title ?? ""} onChange={(v) => setForm({ ...form, title: v })} />
           <Select label="Ответственный" value={form.assignee ?? ""} onChange={(v) => setForm({ ...form, assignee: v || null })}
-            options={[["",""], ...ASSIGNEES.map((a) => [a, a] as [string,string])]} />
+            options={[["", "—"], ...assignees.map((a) => [a, a] as [string, string])]} />
           <Select label="Модель" value={form.model_id ?? ""} onChange={(v) => setForm({ ...form, model_id: v || null })}
-            options={[["", "— не привязана —"], ...models.map((m) => [m.id, m.name] as [string,string])]} />
+            options={[["", "— не привязана —"], ...models.map((m: any) => [m.id, m.name] as [string, string])]} />
           <Select label="Тип" value={form.task_type ?? ""} onChange={(v) => setForm({ ...form, task_type: v || null })}
-            options={[["",""], ...TASK_TYPES.map((t) => [t, t] as [string,string])]} />
+            options={[["", "—"], ...taskTypes.map((t) => [t.name, t.name] as [string, string])]} />
           <Select label="Статус" value={form.status ?? "incoming"} onChange={(v) => setForm({ ...form, status: v })}
             options={STATUSES.map((s) => [s.value, s.label])} />
           <div>
