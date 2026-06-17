@@ -290,12 +290,13 @@ function GoalCard({ goal, weekPassed, canEdit, canProgress, onUpdate, onDelete }
   );
 }
 
-function GoalModal({ type, weekISO, defaultAssignee, defaultModelId, models, createdBy, onClose, onSaved }: {
+function GoalModal({ type, weekISO, defaultAssignee, defaultModelId, models, workers, createdBy, onClose, onSaved }: {
   type: "company" | "worker" | "model";
   weekISO: string;
   defaultAssignee?: string;
   defaultModelId?: string;
   models: any[];
+  workers: string[];
   createdBy: string;
   onClose: () => void;
   onSaved: () => void;
@@ -303,7 +304,7 @@ function GoalModal({ type, weekISO, defaultAssignee, defaultModelId, models, cre
   const [form, setForm] = useState({
     title: "",
     description: "",
-    assigned_to: defaultAssignee ?? WORKERS[0],
+    assigned_to: defaultAssignee ?? workers[0] ?? "",
     model_id: defaultModelId ?? (models[0]?.id ?? ""),
   });
   const save = useMutation({
