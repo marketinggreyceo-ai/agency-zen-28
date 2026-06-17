@@ -65,6 +65,15 @@ export function Sidebar() {
     refetchInterval: 30000,
   });
 
+  const { data: pendingUsersCount = 0 } = useQuery({
+    queryKey: ["profiles-pending-count"],
+    queryFn: async () => {
+      const { count } = await supabase.from("profiles").select("id", { count: "exact", head: true }).eq("status", "pending");
+      return count ?? 0;
+    },
+    refetchInterval: 30000,
+  });
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -121,6 +130,7 @@ export function Sidebar() {
                   const Icon = it.icon;
                   const active = isActive(it.to);
                   const showBlocked = it.page === "tasks" && blockedCount > 0;
+                  const showPending = it.page === "access" && pendingUsersCount > 0;
                   return (
                     <li key={it.to}>
                       <Link to={it.to}
@@ -132,6 +142,11 @@ export function Sidebar() {
                         {showBlocked && (
                           <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red text-white text-[10px] font-semibold">
                             {blockedCount}
+                          </span>
+                        )}
+                        {showPending && (
+                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber text-white text-[10px] font-semibold">
+                            {pendingUsersCount}
                           </span>
                         )}
                       </Link>
