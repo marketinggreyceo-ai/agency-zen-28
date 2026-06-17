@@ -30,6 +30,10 @@ function Page() {
     queryKey: ["tasks"],
     queryFn: async () => (await supabase.from("tasks").select("*")).data ?? [],
   });
+  const { data: customs = [] } = useQuery({
+    queryKey: ["customs_overview"],
+    queryFn: async () => (await (supabase as any).from("customs").select("id,status,created_at")).data ?? [],
+  });
 
   // Current week's company goals
   const monday = (() => {
