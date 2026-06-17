@@ -145,48 +145,102 @@ function Page() {
                 )}
               </button>
               {open && (
-                <div className="border-t border-border p-4 space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold">Аккаунты</h4>
-                      {isOwner && (
-                        <button onClick={() => setAccountForModel(m.id)} className="text-xs text-teal flex items-center gap-1">
-                          <Plus className="h-3 w-3" /> Добавить
-                        </button>
-                      )}
-                    </div>
-                    {modelAccs.length === 0 ? <p className="text-xs text-text3">нет аккаунтов</p> : (
-                      <table className="w-full text-sm">
-                        <thead><tr className="text-xs text-text2">
-                          <th className="text-left py-1">Платформа</th><th className="text-left">URL</th>
-                          <th className="text-right">Подп.</th><th>VA</th><th>Статус</th>{isOwner && <th></th>}
-                        </tr></thead>
-                        <tbody>
-                          {modelAccs.map((a: any) => (
-                            <tr key={a.id} className="border-t border-border">
-                              <td className="py-1.5">{a.platform}</td>
-                              <td><a href={a.account_url} target="_blank" rel="noopener" className="text-teal inline-flex items-center gap-1">
-                                {a.account_url?.slice(0, 30)}<ExternalLink className="h-3 w-3" />
-                              </a></td>
-                              <td className="text-right">{a.followers}</td>
-                              <td className="text-center text-text2">{a.va_owner}</td>
-                              <td className="text-center text-text2">{a.status}</td>
-                              {isOwner && (
-                                <td className="text-right">
-                                  <button onClick={() => setEditingAccount(a)}><Edit className="h-3 w-3 text-text2 inline" /></button>
-                                  <button onClick={async () => {
-                                    if (!confirm("Удалить?")) return;
-                                    await supabase.from("model_accounts").delete().eq("id", a.id);
-                                    qc.invalidateQueries({ queryKey: ["model_accounts"] });
-                                  }}><Trash2 className="h-3 w-3 text-text2 inline ml-2" /></button>
-                                </td>
-                              )}
-                            </tr>
+                <div className="border-t border-border p-4 space-y-3">
+                  {(() => {
+                    const presentPlatforms = ACCOUNT_PLATFORMS.filter((p) => modelAccs.some((a: any) => a.platform === p));
+                    const tabs = presentPlatforms.length ? presentPlatforms : ACCOUNT_PLATFORMS;
+                    const activeTab = tabByModel[m.id] ?? tabs[0];
+                    const tabAccs = modelAccs.filter((a: any) => a.platform === activeTab);
+                    return (
+                      <>
+                        <div className="flex flex-wrap gap-1 border-b border-border">
+                          {tabs.map((p) => (
+                            <button key={p}
+                              onClick={() => setTabByModel({ ...tabByModel, [m.id]: p })}
+                              className={`text-xs px-3 py-1.5 -mb-px border-b-2 ${activeTab === p ? "border-teal text-foreground" : "border-transparent text-text2"}`}>
+                              {p}
+                            </button>
                           ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-text2">{tabAccs.length} аккаунт(ов)</span>
+                          {canManageAccounts && (
+                            <button onClick={() => setAccountForModel({ modelId: m.id, platform: activeTab })}
+                              className="text-xs text-teal flex items-center gap-1">
+                              <Plus className="h-3 w-3" /> Добавить аккаунт
+                            </button>
+                          )}
+                        </div>
+                        {tabAccs.length === 0 ? (
+                          <p className="text-xs text-text3">нет аккаунтов</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {tabAccs.map((a: any) => {
+                              const vaCanEditStatus = isVa && a.va_owner === myAssignee;
+                              const canEditStatus = canManageAccounts || vaCanEditStatus;
+                              const canEditAll = canManageAccounts;
+                              return (
+                                <div key={a.id} className="rounded border border-border bg-bg2 p-3 text-sm">
+                                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                                    <span className="font-medium">{a.account_name || a.account_url?.replace(/^https?:\/\//, "").slice(0, 40) || "—"}</span>
+                                    {canEditStatus ? (
+                                      <select
+                                        value={a.status ?? "active"}
+                                        onChange={(e) => changeAccountStatus.mutate({ id: a.id, status: e.target.value })}
+                                        className="text-[10px] font-medium px-1.5 py-0.5 rounded text-white border-0"
+                                        style={{ background: statusMeta(a.status).color }}>
+                                        {ACCOUNT_STATUSES.map((s) => (
+                                          <option key={s.value} value={s.value} style={{ color: "black", background: "white" }}>{s.label}</option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <StatusBadge status={a.status} changedAt={a.status_changed_at} />
+                                    )}
+                                    {a.status_changed_at && (
+                                      <span className="text-[10px] text-text3">· {fmtRuDate(a.status_changed_at)}{a.status_changed_by ? ` · ${a.status_changed_by}` : ""}</span>
+                                    )}
+                                    {canEditAll && (
+                                      <div className="ml-auto flex items-center gap-2">
+                                        <button onClick={() => setEditingAccount(a)} className="text-text2 hover:text-foreground"><Edit className="h-3.5 w-3.5" /></button>
+                                        <button onClick={async () => {
+                                          if (!confirm("Удалить аккаунт?")) return;
+                                          const { error } = await supabase.from("model_accounts").delete().eq("id", a.id);
+                                          if (error) return toast.error(error.message);
+                                          qc.invalidateQueries({ queryKey: ["model_accounts"] });
+                                        }} className="text-text2 hover:text-red"><Trash2 className="h-3.5 w-3.5" /></button>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-xs text-text2">
+                                    {a.account_url && (
+                                      <div className="truncate">
+                                        <span className="text-text3">Ссылка: </span>
+                                        <a href={a.account_url} target="_blank" rel="noopener" className="text-teal inline-flex items-center gap-1">
+                                          {a.account_url.replace(/^https?:\/\//, "").slice(0, 40)}<ExternalLink className="h-3 w-3" />
+                                        </a>
+                                      </div>
+                                    )}
+                                    {a.va_owner && (<div><span className="text-text3">VA: </span>{a.va_owner}</div>)}
+                                    {a.pixel_phone && (<div><span className="text-text3">Pixel/Phone: </span>{a.pixel_phone}</div>)}
+                                    {a.linkinbio_url && (
+                                      <div className="truncate">
+                                        <span className="text-text3">Linkinbio: </span>
+                                        <a href={a.linkinbio_url} target="_blank" rel="noopener" className="text-teal inline-flex items-center gap-1">
+                                          {a.linkinbio_url.replace(/^https?:\/\//, "").slice(0, 40)}<ExternalLink className="h-3 w-3" />
+                                        </a>
+                                      </div>
+                                    )}
+                                    {typeof a.followers === "number" && (<div><span className="text-text3">Подписчики: </span>{a.followers.toLocaleString("ru-RU")}</div>)}
+                                  </div>
+                                  {a.notes && <p className="mt-2 text-xs text-text2 whitespace-pre-wrap">{a.notes}</p>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -196,13 +250,18 @@ function Page() {
       </div>
 
       {(editingAccount || accountForModel) && (
-        <AccountModal account={editingAccount} modelId={accountForModel}
+        <AccountModal
+          account={editingAccount}
+          modelId={accountForModel?.modelId ?? null}
+          defaultPlatform={accountForModel?.platform}
+          teamMembers={teamMembers}
           onClose={() => { setEditingAccount(null); setAccountForModel(null); }} />
       )}
       {editingModel && <ModelModal model={editingModel} onClose={() => setEditingModel(null)} />}
     </div>
   );
 }
+
 
 
 function AccountModal({ account, modelId, onClose }: { account: any | null; modelId: string | null; onClose: () => void }) {
