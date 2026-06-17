@@ -134,6 +134,20 @@ function EditArea({ label, value, disabled, onSave }: {
   );
 }
 
+function EditInline({ label, value, placeholder, onSave }: {
+  label: string; value: string | null; placeholder?: string; onSave: (v: string) => void;
+}) {
+  const [v, setV] = useState(value ?? "");
+  return (
+    <div className="mb-3">
+      <div className="text-[10px] uppercase tracking-wide text-text3 mb-1">{label}</div>
+      <input value={v} placeholder={placeholder}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => v !== (value ?? "") && onSave(v)}
+        className="w-full bg-bg3 border border-border rounded px-2 py-1.5 text-sm focus:border-teal outline-none" />
+    </div>
+  );
+
 function InviteModal({ member, onClose }: { member: any | null; onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("va");
