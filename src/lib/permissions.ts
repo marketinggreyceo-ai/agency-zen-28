@@ -34,6 +34,7 @@ export const PAGE_KEYS = [
   { key: "second-brain",  label: "Second Brain" },
   { key: "finance",       label: "Финансы" },
   { key: "tasks",         label: "Задачи" },
+  { key: "customs",       label: "Кастомы" },
   { key: "growth",        label: "Рост" },
   { key: "team",          label: "Команда" },
   { key: "sops",          label: "SOPs" },
