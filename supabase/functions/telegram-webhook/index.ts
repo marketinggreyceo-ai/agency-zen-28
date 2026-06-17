@@ -127,6 +127,10 @@ Deno.serve(async (req) => {
   const text: string = msg?.text ?? msg?.caption ?? "";
   const chat = msg?.chat;
   const chatId = chat?.id ? String(chat.id) : null;
+  console.log("[telegram-webhook] incoming", { chatId, text, update_id: update.update_id });
+  const action = /#кастом/i.test(text) ? "custom" : /#задача/i.test(text) ? "task" : "ignored";
+  console.log("[telegram-webhook] parsed action", action);
+
 
   try {
     if (!chat) {
@@ -225,6 +229,8 @@ Deno.serve(async (req) => {
     return Response.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error("[telegram-webhook] error", message);
+
     await writeLog({ chat_id: chatId, message_text: text, parsed_action: /#кастом/i.test(text) ? "custom" : /#задача/i.test(text) ? "task" : "error", success: false, error_message: message });
     const { data: settings } = await admin
       .from("telegram_settings")
