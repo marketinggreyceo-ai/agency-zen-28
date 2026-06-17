@@ -229,6 +229,8 @@ Deno.serve(async (req) => {
     return Response.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error("[telegram-webhook] error", message);
+
     await writeLog({ chat_id: chatId, message_text: text, parsed_action: /#кастом/i.test(text) ? "custom" : /#задача/i.test(text) ? "task" : "error", success: false, error_message: message });
     const { data: settings } = await admin
       .from("telegram_settings")
