@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, PlatformBadge, PriorityBadge, Empty } from "@/components/ui-shared";
+import { StatusBottomSheet } from "@/components/StatusBottomSheet";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useProfile } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -86,6 +88,8 @@ function Page() {
   const [accountForModel, setAccountForModel] = useState<{ modelId: string; platform: string } | null>(null);
   const [editingModel, setEditingModel] = useState<any>(null);
   const [tabByModel, setTabByModel] = useState<Record<string, string>>({});
+  const [sheetAccount, setSheetAccount] = useState<any>(null);
+  const isMobile = useIsMobile();
 
   function toggle(id: string) {
     const s = new Set(expanded); s.has(id) ? s.delete(id) : s.add(id); setExpanded(s);
@@ -184,15 +188,24 @@ function Page() {
                                   <div className="flex flex-wrap items-center gap-2 mb-2">
                                     <span className="font-medium">{a.account_name || a.account_url?.replace(/^https?:\/\//, "").slice(0, 40) || "—"}</span>
                                     {canEditStatus ? (
-                                      <select
-                                        value={a.status ?? "active"}
-                                        onChange={(e) => changeAccountStatus.mutate({ id: a.id, status: e.target.value })}
-                                        className="text-[10px] font-medium px-1.5 py-0.5 rounded text-white border-0"
-                                        style={{ background: statusMeta(a.status).color }}>
-                                        {ACCOUNT_STATUSES.map((s) => (
-                                          <option key={s.value} value={s.value} style={{ color: "black", background: "white" }}>{s.label}</option>
-                                        ))}
-                                      </select>
+                                      isMobile ? (
+                                        <button
+                                          onClick={() => setSheetAccount(a)}
+                                          className="text-[10px] font-medium px-2 py-1 rounded-full text-white"
+                                          style={{ background: statusMeta(a.status).color, minHeight: 28 }}>
+                                          {statusMeta(a.status).label}
+                                        </button>
+                                      ) : (
+                                        <select
+                                          value={a.status ?? "active"}
+                                          onChange={(e) => changeAccountStatus.mutate({ id: a.id, status: e.target.value })}
+                                          className="text-[10px] font-medium px-1.5 py-0.5 rounded text-white border-0"
+                                          style={{ background: statusMeta(a.status).color }}>
+                                          {ACCOUNT_STATUSES.map((s) => (
+                                            <option key={s.value} value={s.value} style={{ color: "black", background: "white" }}>{s.label}</option>
+                                          ))}
+                                        </select>
+                                      )
                                     ) : (
                                       <StatusBadge status={a.status} changedAt={a.status_changed_at} />
                                     )}
