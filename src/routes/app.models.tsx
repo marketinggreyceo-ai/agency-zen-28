@@ -8,6 +8,10 @@ import { useProfile } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Plus, Edit, Trash2, X, ExternalLink } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/app/models")({
   ssr: false, component: Page,
@@ -87,6 +91,29 @@ function Page() {
   const [editingAccount, setEditingAccount] = useState<any>(null);
   const [accountForModel, setAccountForModel] = useState<{ modelId: string; platform: string } | null>(null);
   const [editingModel, setEditingModel] = useState<any>(null);
+  const [deletingModel, setDeletingModel] = useState<any>(null);
+
+  const deleteModel = useMutation({
+    mutationFn: async (id: string) => {
+      const tables = ["tasks", "customs", "revenue", "model_accounts", "model_brain_blocks"] as const;
+      for (const t of tables) {
+        const { error } = await supabase.from(t).delete().eq("model_id", id);
+        if (error) throw error;
+      }
+      const { error } = await supabase.from("models").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["models"] });
+      qc.invalidateQueries({ queryKey: ["model_accounts"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["customs"] });
+      qc.invalidateQueries({ queryKey: ["revenue"] });
+      toast.success("Модель удалена");
+      setDeletingModel(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
   const [tabByModel, setTabByModel] = useState<Record<string, string>>({});
   const [sheetAccount, setSheetAccount] = useState<any>(null);
   const isMobile = useIsMobile();
@@ -142,9 +169,16 @@ function Page() {
                   <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-bg3 border border-border text-text2">{t}</span>
                 ))}
                 {isOwner && (
-                  <span onClick={(e) => { e.stopPropagation(); setEditingModel(m); }}
-                    className="ml-auto text-xs text-teal flex items-center gap-1 cursor-pointer">
-                    <Edit className="h-3 w-3" /> Изменить
+                  <span className="ml-auto flex items-center gap-3">
+                    <span onClick={(e) => { e.stopPropagation(); setEditingModel(m); }}
+                      className="text-xs text-teal flex items-center gap-1 cursor-pointer">
+                      <Edit className="h-3 w-3" /> Изменить
+                    </span>
+                    <span onClick={(e) => { e.stopPropagation(); setDeletingModel(m); }}
+                      className="text-xs text-red-500 flex items-center gap-1 cursor-pointer"
+                      title="Удалить модель">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </span>
                   </span>
                 )}
               </button>
@@ -277,6 +311,24 @@ function Page() {
         onClose={() => setSheetAccount(null)}
         onSelect={(status) => sheetAccount && changeAccountStatus.mutate({ id: sheetAccount.id, status })}
       />
+      <AlertDialog open={!!deletingModel} onOpenChange={(o) => !o && setDeletingModel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить модель {deletingModel?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Все связанные задачи, кастомы, аккаунты и данные о выручке будут также удалены. Это действие нельзя отменить.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingModel && deleteModel.mutate(deletingModel.id)}
+              className="bg-red-600 text-white hover:bg-red-700">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
