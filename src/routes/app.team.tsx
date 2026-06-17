@@ -56,14 +56,30 @@ function Page() {
             <div key={m.id} className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-bg3 flex items-center justify-center text-sm font-medium">{initials}</div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="font-medium">{m.name}</div>
-                  <div className="text-xs text-text2">{m.role_label} • {m.telegram_handle}</div>
+                  <div className="text-xs text-text2 flex items-center gap-2 flex-wrap">
+                    <span>{m.role_label}</span>
+                    {m.telegram_handle ? (
+                      <a href={`tg://resolve?domain=${String(m.telegram_handle).replace(/^@/, "")}`}
+                        className="inline-flex items-center gap-1 text-teal hover:underline">
+                        <Send className="h-3 w-3" />
+                        @{String(m.telegram_handle).replace(/^@/, "")}
+                      </a>
+                    ) : (
+                      <span className="text-text3 italic">без telegram</span>
+                    )}
+                  </div>
                 </div>
                 {isOwner && !m.profile_id && (
                   <button onClick={() => setInviteFor(m)} className="text-xs text-teal">Пригласить</button>
                 )}
               </div>
+              {isOwner && (
+                <EditInline label="Telegram username (без @)" value={m.telegram_handle}
+                  placeholder="andrew_grey"
+                  onSave={(v) => update.mutate({ id: m.id, patch: { telegram_handle: v.replace(/^@/, "") || null }})} />
+              )}
               <EditArea label="Зона ответственности" value={m.responsibilities} disabled={!isOwner}
                 onSave={(v) => update.mutate({ id: m.id, patch: { responsibilities: v }})} />
               <EditArea label="Еженедельные задачи" value={m.weekly_tasks} disabled={!isOwner}
