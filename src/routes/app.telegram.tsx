@@ -43,6 +43,26 @@ function Page() {
   const disconnect = useServerFn(disconnectTelegramChat);
   const buildReport = useServerFn(buildWeeklyReport);
   const sendReport = useServerFn(sendWeeklyReportNow);
+  const setHook = useServerFn(setTelegramWebhook);
+  const delHook = useServerFn(deleteTelegramWebhook);
+  const getHook = useServerFn(getTelegramWebhookInfo);
+
+  const { data: hook, refetch: refetchHook } = useQuery({
+    queryKey: ["telegram_webhook"],
+    queryFn: () => getHook(),
+    enabled: isOwner && !!s?.has_token,
+  });
+
+  const installHook = useMutation({
+    mutationFn: () => setHook({}),
+    onSuccess: () => { toast.success("Webhook активирован"); refetchHook(); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const removeHook = useMutation({
+    mutationFn: () => delHook({}),
+    onSuccess: () => { toast.success("Webhook удалён"); refetchHook(); },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const [token, setToken] = useState("");
   const [previewText, setPreviewText] = useState<string | null>(null);
