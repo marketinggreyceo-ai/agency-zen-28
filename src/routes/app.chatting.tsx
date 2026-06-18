@@ -906,12 +906,12 @@ function ChatterSalesTable({
         pid = (data as any).id;
       }
       const { error: expErr } = await supabase.from("expenses").insert({
-        name: `${chatter.name} — ${periodLabel(period, month)}`,
+        name: `${chatter.name} — ${periodLabel(period, month)} ${year}`,
         category: "Зарплата",
         amount: totalCommission,
         date: dateStrToday,
         month, year,
-        notes: `Чаттинг: период ${period} ${month}/${year}`,
+        notes: "Авто из Чаттинг",
       } as any);
       if (expErr) throw expErr;
       const { error } = await supabase
