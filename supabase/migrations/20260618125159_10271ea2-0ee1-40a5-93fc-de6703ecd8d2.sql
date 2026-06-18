@@ -1,0 +1,1 @@
+ALTER TABLE public.chatter_daily_sales ADD CONSTRAINT chatter_daily_sales_account_date_unique UNIQUE (chatter_account_id, sale_date);
