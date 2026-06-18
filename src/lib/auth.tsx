@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePreviewRole } from "@/lib/preview-role";
 
-export type Role = "owner" | "production" | "creative" | "va";
+export type Role = "owner" | "production" | "creative" | "va" | "chatter";
 export type ProfileStatus = "pending" | "active" | "suspended";
 export interface Profile {
   id: string;
@@ -55,5 +55,5 @@ import { colorFromName } from "@/lib/lookups";
 export const assigneeColor = colorFromName;
 
 export const ROLE_LABELS: Record<Role, string> = {
-  owner: "Owner", production: "Production", creative: "Creative", va: "VA",
+  owner: "Owner", production: "Production", creative: "Creative", va: "VA", chatter: "Chatter",
 };
