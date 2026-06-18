@@ -78,6 +78,11 @@ function Page() {
     queryKey: ["closed_months"],
     queryFn: async () => (await supabase.from("closed_months").select("*")).data ?? [],
   });
+  const { data: chatterPeriodsPaid = [] } = useQuery({
+    queryKey: ["chatter_periods_paid"],
+    queryFn: async () =>
+      (await supabase.from("chatter_periods").select("*").eq("status", "paid")).data ?? [],
+  });
 
   const currency = settings?.currency ?? "$";
   const partnerName = settings?.partner_name ?? "Партнёр";
