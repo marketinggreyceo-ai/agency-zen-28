@@ -40,79 +40,118 @@ function Page() {
 
   const [taskFor, setTaskFor] = useState<string | null>(null);
   const [inviteFor, setInviteFor] = useState<any>(null);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
 
   const isOwner = profile?.role === "owner";
   const visible = isOwner ? members : members.filter((m: any) => m.name === profile?.assignee_name);
+  const withAccess = visible.filter((m: any) => !!m.profile_id);
+  const withoutAccess = visible.filter((m: any) => !m.profile_id);
+
+  function renderCard(m: any) {
+    const memberTasks = tasks.filter((t: any) => t.assignee === m.name && t.status !== "done");
+    const initials = m.name.slice(0, 2).toUpperCase();
+    return (
+      <div key={m.id} className="rounded-lg border border-border bg-card p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full bg-bg3 flex items-center justify-center text-sm font-medium">{initials}</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium flex items-center gap-2">
+              {m.name}
+              {!m.profile_id && (
+                <span className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-bg3 text-text3 border border-border">
+                  без доступа
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-text2 flex items-center gap-2 flex-wrap">
+              <span>{m.role_label}</span>
+              {m.telegram_handle ? (
+                <a href={`tg://resolve?domain=${String(m.telegram_handle).replace(/^@/, "")}`}
+                  className="inline-flex items-center gap-1 text-teal hover:underline">
+                  <Send className="h-3 w-3" />
+                  @{String(m.telegram_handle).replace(/^@/, "")}
+                </a>
+              ) : (
+                <span className="text-text3 italic">без telegram</span>
+              )}
+            </div>
+          </div>
+          {isOwner && !m.profile_id && (
+            <button onClick={() => setInviteFor(m)} className="text-xs text-teal">Пригласить</button>
+          )}
+        </div>
+        {isOwner && (
+          <EditInline label="Telegram username (без @)" value={m.telegram_handle}
+            placeholder="andrew_grey"
+            onSave={(v) => update.mutate({ id: m.id, patch: { telegram_handle: v.replace(/^@/, "") || null }})} />
+        )}
+        <EditArea label="Зона ответственности" value={m.responsibilities} disabled={!isOwner}
+          onSave={(v) => update.mutate({ id: m.id, patch: { responsibilities: v }})} />
+        <EditArea label="Еженедельные задачи" value={m.weekly_tasks} disabled={!isOwner}
+          onSave={(v) => update.mutate({ id: m.id, patch: { weekly_tasks: v }})} />
+        <div className="mt-3 pt-3 border-t border-border">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-text2 uppercase">Активные задачи ({memberTasks.length})</span>
+            {isOwner && (
+              <button onClick={() => setTaskFor(m.name)} className="text-xs text-teal flex items-center gap-1">
+                <Plus className="h-3 w-3" /> Задача
+              </button>
+            )}
+          </div>
+          {memberTasks.length === 0 ? <p className="text-xs text-text3">нет активных</p> : (
+            <ul className="space-y-1.5">
+              {memberTasks.map((t: any) => (
+                <li key={t.id} className="flex items-center gap-2 text-sm">
+                  <TaskBadge name={t.assignee} />
+                  <span className="flex-1 truncate">{t.title}</span>
+                  {t.model_id && <span className="text-xs text-text2">{modelMap.get(t.model_id)}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <PageHeader title="Команда" />
       {isOwner && <RolesTable />}
-      <div className="grid md:grid-cols-2 gap-4">
-        {visible.map((m: any) => {
-          const memberTasks = tasks.filter((t: any) => t.assignee === m.name && t.status !== "done");
-          const initials = m.name.slice(0, 2).toUpperCase();
-          return (
-            <div key={m.id} className="rounded-lg border border-border bg-card p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-bg3 flex items-center justify-center text-sm font-medium">{initials}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium">{m.name}</div>
-                  <div className="text-xs text-text2 flex items-center gap-2 flex-wrap">
-                    <span>{m.role_label}</span>
-                    {m.telegram_handle ? (
-                      <a href={`tg://resolve?domain=${String(m.telegram_handle).replace(/^@/, "")}`}
-                        className="inline-flex items-center gap-1 text-teal hover:underline">
-                        <Send className="h-3 w-3" />
-                        @{String(m.telegram_handle).replace(/^@/, "")}
-                      </a>
-                    ) : (
-                      <span className="text-text3 italic">без telegram</span>
-                    )}
-                  </div>
-                </div>
-                {isOwner && !m.profile_id && (
-                  <button onClick={() => setInviteFor(m)} className="text-xs text-teal">Пригласить</button>
-                )}
-              </div>
-              {isOwner && (
-                <EditInline label="Telegram username (без @)" value={m.telegram_handle}
-                  placeholder="andrew_grey"
-                  onSave={(v) => update.mutate({ id: m.id, patch: { telegram_handle: v.replace(/^@/, "") || null }})} />
-              )}
-              <EditArea label="Зона ответственности" value={m.responsibilities} disabled={!isOwner}
-                onSave={(v) => update.mutate({ id: m.id, patch: { responsibilities: v }})} />
-              <EditArea label="Еженедельные задачи" value={m.weekly_tasks} disabled={!isOwner}
-                onSave={(v) => update.mutate({ id: m.id, patch: { weekly_tasks: v }})} />
-              <div className="mt-3 pt-3 border-t border-border">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-text2 uppercase">Активные задачи ({memberTasks.length})</span>
-                  {isOwner && (
-                    <button onClick={() => setTaskFor(m.name)} className="text-xs text-teal flex items-center gap-1">
-                      <Plus className="h-3 w-3" /> Задача
-                    </button>
-                  )}
-                </div>
-                {memberTasks.length === 0 ? <p className="text-xs text-text3">нет активных</p> : (
-                  <ul className="space-y-1.5">
-                    {memberTasks.map((t: any) => (
-                      <li key={t.id} className="flex items-center gap-2 text-sm">
-                        <TaskBadge name={t.assignee} />
-                        <span className="flex-1 truncate">{t.title}</span>
-                        {t.model_id && <span className="text-xs text-text2">{modelMap.get(t.model_id)}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        {visible.length === 0 && <Empty message="Нет участников команды" />}
-      </div>
+
+      {isOwner && (
+        <div className="flex justify-end mb-4">
+          <button onClick={() => setAddMemberOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-teal text-primary-foreground text-sm font-medium">
+            <UserPlus className="h-4 w-4" /> Добавить участника
+          </button>
+        </div>
+      )}
+
+      <section className="mb-8">
+        <h2 className="text-xs uppercase tracking-wide text-text2 mb-3">
+          С доступом к системе <span className="text-text3">({withAccess.length})</span>
+        </h2>
+        <div className="grid md:grid-cols-2 gap-4">
+          {withAccess.map(renderCard)}
+          {withAccess.length === 0 && <Empty message="Никого с доступом" />}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xs uppercase tracking-wide text-text2 mb-3">
+          Без доступа <span className="text-text3">({withoutAccess.length})</span>
+        </h2>
+        <p className="text-xs text-text3 mb-3">Участники без входа в систему. Их можно назначать в задачах.</p>
+        <div className="grid md:grid-cols-2 gap-4">
+          {withoutAccess.map(renderCard)}
+          {withoutAccess.length === 0 && <Empty message="Нет участников без доступа" />}
+        </div>
+      </section>
 
       <TaskModal task={null} open={!!taskFor} onClose={() => setTaskFor(null)} defaultAssignee={taskFor ?? undefined} />
       <InviteModal member={inviteFor} onClose={() => setInviteFor(null)} />
+      <AddMemberModal open={addMemberOpen} onClose={() => setAddMemberOpen(false)} onCreated={() => qc.invalidateQueries({ queryKey: ["team"] })} />
     </div>
   );
 }
