@@ -70,4 +70,4 @@ export const FEATURE_GROUPS: { resource: string; label: string; actions: { key: 
   ]},
 ];
 
-export const ROLES_ORDER: Role[] = ["owner", "production", "creative", "va"];
+export const ROLES_ORDER: Role[] = ["owner", "production", "creative", "va", "chatter"];

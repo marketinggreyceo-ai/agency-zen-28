@@ -47,6 +47,7 @@ function currentPeriod(): "1-15" | "16-30" {
 function Page() {
   const { data: profile } = useProfile();
   const isOwner = profile?.role === "owner";
+  const isChatter = profile?.role === "chatter";
   const [tab, setTab] = useState<"sales" | "history" | "settings">(isOwner ? "settings" : "sales");
   const [selectedPeriod, setSelectedPeriod] = useState<any | null>(null);
 
@@ -60,7 +61,7 @@ function Page() {
 
       <div className="flex gap-1 border-b border-border">
         <TabBtn active={tab === "sales"} onClick={() => setTab("sales")}>Продажи</TabBtn>
-        <TabBtn active={tab === "history"} onClick={() => setTab("history")}>История</TabBtn>
+        {!isChatter && <TabBtn active={tab === "history"} onClick={() => setTab("history")}>История</TabBtn>}
         {isOwner && <TabBtn active={tab === "settings"} onClick={() => setTab("settings")}>Настройки</TabBtn>}
       </div>
 

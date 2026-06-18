@@ -46,7 +46,9 @@ function Page() {
   const isMobile = useIsMobile();
   const { data: profile } = useProfile();
   const role = profile?.role;
+  const isChatter = role === "chatter";
   const canEdit = role === "owner" || role === "creative" || role === "production";
+  const ownChatterName = profile?.assignee_name || profile?.full_name || "";
 
   const { data: models = [] } = useQuery({
     queryKey: ["models_min"],
@@ -73,12 +75,13 @@ function Page() {
 
   const filtered = useMemo(() => {
     return customs.filter(c => {
+      if (isChatter && (c.chatter ?? "") !== ownChatterName) return false;
       if (modelFilter && c.model_id !== modelFilter) return false;
       if (chatterFilter && c.chatter !== chatterFilter) return false;
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
       return true;
     });
-  }, [customs, modelFilter, chatterFilter, statusFilter]);
+  }, [customs, modelFilter, chatterFilter, statusFilter, isChatter, ownChatterName]);
 
   const upsert = useMutation({
     mutationFn: async (row: Partial<Custom> & { id?: string }) => {
@@ -179,8 +182,13 @@ function Page() {
       )}
       {editing && (
         <EditModal title="Кастом" models={models} initial={editing}
+          statusOnly={isChatter}
           onClose={() => setEditing(null)}
-          onSave={(row) => { upsert.mutate({ ...row, id: editing.id }); setEditing(null); }}
+          onSave={(row) => {
+            const payload = isChatter ? { status: row.status } : row;
+            upsert.mutate({ ...payload, id: editing.id });
+            setEditing(null);
+          }}
           onDelete={canEdit ? () => { del.mutate(editing.id); setEditing(null); } : undefined} />
       )}
     </div>
@@ -217,12 +225,13 @@ function CardItem({ c, modelName, onClick }: { c: Custom; modelName: string; onC
   );
 }
 
-function EditModal({ title, initial, models, onClose, onSave, onDelete }: {
-  title: string; initial: Partial<Custom>; models: any[];
+function EditModal({ title, initial, models, statusOnly, onClose, onSave, onDelete }: {
+  title: string; initial: Partial<Custom>; models: any[]; statusOnly?: boolean;
   onClose: () => void; onSave: (row: Partial<Custom>) => void; onDelete?: () => void;
 }) {
   const [f, setF] = useState<Partial<Custom>>({ ...initial });
   function set<K extends keyof Custom>(k: K, v: any) { setF(p => ({ ...p, [k]: v })); }
+  const ro = !!statusOnly;
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()}
@@ -231,36 +240,40 @@ function EditModal({ title, initial, models, onClose, onSave, onDelete }: {
           <h3 className="text-sm font-semibold">{title}</h3>
           <button onClick={onClose} className="text-text3 hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
-        <Field label="Модель">
-          <select value={f.model_id ?? ""} onChange={(e) => set("model_id", e.target.value || null)}
-            className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm">
-            <option value="">—</option>
-            {models.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </Field>
-        <Field label="Никнейм клиента">
-          <input value={f.customer_nickname ?? ""} onChange={(e) => set("customer_nickname", e.target.value)}
-            className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
-        </Field>
-        <Field label="Описание">
-          <textarea rows={3} value={f.description ?? ""} onChange={(e) => set("description", e.target.value)}
-            className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Цена">
-            <input type="number" value={f.price ?? ""} onChange={(e) => set("price", e.target.value === "" ? null : Number(e.target.value))}
-              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
-          </Field>
-          <Field label="Чаттер">
-            <input value={f.chatter ?? ""} onChange={(e) => set("chatter", e.target.value)}
-              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
-          </Field>
-          <Field label="Платформа">
-            <select value={f.platform ?? "Fansly"} onChange={(e) => set("platform", e.target.value)}
+        <fieldset disabled={ro} className={ro ? "opacity-60 space-y-3" : "space-y-3"}>
+          <Field label="Модель">
+            <select value={f.model_id ?? ""} onChange={(e) => set("model_id", e.target.value || null)}
               className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm">
-              {PLATFORMS.map(p => <option key={p}>{p}</option>)}
+              <option value="">—</option>
+              {models.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </Field>
+          <Field label="Никнейм клиента">
+            <input value={f.customer_nickname ?? ""} onChange={(e) => set("customer_nickname", e.target.value)}
+              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+          </Field>
+          <Field label="Описание">
+            <textarea rows={3} value={f.description ?? ""} onChange={(e) => set("description", e.target.value)}
+              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Цена">
+              <input type="number" value={f.price ?? ""} onChange={(e) => set("price", e.target.value === "" ? null : Number(e.target.value))}
+                className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+            </Field>
+            <Field label="Чаттер">
+              <input value={f.chatter ?? ""} onChange={(e) => set("chatter", e.target.value)}
+                className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+            </Field>
+            <Field label="Платформа">
+              <select value={f.platform ?? "Fansly"} onChange={(e) => set("platform", e.target.value)}
+                className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm">
+                {PLATFORMS.map(p => <option key={p}>{p}</option>)}
+              </select>
+            </Field>
+          </div>
+        </fieldset>
+        <div className="grid grid-cols-2 gap-2">
           <Field label="Статус">
             <select value={f.status ?? "new"} onChange={(e) => set("status", e.target.value)}
               className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm">
@@ -268,10 +281,12 @@ function EditModal({ title, initial, models, onClose, onSave, onDelete }: {
             </select>
           </Field>
         </div>
-        <Field label="Заметки">
-          <textarea rows={2} value={f.notes ?? ""} onChange={(e) => set("notes", e.target.value)}
-            className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
-        </Field>
+        <fieldset disabled={ro} className={ro ? "opacity-60" : ""}>
+          <Field label="Заметки">
+            <textarea rows={2} value={f.notes ?? ""} onChange={(e) => set("notes", e.target.value)}
+              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+          </Field>
+        </fieldset>
         <div className="flex items-center justify-between pt-2">
           {onDelete ? (
             <button onClick={onDelete} className="text-red text-xs inline-flex items-center gap-1">
