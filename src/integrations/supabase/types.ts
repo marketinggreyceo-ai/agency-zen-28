@@ -239,6 +239,7 @@ export type Database = {
         Row: {
           closed_at: string
           closed_by: string | null
+          comment: string | null
           id: string
           month: number
           year: number
@@ -246,6 +247,7 @@ export type Database = {
         Insert: {
           closed_at?: string
           closed_by?: string | null
+          comment?: string | null
           id?: string
           month: number
           year: number
@@ -253,6 +255,7 @@ export type Database = {
         Update: {
           closed_at?: string
           closed_by?: string | null
+          comment?: string | null
           id?: string
           month?: number
           year?: number
@@ -414,8 +417,10 @@ export type Database = {
           currency: string
           default_chatting_percent: number
           id: string
+          linjey_chatting_percent: number
           partner_name: string
           partner_split_percent: number
+          temik_chatting_percent: number
           updated_at: string
         }
         Insert: {
@@ -423,8 +428,10 @@ export type Database = {
           currency?: string
           default_chatting_percent?: number
           id?: string
+          linjey_chatting_percent?: number
           partner_name?: string
           partner_split_percent?: number
+          temik_chatting_percent?: number
           updated_at?: string
         }
         Update: {
@@ -432,8 +439,10 @@ export type Database = {
           currency?: string
           default_chatting_percent?: number
           id?: string
+          linjey_chatting_percent?: number
           partner_name?: string
           partner_split_percent?: number
+          temik_chatting_percent?: number
           updated_at?: string
         }
         Relationships: []
