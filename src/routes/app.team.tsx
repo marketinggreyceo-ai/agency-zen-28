@@ -6,7 +6,7 @@ import { TaskBadge, TaskModal } from "@/components/TaskCard";
 import { useProfile } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Send } from "lucide-react";
+import { Plus, Send, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/app/team")({
   ssr: false, component: Page,
