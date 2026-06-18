@@ -3,19 +3,29 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, Empty } from "@/components/ui-shared";
 import { useProfile } from "@/lib/auth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Check } from "lucide-react";
 
 export const Route = createFileRoute("/app/chatting")({
   ssr: false,
   component: Page,
 });
 
+const RU_MONTHS_GENITIVE = [
+  "января", "февраля", "марта", "апреля", "мая", "июня",
+  "июля", "августа", "сентября", "октября", "ноября", "декабря",
+];
+
+export function periodLabel(period: string, month: number) {
+  return `${period} ${RU_MONTHS_GENITIVE[month - 1] ?? ""}`.trim();
+}
+
 function Page() {
   const { data: profile } = useProfile();
   const isOwner = profile?.role === "owner";
-  const [tab, setTab] = useState<"sales" | "settings">(isOwner ? "settings" : "sales");
+  const [tab, setTab] = useState<"sales" | "history" | "settings">(isOwner ? "settings" : "sales");
+  const [selectedPeriod, setSelectedPeriod] = useState<any | null>(null);
 
   useEffect(() => {
     if (!isOwner) setTab("sales");
@@ -26,33 +36,212 @@ function Page() {
       <PageHeader title="Чаттинг" />
 
       <div className="flex gap-1 border-b border-border">
-        <button
-          onClick={() => setTab("sales")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-            tab === "sales" ? "border-teal text-text" : "border-transparent text-text2"
-          }`}
-        >
-          Продажи
-        </button>
-        {isOwner && (
-          <button
-            onClick={() => setTab("settings")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
-              tab === "settings" ? "border-teal text-text" : "border-transparent text-text2"
-            }`}
-          >
-            Настройки
-          </button>
-        )}
+        <TabBtn active={tab === "sales"} onClick={() => setTab("sales")}>Продажи</TabBtn>
+        <TabBtn active={tab === "history"} onClick={() => setTab("history")}>История</TabBtn>
+        {isOwner && <TabBtn active={tab === "settings"} onClick={() => setTab("settings")}>Настройки</TabBtn>}
       </div>
 
       {tab === "sales" && (
-        <Empty message="Вкладка «Продажи» появится в следующем обновлении." />
+        <div className="space-y-3">
+          {selectedPeriod && (
+            <div className="rounded border border-border bg-bg2 p-3 text-sm">
+              Выбран период: <b>{periodLabel(selectedPeriod.period, selectedPeriod.month)} {selectedPeriod.year}</b>
+              <button onClick={() => setSelectedPeriod(null)} className="ml-3 text-xs text-text2 underline">сбросить</button>
+            </div>
+          )}
+          <Empty message="Вкладка «Продажи» появится в следующем обновлении." />
+        </div>
+      )}
+      {tab === "history" && (
+        <HistoryTab
+          isOwner={!!isOwner}
+          onOpenPeriod={(p) => { setSelectedPeriod(p); setTab("sales"); }}
+        />
       )}
       {tab === "settings" && isOwner && <SettingsTab />}
     </div>
   );
 }
+
+function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: any }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+        active ? "border-teal text-text" : "border-transparent text-text2"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ===================== History tab ===================== */
+
+function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod: (p: any) => void }) {
+  const qc = useQueryClient();
+  const [filterChatter, setFilterChatter] = useState("");
+  const [filterYear, setFilterYear] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+
+  const { data: periods = [] } = useQuery({
+    queryKey: ["chatter_periods"],
+    queryFn: async () =>
+      (await supabase.from("chatter_periods").select("*").order("year", { ascending: false }).order("month", { ascending: false }).order("period")).data ?? [],
+  });
+  const { data: members = [] } = useQuery({
+    queryKey: ["team_members_all"],
+    queryFn: async () => (await supabase.from("team_members").select("id, name").order("name")).data ?? [],
+  });
+
+  const memberMap = useMemo(() => new Map(members.map((m: any) => [m.id, m.name])), [members]);
+
+  const filtered = periods.filter((p: any) => {
+    if (filterChatter && p.chatter_id !== filterChatter) return false;
+    if (filterYear && p.year !== Number(filterYear)) return false;
+    if (filterMonth && p.month !== Number(filterMonth)) return false;
+    return true;
+  });
+
+  const years = Array.from(new Set(periods.map((p: any) => p.year))).sort((a: number, b: number) => b - a);
+
+  const markPaid = useMutation({
+    mutationFn: async (p: any) => {
+      const chatterName = memberMap.get(p.chatter_id) ?? "Чаттер";
+      const today = new Date();
+      const dateStr = today.toISOString().slice(0, 10);
+      // Insert expense first
+      const { error: expErr } = await supabase.from("expenses").insert({
+        name: `${chatterName} — ${periodLabel(p.period, p.month)}`,
+        category: "Зарплата",
+        amount: Number(p.commission_amount) || 0,
+        date: dateStr,
+        month: p.month,
+        year: p.year,
+        notes: `Чаттинг: период ${p.period} ${p.month}/${p.year}`,
+      } as any);
+      if (expErr) throw expErr;
+      // Mark period paid
+      const { error } = await supabase
+        .from("chatter_periods")
+        .update({ status: "paid", paid_at: today.toISOString(), paid_by: chatterName })
+        .eq("id", p.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Отмечено как выплачено и добавлено в расходы");
+      qc.invalidateQueries({ queryKey: ["chatter_periods"] });
+      qc.invalidateQueries({ queryKey: ["expenses-all"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  function exportCSV() {
+    const rows = [["Период", "Месяц", "Год", "Чаттер", "Продажи", "Комиссия %", "Комиссия", "Статус", "Дата выплаты"]];
+    for (const p of filtered) {
+      rows.push([
+        p.period, String(p.month), String(p.year),
+        memberMap.get(p.chatter_id) ?? "",
+        String(p.total_sales), `${p.commission_pct}%`,
+        String(p.commission_amount), p.status,
+        p.paid_at ? new Date(p.paid_at).toISOString().slice(0, 10) : "",
+      ]);
+    }
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `chatter-periods-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-sm font-semibold">История периодов</h2>
+        <button onClick={exportCSV} className="text-xs text-teal flex items-center gap-1">
+          <Download className="h-3 w-3" /> Скачать CSV
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        <select value={filterChatter} onChange={(e) => setFilterChatter(e.target.value)}
+          className="bg-bg3 border border-border rounded px-2 py-1.5">
+          <option value="">Все чаттеры</option>
+          {members.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+        <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)}
+          className="bg-bg3 border border-border rounded px-2 py-1.5">
+          <option value="">Все годы</option>
+          {years.map((y: number) => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
+          className="bg-bg3 border border-border rounded px-2 py-1.5">
+          <option value="">Все месяцы</option>
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Empty message="Нет периодов" />
+      ) : (
+        <div className="rounded-lg border border-border bg-card overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-bg2 text-text2 text-[10px] uppercase">
+              <tr>
+                <th className="text-left p-3">Период</th>
+                <th className="text-left p-3">Чаттер</th>
+                <th className="text-right p-3">Продажи</th>
+                <th className="text-right p-3">Комиссия</th>
+                <th className="text-left p-3">Статус</th>
+                <th className="text-left p-3">Дата выплаты</th>
+                <th className="text-right p-3">Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((p: any) => (
+                <tr key={p.id}
+                  className="border-t border-border hover:bg-bg2/50 cursor-pointer"
+                  onClick={() => onOpenPeriod(p)}
+                >
+                  <td className="p-3">{periodLabel(p.period, p.month)} {p.year}</td>
+                  <td className="p-3">{memberMap.get(p.chatter_id) ?? "—"}</td>
+                  <td className="p-3 text-right">${Math.round(Number(p.total_sales)).toLocaleString()}</td>
+                  <td className="p-3 text-right text-green">${Math.round(Number(p.commission_amount)).toLocaleString()}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                      p.status === "paid" ? "bg-green/20 text-green" : "bg-amber-500/20 text-amber-500"
+                    }`}>
+                      {p.status === "paid" ? "Выплачено" : "Ожидает"}
+                    </span>
+                  </td>
+                  <td className="p-3 text-text2">{p.paid_at ? new Date(p.paid_at).toISOString().slice(0, 10) : "—"}</td>
+                  <td className="p-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    {isOwner && p.status !== "paid" && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Отметить выплаченным и добавить в расходы как «Зарплата»?`)) markPaid.mutate(p);
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-teal text-primary-foreground text-xs font-medium"
+                      >
+                        <Check className="h-3 w-3" /> Выплачено
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ===================== Settings ===================== */
 
 function SettingsTab() {
   return (
@@ -62,8 +251,6 @@ function SettingsTab() {
     </div>
   );
 }
-
-/* ===================== Chatter accounts ===================== */
 
 function ChatterAccountsSection() {
   const qc = useQueryClient();

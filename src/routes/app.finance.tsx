@@ -78,6 +78,11 @@ function Page() {
     queryKey: ["closed_months"],
     queryFn: async () => (await supabase.from("closed_months").select("*")).data ?? [],
   });
+  const { data: chatterPeriodsPaid = [] } = useQuery({
+    queryKey: ["chatter_periods_paid"],
+    queryFn: async () =>
+      (await supabase.from("chatter_periods").select("*").eq("status", "paid")).data ?? [],
+  });
 
   const currency = settings?.currency ?? "$";
   const partnerName = settings?.partner_name ?? "Партнёр";
@@ -87,6 +92,9 @@ function Page() {
 
   const monthPayments = payments.filter((p: any) => p.month === month && p.year === year);
   const expenses = expensesAll.filter((e: any) => e.year === year && e.month === month);
+  const chattingPaid = chatterPeriodsPaid
+    .filter((p: any) => p.month === month && p.year === year)
+    .reduce((s: number, p: any) => s + Number(p.commission_amount || 0), 0);
 
   function calcNetForModel(modelId: string | null): number {
     const m = models.find((x: any) => x.id === modelId);
@@ -405,6 +413,7 @@ function Page() {
               <Row label="Нетто агентства:" value={`${currency}${Math.round(totals.net).toLocaleString()}`} />
               <Row label="− Чаттинг:" value={`−${currency}${Math.round(totals.chattingCost).toLocaleString()}`} color="#BA7517" />
               <Row label="− Расходы:" value={`−${currency}${Math.round(totals.expTotal).toLocaleString()}`} color="#E24B4A" />
+              <Row label="Чаттинг (выплачено):" value={`${currency}${Math.round(chattingPaid).toLocaleString()}`} color="#5DCAA5" />
               <div className="border-t border-border my-2" />
               <Row label="Чистая прибыль:" value={`${currency}${Math.round(totals.profit).toLocaleString()}`}
                 bold color={totals.profit >= 0 ? "#1FB8B0" : "#E24B4A"} />
