@@ -192,9 +192,8 @@ function Page() {
           if (error) throw error;
         }}
         onDelete={async (id) => {
-          const { error } = await supabase.from("profiles").update({ status: "suspended" }).eq("id", id);
-          if (error) throw error;
-          await supabase.from("team_members").delete().eq("profile_id", id);
+          await removeUser({ data: { id } });
+          qc.invalidateQueries({ queryKey: ["pending_invites"] });
         }}
         onRefetch={() => qc.invalidateQueries({ queryKey: ["profiles_all"] })}
       />
