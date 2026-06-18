@@ -83,6 +83,30 @@ export type Database = {
         }
         Relationships: []
       }
+      closed_months: {
+        Row: {
+          closed_at: string
+          closed_by: string | null
+          id: string
+          month: number
+          year: number
+        }
+        Insert: {
+          closed_at?: string
+          closed_by?: string | null
+          id?: string
+          month: number
+          year: number
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string | null
+          id?: string
+          month?: number
+          year?: number
+        }
+        Relationships: []
+      }
       custom_statuses: {
         Row: {
           color: string
@@ -232,6 +256,33 @@ export type Database = {
         }
         Relationships: []
       }
+      finance_settings: {
+        Row: {
+          currency: string
+          default_chatting_percent: number
+          id: string
+          partner_name: string
+          partner_split_percent: number
+          updated_at: string
+        }
+        Insert: {
+          currency?: string
+          default_chatting_percent?: number
+          id?: string
+          partner_name?: string
+          partner_split_percent?: number
+          updated_at?: string
+        }
+        Update: {
+          currency?: string
+          default_chatting_percent?: number
+          id?: string
+          partner_name?: string
+          partner_split_percent?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       model_accounts: {
         Row: {
           account_name: string | null
@@ -335,6 +386,8 @@ export type Database = {
       models: {
         Row: {
           agency_cut: number | null
+          chatting_cut: number
+          chatting_enabled: boolean
           created_at: string
           english_name: string | null
           growth_ideas: string | null
@@ -352,6 +405,8 @@ export type Database = {
         }
         Insert: {
           agency_cut?: number | null
+          chatting_cut?: number
+          chatting_enabled?: boolean
           created_at?: string
           english_name?: string | null
           growth_ideas?: string | null
@@ -369,6 +424,8 @@ export type Database = {
         }
         Update: {
           agency_cut?: number | null
+          chatting_cut?: number
+          chatting_enabled?: boolean
           created_at?: string
           english_name?: string | null
           growth_ideas?: string | null
@@ -385,6 +442,59 @@ export type Database = {
           weak_points?: string | null
         }
         Relationships: []
+      }
+      payments: {
+        Row: {
+          agency_cut_override: number | null
+          amount: number
+          created_at: string
+          id: string
+          model_id: string | null
+          month: number
+          notes: string | null
+          payment_date: string
+          platform: string | null
+          updated_at: string
+          withdrawal_number: number
+          year: number
+        }
+        Insert: {
+          agency_cut_override?: number | null
+          amount?: number
+          created_at?: string
+          id?: string
+          model_id?: string | null
+          month: number
+          notes?: string | null
+          payment_date?: string
+          platform?: string | null
+          updated_at?: string
+          withdrawal_number?: number
+          year: number
+        }
+        Update: {
+          agency_cut_override?: number | null
+          amount?: number
+          created_at?: string
+          id?: string
+          model_id?: string | null
+          month?: number
+          notes?: string | null
+          payment_date?: string
+          platform?: string | null
+          updated_at?: string
+          withdrawal_number?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       platforms: {
         Row: {
