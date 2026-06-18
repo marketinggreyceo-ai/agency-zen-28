@@ -16,9 +16,32 @@ const RU_MONTHS_GENITIVE = [
   "января", "февраля", "марта", "апреля", "мая", "июня",
   "июля", "августа", "сентября", "октября", "ноября", "декабря",
 ];
+const RU_MONTHS_NOM = [
+  "январь", "февраль", "март", "апрель", "май", "июнь",
+  "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь",
+];
+const RU_MONTHS_SHORT = [
+  "янв", "фев", "мар", "апр", "май", "июн",
+  "июл", "авг", "сен", "окт", "ноя", "дек",
+];
 
 export function periodLabel(period: string, month: number) {
   return `${period} ${RU_MONTHS_GENITIVE[month - 1] ?? ""}`.trim();
+}
+
+function daysInMonth(year: number, month: number) {
+  return new Date(year, month, 0).getDate();
+}
+function periodDays(period: string, year: number, month: number): number[] {
+  if (period === "1-15") return Array.from({ length: 15 }, (_, i) => i + 1);
+  const last = daysInMonth(year, month);
+  return Array.from({ length: last - 15 }, (_, i) => i + 16);
+}
+function dateStr(year: number, month: number, day: number) {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+function currentPeriod(): "1-15" | "16-30" {
+  return new Date().getDate() <= 15 ? "1-15" : "16-30";
 }
 
 function Page() {
