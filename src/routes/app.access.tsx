@@ -330,3 +330,190 @@ function StatusBadge({ status }: { status: ProfileStatus }) {
     </span>
   );
 }
+
+type UserRow = {
+  id: string; full_name: string | null; email: string | null;
+  role: Role; assignee_name: string | null; status: ProfileStatus;
+};
+
+function UsersSection({
+  users, currentId, onSaveRow, onDelete, onRefetch,
+}: {
+  users: any[];
+  currentId: string | undefined;
+  onSaveRow: (id: string, patch: { role?: Role; assignee_name?: string | null }) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onRefetch: () => void;
+}) {
+  const [drafts, setDrafts] = useState<Record<string, { role: Role; assignee_name: string }>>({});
+  const [savedFlash, setSavedFlash] = useState<Record<string, number>>({});
+  const [savingAll, setSavingAll] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<UserRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  function draftFor(u: UserRow) {
+    return drafts[u.id] ?? { role: u.role, assignee_name: u.assignee_name ?? "" };
+  }
+  function isDirty(u: UserRow) {
+    const d = drafts[u.id];
+    if (!d) return false;
+    return d.role !== u.role || (d.assignee_name || "") !== (u.assignee_name || "");
+  }
+  function setDraft(id: string, patch: Partial<{ role: Role; assignee_name: string }>) {
+    setDrafts((s) => ({ ...s, [id]: { ...(s[id] ?? { role: "va", assignee_name: "" }), ...patch } }));
+  }
+  function flash(id: string) {
+    setSavedFlash((s) => ({ ...s, [id]: Date.now() }));
+    setTimeout(() => setSavedFlash((s) => { const n = { ...s }; delete n[id]; return n; }), 1800);
+  }
+
+  async function saveRow(u: UserRow) {
+    const d = draftFor(u);
+    try {
+      await onSaveRow(u.id, { role: d.role, assignee_name: d.assignee_name.trim() || null });
+      setDrafts((s) => { const n = { ...s }; delete n[u.id]; return n; });
+      flash(u.id);
+      onRefetch();
+      toast.success("Сохранено");
+    } catch (e: any) { toast.error(e.message); }
+  }
+
+  const dirtyRows = users.filter((u) => isDirty(u));
+
+  async function saveAll() {
+    setSavingAll(true);
+    try {
+      for (const u of dirtyRows) {
+        const d = draftFor(u);
+        await onSaveRow(u.id, { role: d.role, assignee_name: d.assignee_name.trim() || null });
+        flash(u.id);
+      }
+      setDrafts({});
+      onRefetch();
+      toast.success(`Сохранено: ${dirtyRows.length}`);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSavingAll(false); }
+  }
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold">Пользователи</h2>
+        <button
+          onClick={saveAll}
+          disabled={dirtyRows.length === 0 || savingAll}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-teal text-primary-foreground text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Save className="h-3.5 w-3.5" />
+          {savingAll ? "Сохраняю…" : `Сохранить все изменения${dirtyRows.length ? ` (${dirtyRows.length})` : ""}`}
+        </button>
+      </div>
+      <div className="rounded-lg border border-border bg-card overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-xs text-text2 border-b border-border">
+              <th className="text-left p-3">Имя</th>
+              <th className="text-left p-3">Email</th>
+              <th className="text-left p-3">Статус</th>
+              <th className="text-left p-3">Роль</th>
+              <th className="text-left p-3">Assignee</th>
+              <th className="text-right p-3">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u: UserRow) => {
+              const isSelf = u.id === currentId;
+              const isOwnerRow = u.role === "owner";
+              const d = draftFor(u);
+              const dirty = isDirty(u);
+              const saved = !!savedFlash[u.id];
+              return (
+                <tr key={u.id} className="border-b border-border last:border-0">
+                  <td className="p-3">{u.full_name ?? "—"}</td>
+                  <td className="p-3 text-text2">{u.email ?? "—"}</td>
+                  <td className="p-3"><StatusBadge status={u.status} /></td>
+                  <td className="p-3">
+                    <select value={d.role}
+                      onChange={(e) => setDraft(u.id, { role: e.target.value as Role })}
+                      className={`bg-bg3 border rounded px-2 py-1 text-xs ${dirty ? "border-amber" : "border-border"}`}>
+                      {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                    </select>
+                  </td>
+                  <td className="p-3">
+                    <input value={d.assignee_name}
+                      onChange={(e) => setDraft(u.id, { assignee_name: e.target.value })}
+                      placeholder="Имя в задачах"
+                      className={`bg-bg3 border rounded px-2 py-1 text-xs w-40 ${dirty ? "border-amber" : "border-border"}`} />
+                  </td>
+                  <td className="p-3 text-right whitespace-nowrap">
+                    <div className="inline-flex items-center gap-1.5">
+                      {saved && <Check className="h-4 w-4 text-teal" />}
+                      <button
+                        onClick={() => saveRow(u)}
+                        disabled={!dirty}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-teal text-primary-foreground text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Сохранить"
+                      >
+                        <Save className="h-3 w-3" /> Сохранить
+                      </button>
+                      {u.status === "suspended" && !isSelf && (
+                        <button onClick={() => onSaveRow(u.id, {}).then(async () => {
+                          await supabase.from("profiles").update({ status: "active" }).eq("id", u.id);
+                          onRefetch(); toast.success("Восстановлен");
+                        })}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bg3 border border-border text-xs text-text2">
+                          <Check className="h-3 w-3" /> Восстановить
+                        </button>
+                      )}
+                      {!isSelf && !isOwnerRow && u.status !== "suspended" && (
+                        <button onClick={() => setConfirmDelete(u)}
+                          className="inline-flex items-center justify-center w-7 h-7 rounded bg-bg3 border border-border text-text3 hover:text-red hover:border-red/40"
+                          title="Удалить">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {isSelf && <span className="text-[10px] text-text3 ml-1">— это вы —</span>}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {users.length === 0 && <tr><td colSpan={6} className="p-6"><Empty message="Нет пользователей" /></td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Удалить пользователя <strong>{confirmDelete?.email}</strong>? Они потеряют доступ к системе.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!confirmDelete) return;
+                setDeleting(true);
+                try {
+                  await onDelete(confirmDelete.id);
+                  toast.success("Пользователь заблокирован");
+                  setConfirmDelete(null);
+                  onRefetch();
+                } catch (err: any) { toast.error(err.message); }
+                finally { setDeleting(false); }
+              }}
+              className="bg-red text-white hover:bg-red/90"
+            >
+              {deleting ? "Удаляю…" : "Удалить"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
+  );
+}
