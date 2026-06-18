@@ -410,6 +410,7 @@ export type Database = {
       }
       finance_settings: {
         Row: {
+          chatter_period_mode: string
           currency: string
           default_chatting_percent: number
           id: string
@@ -418,6 +419,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          chatter_period_mode?: string
           currency?: string
           default_chatting_percent?: number
           id?: string
@@ -426,6 +428,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          chatter_period_mode?: string
           currency?: string
           default_chatting_percent?: number
           id?: string

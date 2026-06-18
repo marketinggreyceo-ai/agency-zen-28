@@ -8,7 +8,7 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { MobileMenuDrawer } from "@/components/MobileMenu";
 import {
   LayoutDashboard, Brain, DollarSign, ListTodo, TrendingUp,
-  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu, Send, Video,
+  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu, Send, Video, MessageCircle,
 } from "lucide-react";
 
 type Item = { to: string; label: string; icon: any; page: string };
@@ -22,6 +22,7 @@ const GROUPS: Group[] = [
     { to: "/app/second-brain", label: "Second Brain", icon: Brain,           page: "second-brain" },
     { to: "/app/tasks",        label: "Задачи",       icon: ListTodo,        page: "tasks" },
     { to: "/app/customs",      label: "Кастомы",      icon: Video,           page: "customs" },
+    { to: "/app/chatting",     label: "Чаттинг",      icon: MessageCircle,   page: "chatting" },
     { to: "/app/goals",        label: "Цели недели",  icon: Target,          page: "goals" },
     { to: "/app/growth",       label: "Рост",         icon: TrendingUp,      page: "growth" },
   ]},
