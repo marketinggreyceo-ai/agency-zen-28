@@ -179,67 +179,21 @@ function Page() {
       )}
 
       {/* Users */}
-      <section>
-        <h2 className="text-sm font-semibold mb-3">Пользователи</h2>
-        <div className="rounded-lg border border-border bg-card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-text2 border-b border-border">
-                <th className="text-left p-3">Имя</th>
-                <th className="text-left p-3">Email</th>
-                <th className="text-left p-3">Статус</th>
-                <th className="text-left p-3">Роль</th>
-                <th className="text-left p-3">Assignee</th>
-                <th className="text-right p-3">Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u: any) => {
-                const isSelf = u.id === profile?.id;
-                return (
-                  <tr key={u.id} className="border-b border-border last:border-0">
-                    <td className="p-3">{u.full_name ?? "—"}</td>
-                    <td className="p-3 text-text2">{u.email ?? "—"}</td>
-                    <td className="p-3"><StatusBadge status={u.status} /></td>
-                    <td className="p-3">
-                      <select value={u.role}
-                        onChange={(e) => updateProfile.mutate({ id: u.id, patch: { role: e.target.value } })}
-                        className="bg-bg3 border border-border rounded px-2 py-1 text-xs">
-                        {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                      </select>
-                    </td>
-                    <td className="p-3">
-                      <input defaultValue={u.assignee_name ?? ""}
-                        onBlur={(e) => {
-                          const v = e.target.value.trim();
-                          if (v !== (u.assignee_name ?? "")) updateProfile.mutate({ id: u.id, patch: { assignee_name: v || null } });
-                        }}
-                        placeholder="Имя в задачах"
-                        className="bg-bg3 border border-border rounded px-2 py-1 text-xs w-40" />
-                    </td>
-                    <td className="p-3 text-right whitespace-nowrap">
-                      {isSelf ? (
-                        <span className="text-[10px] text-text3">— это вы —</span>
-                      ) : u.status === "suspended" ? (
-                        <button onClick={() => updateProfile.mutate({ id: u.id, patch: { status: "active" } })}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-teal text-primary-foreground text-xs">
-                          <Check className="h-3 w-3" /> Восстановить
-                        </button>
-                      ) : u.status === "active" ? (
-                        <button onClick={() => updateProfile.mutate({ id: u.id, patch: { status: "suspended" } })}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-bg3 border border-border text-xs text-text2 hover:text-red">
-                          <X className="h-3 w-3" /> Заблокировать
-                        </button>
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-              {users.length === 0 && <tr><td colSpan={6} className="p-6"><Empty message="Нет пользователей" /></td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <UsersSection
+        users={users}
+        currentId={profile?.id}
+        onSaveRow={async (id, patch) => {
+          const { error } = await supabase.from("profiles").update(patch).eq("id", id);
+          if (error) throw error;
+        }}
+        onDelete={async (id) => {
+          const { error } = await supabase.from("profiles").update({ status: "suspended" }).eq("id", id);
+          if (error) throw error;
+          await supabase.from("team_members").delete().eq("profile_id", id);
+        }}
+        onRefetch={() => qc.invalidateQueries({ queryKey: ["profiles_all"] })}
+      />
+
 
       {/* Permission matrix */}
       <section>
