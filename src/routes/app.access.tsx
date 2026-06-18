@@ -479,7 +479,7 @@ function UsersSection({
           <AlertDialogHeader>
             <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
             <AlertDialogDescription>
-              Удалить пользователя <strong>{confirmDelete?.email}</strong>? Они потеряют доступ к системе.
+              Удалить пользователя <strong>{confirmDelete?.email}</strong>? Они смогут зарегистрироваться заново с тем же email.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -492,7 +492,7 @@ function UsersSection({
                 setDeleting(true);
                 try {
                   await onDelete(confirmDelete.id);
-                  toast.success("Пользователь заблокирован");
+                  toast.success("Пользователь удалён. Они могут зарегистрироваться заново.");
                   setConfirmDelete(null);
                   onRefetch();
                 } catch (err: any) { toast.error(err.message); }
