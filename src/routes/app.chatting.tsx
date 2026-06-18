@@ -934,6 +934,15 @@ function ChatterSalesTable({
   const reopenPeriod = useMutation({
     mutationFn: async () => {
       if (!periodRow?.id) return;
+      const expenseName = `${chatter.name} — ${periodLabel(period, month)} ${year}`;
+      const { error: delErr } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("name", expenseName)
+        .eq("notes", "Авто из Чаттинг")
+        .eq("month", month)
+        .eq("year", year);
+      if (delErr) throw delErr;
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "pending", paid_at: null, paid_by: null })
@@ -941,10 +950,11 @@ function ChatterSalesTable({
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Период разблокирован");
+      toast.success("Период разблокирован, авто-расход удалён");
       qc.invalidateQueries({ queryKey: ["chatter_period", chatter?.id] });
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
+      qc.invalidateQueries({ queryKey: ["expenses-all"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
