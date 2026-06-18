@@ -11,7 +11,9 @@ export function useRolePermissions() {
       const { data } = await supabase.from("role_permissions").select("role,resource,action,allowed");
       return (data ?? []) as PermRow[];
     },
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 }
 
