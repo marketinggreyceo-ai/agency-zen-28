@@ -293,3 +293,59 @@ function RolesTable() {
     </div>
   );
 }
+
+function AddMemberModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+  const [name, setName] = useState("");
+  const [roleLabel, setRoleLabel] = useState("");
+  const [telegram, setTelegram] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  if (!open) return null;
+
+  async function save() {
+    if (!name.trim()) { toast.error("Введите имя"); return; }
+    setSaving(true);
+    const { error } = await supabase.from("team_members").insert({
+      name: name.trim(),
+      role_label: roleLabel.trim() || null,
+      telegram_handle: telegram.trim().replace(/^@/, "") || null,
+    });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Участник добавлен");
+    setName(""); setRoleLabel(""); setTelegram("");
+    onCreated();
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="w-full max-w-sm bg-card border border-border rounded-lg p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold">Добавить участника</h3>
+        <p className="text-xs text-text3">Без входа в систему. Можно назначать в задачах.</p>
+        <div>
+          <label className="text-xs text-text3 uppercase tracking-wide">Имя *</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Сильвестр"
+            className="w-full bg-bg3 border border-border rounded px-3 py-2 text-sm mt-1" />
+        </div>
+        <div>
+          <label className="text-xs text-text3 uppercase tracking-wide">Роль</label>
+          <input value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)} placeholder="Chatter"
+            className="w-full bg-bg3 border border-border rounded px-3 py-2 text-sm mt-1" />
+        </div>
+        <div>
+          <label className="text-xs text-text3 uppercase tracking-wide">Telegram (без @)</label>
+          <input value={telegram} onChange={(e) => setTelegram(e.target.value.replace(/^@/, ""))} placeholder="silvester"
+            className="w-full bg-bg3 border border-border rounded px-3 py-2 text-sm mt-1" />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose} className="px-3 py-2 text-sm text-text2">Отмена</button>
+          <button onClick={save} disabled={saving || !name.trim()}
+            className="px-4 py-2 text-sm rounded bg-teal text-primary-foreground font-medium disabled:opacity-50">
+            {saving ? "Сохранение…" : "Добавить"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
