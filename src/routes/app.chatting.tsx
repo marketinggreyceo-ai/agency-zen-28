@@ -5,7 +5,7 @@ import { PageHeader, Empty } from "@/components/ui-shared";
 import { useProfile } from "@/lib/auth";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, MessageCircle } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/app/chatting")({
   ssr: false,
