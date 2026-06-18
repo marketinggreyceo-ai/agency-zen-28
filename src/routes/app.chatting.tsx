@@ -217,11 +217,11 @@ function AccountModal({
         if (!name) throw new Error("Введите имя чаттера");
         const { data, error } = await supabase
           .from("team_members")
-          .insert({ name, role: "va" })
+          .insert({ name, role: "va" } as any)
           .select("id")
           .single();
         if (error) throw error;
-        finalChatterId = data.id;
+        finalChatterId = (data as any).id;
       }
 
       if (!finalChatterId) throw new Error("Выберите чаттера");
