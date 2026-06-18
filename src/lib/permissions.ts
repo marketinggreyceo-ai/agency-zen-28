@@ -37,6 +37,7 @@ export const PAGE_KEYS = [
   { key: "finance",       label: "Финансы" },
   { key: "tasks",         label: "Задачи" },
   { key: "customs",       label: "Кастомы" },
+  { key: "chatting",      label: "Чаттинг" },
   { key: "growth",        label: "Рост" },
   { key: "team",          label: "Команда" },
   { key: "sops",          label: "SOPs" },
