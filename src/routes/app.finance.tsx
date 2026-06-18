@@ -413,7 +413,7 @@ function Page() {
               <Row label="Нетто агентства:" value={`${currency}${Math.round(totals.net).toLocaleString()}`} />
               <Row label="− Чаттинг:" value={`−${currency}${Math.round(totals.chattingCost).toLocaleString()}`} color="#BA7517" />
               <Row label="− Расходы:" value={`−${currency}${Math.round(totals.expTotal).toLocaleString()}`} color="#E24B4A" />
-              <Row label="Чаттинг (выплачено):" value={`${currency}${Math.round(chattingPaid).toLocaleString()}`} color="#5DCAA5" />
+              <Row label="Чаттинг выплачено:" value={`${currency}${Math.round(chattingPaid).toLocaleString()}`} color="#F59E0B" />
               <div className="border-t border-border my-2" />
               <Row label="Чистая прибыль:" value={`${currency}${Math.round(totals.profit).toLocaleString()}`}
                 bold color={totals.profit >= 0 ? "#1FB8B0" : "#E24B4A"} />
@@ -442,7 +442,15 @@ function Page() {
           </Section>
         </>
       ) : (
-        <HistoryTab payments={payments} models={models} currency={currency} />
+        <HistoryTab
+          payments={payments}
+          models={models}
+          expensesAll={expensesAll}
+          chatterPaid={chatterPeriodsPaid}
+          closedMonths={closedMonths}
+          partnerPct={partnerPct}
+          currency={currency}
+        />
       )}
 
       {/* CHARTS */}
@@ -814,97 +822,130 @@ function Field({ label, children }: { label: string; children: any }) {
   );
 }
 
-function HistoryTab({ payments, models, currency }: { payments: any[]; models: any[]; currency: string }) {
-  const [filterModel, setFilterModel] = useState("");
-  const [filterYear, setFilterYear] = useState<string>("");
-  const [filterMonth, setFilterMonth] = useState<string>("");
+const RU_MONTH_NAMES = [
+  "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+];
 
-  const filtered = payments.filter((p: any) => {
-    if (filterModel && p.model_id !== filterModel) return false;
-    if (filterYear && p.year !== Number(filterYear)) return false;
-    if (filterMonth && p.month !== Number(filterMonth)) return false;
-    return true;
-  });
+function HistoryTab({
+  payments, models, expensesAll, chatterPaid, closedMonths, partnerPct, currency,
+}: {
+  payments: any[]; models: any[]; expensesAll: any[]; chatterPaid: any[];
+  closedMonths: any[]; partnerPct: number; currency: string;
+}) {
+  const [filterYear, setFilterYear] = useState<string>("");
+
+  type MonthRow = {
+    year: number; month: number;
+    received: number; expenses: number; chatting: number; net: number;
+    profit: number; ownerShare: number; closed: boolean;
+  };
+
+  const rows: MonthRow[] = useMemo(() => {
+    const keys = new Set<string>();
+    for (const p of payments) keys.add(`${p.year}-${p.month}`);
+    for (const e of expensesAll) keys.add(`${e.year}-${e.month}`);
+    for (const c of chatterPaid) keys.add(`${c.year}-${c.month}`);
+    const ownerPct = 100 - partnerPct;
+    const out: MonthRow[] = [];
+    for (const k of keys) {
+      const [y, m] = k.split("-").map(Number);
+      const ps = payments.filter((p: any) => p.year === y && p.month === m);
+      const exps = expensesAll.filter((e: any) => e.year === y && e.month === m);
+      const cps = chatterPaid.filter((c: any) => c.year === y && c.month === m);
+      const received = ps.reduce((s: number, p: any) => s + Number(p.amount), 0);
+      let net = 0, autoChat = 0;
+      for (const mdl of models) {
+        const ms = ps.filter((p: any) => p.model_id === mdl.id);
+        let mNet = 0;
+        for (const p of ms) {
+          const cut = p.agency_cut_override ?? mdl.agency_cut ?? 0;
+          mNet += Number(p.amount) * cut / 100;
+        }
+        net += mNet;
+        if (mdl.chatting_enabled) autoChat += mNet * (mdl.chatting_cut ?? 25) / 100;
+      }
+      const expenses = exps.reduce((s: number, e: any) => s + Number(e.amount), 0);
+      const chatting = cps.reduce((s: number, c: any) => s + Number(c.commission_amount || 0), 0);
+      const profit = net - expenses - autoChat;
+      const ownerShare = profit * ownerPct / 100;
+      const closed = closedMonths.some((c: any) => c.year === y && c.month === m);
+      out.push({ year: y, month: m, received, expenses, chatting, net, profit, ownerShare, closed });
+    }
+    out.sort((a, b) => b.year - a.year || b.month - a.month);
+    return out;
+  }, [payments, expensesAll, chatterPaid, models, closedMonths, partnerPct]);
+
+  const filtered = filterYear ? rows.filter((r) => r.year === Number(filterYear)) : rows;
+  const years = Array.from(new Set(rows.map((r) => r.year))).sort((a, b) => b - a);
 
   function exportCSV() {
-    const rows = [["Дата", "Модель", "Платформа", "Вывод #", "Сумма", "Наш %", "Нетто", "Заметки"]];
-    for (const p of filtered) {
-      const m = models.find((x: any) => x.id === p.model_id);
-      const cut = p.agency_cut_override ?? m?.agency_cut ?? 0;
-      const net = Number(p.amount) * cut / 100;
-      rows.push([
-        p.payment_date, m?.name ?? "", p.platform ?? "",
-        String(p.withdrawal_number), String(p.amount), `${cut}%`,
-        String(Math.round(net)), p.notes ?? "",
+    const csvRows = [["Месяц", "Получено", "Расходы", "Чаттинг", "Прибыль", "Твоя доля", "Статус"]];
+    for (const r of filtered) {
+      csvRows.push([
+        `${RU_MONTH_NAMES[r.month - 1]} ${r.year}`,
+        String(Math.round(r.received)),
+        String(Math.round(r.expenses)),
+        String(Math.round(r.chatting)),
+        String(Math.round(r.profit)),
+        String(Math.round(r.ownerShare)),
+        r.closed ? "Закрыт" : "Открыт",
       ]);
     }
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = csvRows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `payments-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.href = url; a.download = `finance-history-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  const years = Array.from(new Set(payments.map((p: any) => p.year))).sort((a: number, b: number) => b - a);
-
   return (
-    <Section title="История платежей" right={
+    <Section title="История по месяцам" right={
       <button onClick={exportCSV} className="text-xs text-teal flex items-center gap-1">
         <Download className="h-3 w-3" /> Скачать CSV
       </button>
     }>
       <div className="flex flex-wrap gap-2 mb-3 text-xs">
-        <select value={filterModel} onChange={(e) => setFilterModel(e.target.value)}
-          className="bg-bg3 border border-border rounded px-2 py-1.5">
-          <option value="">Все модели</option>
-          {models.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
         <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)}
           className="bg-bg3 border border-border rounded px-2 py-1.5">
           <option value="">Все годы</option>
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
-        <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
-          className="bg-bg3 border border-border rounded px-2 py-1.5">
-          <option value="">Все месяцы</option>
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
       </div>
-      {filtered.length === 0 ? <Empty message="Нет платежей" /> : (
+      {filtered.length === 0 ? <Empty message="Нет данных" /> : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead className="text-text2 text-[10px] uppercase">
               <tr className="border-b border-border">
-                <th className="text-left py-2 px-2">Дата</th>
-                <th className="text-left py-2 px-2">Модель</th>
-                <th className="text-left py-2 px-2">Платформа</th>
-                <th className="text-center py-2 px-2">Вывод #</th>
-                <th className="text-right py-2 px-2">Сумма</th>
-                <th className="text-right py-2 px-2">Нетто</th>
-                <th className="text-left py-2 px-2">Заметки</th>
+                <th className="text-left py-2 px-2">Месяц</th>
+                <th className="text-right py-2 px-2">Получено</th>
+                <th className="text-right py-2 px-2">Расходы</th>
+                <th className="text-right py-2 px-2">Чаттинг</th>
+                <th className="text-right py-2 px-2">Прибыль</th>
+                <th className="text-right py-2 px-2">Твоя доля</th>
+                <th className="text-left py-2 px-2">Статус</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p: any) => {
-                const m = models.find((x: any) => x.id === p.model_id);
-                const cut = p.agency_cut_override ?? m?.agency_cut ?? 0;
-                const net = Number(p.amount) * cut / 100;
-                return (
-                  <tr key={p.id} className="border-b border-border/50">
-                    <td className="py-2 px-2 text-text2">{p.payment_date}</td>
-                    <td className="py-2 px-2 font-medium">{m?.name ?? "—"}</td>
-                    <td className="py-2 px-2 text-text2">{p.platform ?? "—"}</td>
-                    <td className="py-2 px-2 text-center">#{p.withdrawal_number}</td>
-                    <td className="py-2 px-2 text-right">{currency}{Number(p.amount).toLocaleString()}</td>
-                    <td className="py-2 px-2 text-right text-green">{currency}{Math.round(net).toLocaleString()}</td>
-                    <td className="py-2 px-2 text-text2 truncate max-w-[200px]">{p.notes ?? ""}</td>
-                  </tr>
-                );
-              })}
+              {filtered.map((r) => (
+                <tr key={`${r.year}-${r.month}`} className="border-b border-border/50">
+                  <td className="py-2 px-2 font-medium">{RU_MONTH_NAMES[r.month - 1]} {r.year}</td>
+                  <td className="py-2 px-2 text-right">{currency}{Math.round(r.received).toLocaleString()}</td>
+                  <td className="py-2 px-2 text-right text-coral">{currency}{Math.round(r.expenses).toLocaleString()}</td>
+                  <td className="py-2 px-2 text-right" style={{ color: "#F59E0B" }}>{currency}{Math.round(r.chatting).toLocaleString()}</td>
+                  <td className="py-2 px-2 text-right text-green">{currency}{Math.round(r.profit).toLocaleString()}</td>
+                  <td className="py-2 px-2 text-right font-medium">{currency}{Math.round(r.ownerShare).toLocaleString()}</td>
+                  <td className="py-2 px-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                      r.closed ? "bg-green/20 text-green" : "bg-amber-500/20 text-amber-500"
+                    }`}>
+                      {r.closed ? "Закрыт" : "Открыт"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

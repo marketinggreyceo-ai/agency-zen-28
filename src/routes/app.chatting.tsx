@@ -110,10 +110,23 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
   });
   const { data: members = [] } = useQuery({
     queryKey: ["team_members_all"],
-    queryFn: async () => (await supabase.from("team_members").select("id, name").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("team_members").select("id, name, profile_id").order("name")).data ?? [],
+  });
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["chatter_accounts"],
+    queryFn: async () => (await supabase.from("chatter_accounts").select("*")).data ?? [],
   });
 
   const memberMap = useMemo(() => new Map(members.map((m: any) => [m.id, m.name])), [members]);
+  const accountsByChatter = useMemo(() => {
+    const m = new Map<string, any[]>();
+    for (const a of accounts as any[]) {
+      if (!a.is_active) continue;
+      if (!m.has(a.chatter_id)) m.set(a.chatter_id, []);
+      m.get(a.chatter_id)!.push(a);
+    }
+    return m;
+  }, [accounts]);
 
   const filtered = periods.filter((p: any) => {
     if (filterChatter && p.chatter_id !== filterChatter) return false;
@@ -128,19 +141,17 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
     mutationFn: async (p: any) => {
       const chatterName = memberMap.get(p.chatter_id) ?? "Чаттер";
       const today = new Date();
-      const dateStr = today.toISOString().slice(0, 10);
-      // Insert expense first
+      const expenseName = `${chatterName} — ${periodLabel(p.period, p.month)} ${p.year}`;
       const { error: expErr } = await supabase.from("expenses").insert({
-        name: `${chatterName} — ${periodLabel(p.period, p.month)}`,
+        name: expenseName,
         category: "Зарплата",
         amount: Number(p.commission_amount) || 0,
-        date: dateStr,
+        date: today.toISOString().slice(0, 10),
         month: p.month,
         year: p.year,
-        notes: `Чаттинг: период ${p.period} ${p.month}/${p.year}`,
+        notes: "Авто из Чаттинг",
       } as any);
       if (expErr) throw expErr;
-      // Mark period paid
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "paid", paid_at: today.toISOString(), paid_by: chatterName })
@@ -150,19 +161,52 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
     onSuccess: () => {
       toast.success("Отмечено как выплачено и добавлено в расходы");
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
+      qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
+      qc.invalidateQueries({ queryKey: ["expenses-all"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const reopen = useMutation({
+    mutationFn: async (p: any) => {
+      const chatterName = memberMap.get(p.chatter_id) ?? "Чаттер";
+      const expenseName = `${chatterName} — ${periodLabel(p.period, p.month)} ${p.year}`;
+      // Delete auto-created expense (match by name + notes + month + year)
+      const { error: delErr } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("name", expenseName)
+        .eq("notes", "Авто из Чаттинг")
+        .eq("month", p.month)
+        .eq("year", p.year);
+      if (delErr) throw delErr;
+      const { error } = await supabase
+        .from("chatter_periods")
+        .update({ status: "pending", paid_at: null, paid_by: null })
+        .eq("id", p.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Период разблокирован, авто-расход удалён");
+      qc.invalidateQueries({ queryKey: ["chatter_periods"] });
+      qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
       qc.invalidateQueries({ queryKey: ["expenses-all"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
 
   function exportCSV() {
-    const rows = [["Период", "Месяц", "Год", "Чаттер", "Продажи", "Комиссия %", "Комиссия", "Статус", "Дата выплаты"]];
+    const rows = [["Период", "Чаттер", "Аккаунты", "Продажи", "Комиссия %", "Комиссия", "Статус", "Дата выплаты"]];
     for (const p of filtered) {
+      const accs = (accountsByChatter.get(p.chatter_id) ?? []).map((a) => a.account_name).join(", ");
       rows.push([
-        p.period, String(p.month), String(p.year),
+        `${periodLabel(p.period, p.month)} ${p.year}`,
         memberMap.get(p.chatter_id) ?? "",
-        String(p.total_sales), `${p.commission_pct}%`,
-        String(p.commission_amount), p.status,
+        accs,
+        String(p.total_sales),
+        `${p.commission_pct}%`,
+        String(p.commission_amount),
+        p.status === "paid" ? "Оплачено" : "Ожидает",
         p.paid_at ? new Date(p.paid_at).toISOString().slice(0, 10) : "",
       ]);
     }
@@ -213,6 +257,7 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
               <tr>
                 <th className="text-left p-3">Период</th>
                 <th className="text-left p-3">Чаттер</th>
+                <th className="text-left p-3">Аккаунты</th>
                 <th className="text-right p-3">Продажи</th>
                 <th className="text-right p-3">Комиссия</th>
                 <th className="text-left p-3">Статус</th>
@@ -221,37 +266,53 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p: any) => (
-                <tr key={p.id}
-                  className="border-t border-border hover:bg-bg2/50 cursor-pointer"
-                  onClick={() => onOpenPeriod(p)}
-                >
-                  <td className="p-3">{periodLabel(p.period, p.month)} {p.year}</td>
-                  <td className="p-3">{memberMap.get(p.chatter_id) ?? "—"}</td>
-                  <td className="p-3 text-right">${Math.round(Number(p.total_sales)).toLocaleString()}</td>
-                  <td className="p-3 text-right text-green">${Math.round(Number(p.commission_amount)).toLocaleString()}</td>
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                      p.status === "paid" ? "bg-green/20 text-green" : "bg-amber-500/20 text-amber-500"
-                    }`}>
-                      {p.status === "paid" ? "Выплачено" : "Ожидает"}
-                    </span>
-                  </td>
-                  <td className="p-3 text-text2">{p.paid_at ? new Date(p.paid_at).toISOString().slice(0, 10) : "—"}</td>
-                  <td className="p-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    {isOwner && p.status !== "paid" && (
-                      <button
-                        onClick={() => {
-                          if (confirm(`Отметить выплаченным и добавить в расходы как «Зарплата»?`)) markPaid.mutate(p);
-                        }}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-teal text-primary-foreground text-xs font-medium"
-                      >
-                        <Check className="h-3 w-3" /> Выплачено
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((p: any) => {
+                const accs = accountsByChatter.get(p.chatter_id) ?? [];
+                return (
+                  <tr key={p.id}
+                    className="border-t border-border hover:bg-bg2/50 cursor-pointer"
+                    onClick={() => onOpenPeriod(p)}
+                  >
+                    <td className="p-3">{periodLabel(p.period, p.month)} {p.year}</td>
+                    <td className="p-3">{memberMap.get(p.chatter_id) ?? "—"}</td>
+                    <td className="p-3 text-text2 max-w-[200px] truncate" title={accs.map((a) => a.account_name).join(", ")}>
+                      {accs.length === 0 ? "—" : accs.map((a) => a.account_name).join(", ")}
+                    </td>
+                    <td className="p-3 text-right">${Math.round(Number(p.total_sales)).toLocaleString()}</td>
+                    <td className="p-3 text-right text-green">${Math.round(Number(p.commission_amount)).toLocaleString()}</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                        p.status === "paid" ? "bg-green/20 text-green" : "bg-amber-500/20 text-amber-500"
+                      }`}>
+                        {p.status === "paid" ? "Оплачено ✓" : "Ожидает"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-text2">{p.paid_at ? new Date(p.paid_at).toISOString().slice(0, 10) : "—"}</td>
+                    <td className="p-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      {isOwner && p.status !== "paid" && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Оплатить период «${periodLabel(p.period, p.month)} ${p.year}»? Будет создан расход в категории «Зарплата».`)) markPaid.mutate(p);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green text-primary-foreground text-xs font-medium"
+                        >
+                          <Check className="h-3 w-3" /> Оплатить
+                        </button>
+                      )}
+                      {isOwner && p.status === "paid" && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Разблокировать период? Авто-расход в Финансах тоже будет удалён.`)) reopen.mutate(p);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded border border-amber-500 text-amber-500 text-xs font-medium"
+                        >
+                          <Lock className="h-3 w-3" /> Разблокировать
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -845,12 +906,12 @@ function ChatterSalesTable({
         pid = (data as any).id;
       }
       const { error: expErr } = await supabase.from("expenses").insert({
-        name: `${chatter.name} — ${periodLabel(period, month)}`,
+        name: `${chatter.name} — ${periodLabel(period, month)} ${year}`,
         category: "Зарплата",
         amount: totalCommission,
         date: dateStrToday,
         month, year,
-        notes: `Чаттинг: период ${period} ${month}/${year}`,
+        notes: "Авто из Чаттинг",
       } as any);
       if (expErr) throw expErr;
       const { error } = await supabase
@@ -873,6 +934,15 @@ function ChatterSalesTable({
   const reopenPeriod = useMutation({
     mutationFn: async () => {
       if (!periodRow?.id) return;
+      const expenseName = `${chatter.name} — ${periodLabel(period, month)} ${year}`;
+      const { error: delErr } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("name", expenseName)
+        .eq("notes", "Авто из Чаттинг")
+        .eq("month", month)
+        .eq("year", year);
+      if (delErr) throw delErr;
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "pending", paid_at: null, paid_by: null })
@@ -880,10 +950,11 @@ function ChatterSalesTable({
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Период разблокирован");
+      toast.success("Период разблокирован, авто-расход удалён");
       qc.invalidateQueries({ queryKey: ["chatter_period", chatter?.id] });
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
+      qc.invalidateQueries({ queryKey: ["expenses-all"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1014,7 +1085,7 @@ function ChatterSalesTable({
           )}
           {isOwner && isPaid && (
             <button
-              onClick={() => { if (confirm("Разблокировать период? Расход в Финансах удалить вручную, если нужно.")) reopenPeriod.mutate(); }}
+              onClick={() => { if (confirm("Разблокировать период? Авто-расход в Финансах тоже будет удалён.")) reopenPeriod.mutate(); }}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded border border-amber-500 text-amber-500 text-xs font-medium"
             >
               <Lock className="h-3 w-3" /> Разблокировать
