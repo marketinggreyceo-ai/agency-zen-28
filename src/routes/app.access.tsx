@@ -8,7 +8,11 @@ import { PAGE_KEYS, FEATURE_GROUPS, ROLES_ORDER, useRolePermissions } from "@/li
 import { inviteUser, listInvites, cancelInvite } from "@/lib/invites.functions";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Mail, Trash2, Check, X, Eye } from "lucide-react";
+import { Mail, Trash2, Check, X, Eye, Save } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { setPreviewRole } from "@/lib/preview-role";
 
 export const Route = createFileRoute("/app/access")({
