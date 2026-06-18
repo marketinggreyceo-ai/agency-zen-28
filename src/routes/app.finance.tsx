@@ -442,7 +442,15 @@ function Page() {
           </Section>
         </>
       ) : (
-        <HistoryTab payments={payments} models={models} currency={currency} />
+        <HistoryTab
+          payments={payments}
+          models={models}
+          expensesAll={expensesAll}
+          chatterPaid={chatterPeriodsPaid}
+          closedMonths={closedMonths}
+          partnerPct={partnerPct}
+          currency={currency}
+        />
       )}
 
       {/* CHARTS */}
