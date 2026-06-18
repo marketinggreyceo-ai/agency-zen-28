@@ -2,9 +2,10 @@ import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sidebar } from "@/components/Sidebar";
-import { useProfile } from "@/lib/auth";
-import { Clock, LogOut, ShieldOff, Send } from "lucide-react";
-import { useState } from "react";
+import { useProfile, useRealRole, ROLE_LABELS } from "@/lib/auth";
+import { usePreviewRole, setPreviewRole } from "@/lib/preview-role";
+import { Clock, LogOut, ShieldOff, Send, Eye, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app")({
