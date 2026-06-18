@@ -52,9 +52,25 @@ export function Sidebar() {
   const { data: profile } = useProfile();
   const { can } = useCan();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Live updates: when owner toggles a page permission, every active session refreshes within ~seconds.
+  useEffect(() => {
+    const channel = supabase
+      .channel("sidebar-role-permissions")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "role_permissions" },
+        () => qc.invalidateQueries({ queryKey: ["role_permissions"] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   const { data: blockedCount = 0 } = useQuery({
     queryKey: ["tasks-blocked-count"],
@@ -183,7 +199,7 @@ export function Sidebar() {
       {/* Mobile bottom tab bar — 5 fixed tabs */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-bg2 flex justify-around py-1.5"
         style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom))" }}>
-        {MOBILE_TABS.map((it, idx) => {
+        {MOBILE_TABS.filter((it) => it.menu || !it.page || can("page", it.page)).map((it, idx) => {
           const Icon = it.icon;
           const active = it.to ? isActive(it.to) : false;
           const showBlocked = it.page === "tasks" && blockedCount > 0;
