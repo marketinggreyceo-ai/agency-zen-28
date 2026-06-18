@@ -47,7 +47,7 @@ function Page() {
       </div>
 
       {tab === "sales" && (
-        <Empty title="Скоро" description="Вкладка «Продажи» появится в следующем обновлении." />
+        <Empty message="Вкладка «Продажи» появится в следующем обновлении." />
       )}
       {tab === "settings" && isOwner && <SettingsTab />}
     </div>
