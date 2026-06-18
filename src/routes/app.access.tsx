@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, Empty } from "@/components/ui-shared";
 import { useProfile, ROLE_LABELS, type Role, type ProfileStatus } from "@/lib/auth";
 import { PAGE_KEYS, FEATURE_GROUPS, ROLES_ORDER, useRolePermissions } from "@/lib/permissions";
-import { inviteUser, listInvites, cancelInvite } from "@/lib/invites.functions";
+import { inviteUser, listInvites, cancelInvite, deleteUser } from "@/lib/invites.functions";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Mail, Trash2, Check, X, Eye, Save } from "lucide-react";
