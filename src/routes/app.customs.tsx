@@ -182,8 +182,13 @@ function Page() {
       )}
       {editing && (
         <EditModal title="Кастом" models={models} initial={editing}
+          statusOnly={isChatter}
           onClose={() => setEditing(null)}
-          onSave={(row) => { upsert.mutate({ ...row, id: editing.id }); setEditing(null); }}
+          onSave={(row) => {
+            const payload = isChatter ? { status: row.status } : row;
+            upsert.mutate({ ...payload, id: editing.id });
+            setEditing(null);
+          }}
           onDelete={canEdit ? () => { del.mutate(editing.id); setEditing(null); } : undefined} />
       )}
     </div>
@@ -220,12 +225,13 @@ function CardItem({ c, modelName, onClick }: { c: Custom; modelName: string; onC
   );
 }
 
-function EditModal({ title, initial, models, onClose, onSave, onDelete }: {
-  title: string; initial: Partial<Custom>; models: any[];
+function EditModal({ title, initial, models, statusOnly, onClose, onSave, onDelete }: {
+  title: string; initial: Partial<Custom>; models: any[]; statusOnly?: boolean;
   onClose: () => void; onSave: (row: Partial<Custom>) => void; onDelete?: () => void;
 }) {
   const [f, setF] = useState<Partial<Custom>>({ ...initial });
   function set<K extends keyof Custom>(k: K, v: any) { setF(p => ({ ...p, [k]: v })); }
+  const ro = !!statusOnly;
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()}
