@@ -456,16 +456,7 @@ function UsersSection({
                       >
                         <Save className="h-3 w-3" /> Сохранить
                       </button>
-                      {u.status === "suspended" && !isSelf && (
-                        <button onClick={() => onSaveRow(u.id, {}).then(async () => {
-                          await supabase.from("profiles").update({ status: "active" }).eq("id", u.id);
-                          onRefetch(); toast.success("Восстановлен");
-                        })}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bg3 border border-border text-xs text-text2">
-                          <Check className="h-3 w-3" /> Восстановить
-                        </button>
-                      )}
-                      {!isSelf && !isOwnerRow && u.status !== "suspended" && (
+                      {!isSelf && (
                         <button onClick={() => setConfirmDelete(u)}
                           className="inline-flex items-center justify-center w-7 h-7 rounded bg-bg3 border border-border text-text3 hover:text-red hover:border-red/40"
                           title="Удалить">
