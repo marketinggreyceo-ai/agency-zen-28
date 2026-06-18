@@ -8,7 +8,8 @@ import { PAGE_KEYS, FEATURE_GROUPS, ROLES_ORDER, useRolePermissions } from "@/li
 import { inviteUser, listInvites, cancelInvite } from "@/lib/invites.functions";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Mail, Trash2, Check, X } from "lucide-react";
+import { Mail, Trash2, Check, X, Eye } from "lucide-react";
+import { setPreviewRole } from "@/lib/preview-role";
 
 export const Route = createFileRoute("/app/access")({
   ssr: false, component: Page,
@@ -108,6 +109,25 @@ function Page() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
       <PageHeader title="Доступы" />
+
+      {/* Preview as role */}
+      <section className="rounded-lg border border-border bg-card p-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-wide text-text2 flex items-center gap-1.5 mr-1">
+          <Eye className="h-3.5 w-3.5" /> Просмотр как:
+        </span>
+        {ROLES.map((r) => (
+          <button
+            key={r}
+            onClick={() => setPreviewRole(r === "owner" ? null : r)}
+            className="px-3 py-1.5 rounded-md text-xs font-medium bg-bg3 border border-border hover:border-amber/60 hover:text-amber transition-colors"
+          >
+            {ROLE_LABELS[r]}
+          </button>
+        ))}
+        <span className="text-[11px] text-text3 ml-auto">Esc — выйти из режима просмотра</span>
+      </section>
+
+
 
       {/* Pending approvals */}
       {pending.length > 0 && (

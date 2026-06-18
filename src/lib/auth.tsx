@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { usePreviewRole } from "@/lib/preview-role";
 
 export type Role = "owner" | "production" | "creative" | "va";
 export type ProfileStatus = "pending" | "active" | "suspended";
@@ -14,7 +15,7 @@ export interface Profile {
   telegram_handle: string | null;
 }
 
-export function useProfile() {
+function useProfileRaw() {
   return useQuery({
     queryKey: ["profile"],
     queryFn: async () => {
@@ -28,6 +29,19 @@ export function useProfile() {
       };
     },
   });
+}
+
+export function useProfile() {
+  const q = useProfileRaw();
+  const preview = usePreviewRole();
+  if (preview && q.data?.role === "owner") {
+    return { ...q, data: { ...q.data, role: preview } as Profile };
+  }
+  return q;
+}
+
+export function useRealRole(): Role | undefined {
+  return useProfileRaw().data?.role;
 }
 
 /**

@@ -2,9 +2,10 @@ import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sidebar } from "@/components/Sidebar";
-import { useProfile } from "@/lib/auth";
-import { Clock, LogOut, ShieldOff, Send } from "lucide-react";
-import { useState } from "react";
+import { useProfile, useRealRole, ROLE_LABELS } from "@/lib/auth";
+import { usePreviewRole, setPreviewRole } from "@/lib/preview-role";
+import { Clock, LogOut, ShieldOff, Send, Eye, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app")({
@@ -42,8 +43,42 @@ function Layout() {
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
       <Sidebar />
       <main className="flex-1 overflow-x-hidden min-w-0 pb-20 md:pb-0">
+        <PreviewBanner />
         <Outlet />
       </main>
+    </div>
+  );
+}
+
+function PreviewBanner() {
+  const previewRole = usePreviewRole();
+  const realRole = useRealRole();
+
+  useEffect(() => {
+    if (!previewRole || realRole !== "owner") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreviewRole(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [previewRole, realRole]);
+
+  if (!previewRole || realRole !== "owner") return null;
+  return (
+    <div className="sticky top-0 z-40 bg-amber text-black border-b border-amber/60 px-4 py-2 flex items-center justify-between gap-3 text-sm font-medium shadow-sm">
+      <div className="flex items-center gap-2 min-w-0">
+        <Eye className="h-4 w-4 shrink-0" />
+        <span className="truncate">
+          Просмотр как: <strong>{ROLE_LABELS[previewRole]}</strong>
+        </span>
+      </div>
+      <button
+        onClick={() => setPreviewRole(null)}
+        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-black/15 hover:bg-black/25 text-xs whitespace-nowrap"
+        title="Esc"
+      >
+        <X className="h-3 w-3" /> Выйти из режима просмотра
+      </button>
     </div>
   );
 }
