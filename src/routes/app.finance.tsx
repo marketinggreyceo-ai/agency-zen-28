@@ -92,6 +92,9 @@ function Page() {
 
   const monthPayments = payments.filter((p: any) => p.month === month && p.year === year);
   const expenses = expensesAll.filter((e: any) => e.year === year && e.month === month);
+  const chattingPaid = chatterPeriodsPaid
+    .filter((p: any) => p.month === month && p.year === year)
+    .reduce((s: number, p: any) => s + Number(p.commission_amount || 0), 0);
 
   function calcNetForModel(modelId: string | null): number {
     const m = models.find((x: any) => x.id === modelId);
