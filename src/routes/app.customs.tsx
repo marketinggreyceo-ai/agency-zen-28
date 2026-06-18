@@ -240,36 +240,40 @@ function EditModal({ title, initial, models, statusOnly, onClose, onSave, onDele
           <h3 className="text-sm font-semibold">{title}</h3>
           <button onClick={onClose} className="text-text3 hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
-        <Field label="Модель">
-          <select value={f.model_id ?? ""} onChange={(e) => set("model_id", e.target.value || null)}
-            className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm">
-            <option value="">—</option>
-            {models.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
-        </Field>
-        <Field label="Никнейм клиента">
-          <input value={f.customer_nickname ?? ""} onChange={(e) => set("customer_nickname", e.target.value)}
-            className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
-        </Field>
-        <Field label="Описание">
-          <textarea rows={3} value={f.description ?? ""} onChange={(e) => set("description", e.target.value)}
-            className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Цена">
-            <input type="number" value={f.price ?? ""} onChange={(e) => set("price", e.target.value === "" ? null : Number(e.target.value))}
-              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
-          </Field>
-          <Field label="Чаттер">
-            <input value={f.chatter ?? ""} onChange={(e) => set("chatter", e.target.value)}
-              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
-          </Field>
-          <Field label="Платформа">
-            <select value={f.platform ?? "Fansly"} onChange={(e) => set("platform", e.target.value)}
+        <fieldset disabled={ro} className={ro ? "opacity-60 space-y-3" : "space-y-3"}>
+          <Field label="Модель">
+            <select value={f.model_id ?? ""} onChange={(e) => set("model_id", e.target.value || null)}
               className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm">
-              {PLATFORMS.map(p => <option key={p}>{p}</option>)}
+              <option value="">—</option>
+              {models.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </Field>
+          <Field label="Никнейм клиента">
+            <input value={f.customer_nickname ?? ""} onChange={(e) => set("customer_nickname", e.target.value)}
+              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+          </Field>
+          <Field label="Описание">
+            <textarea rows={3} value={f.description ?? ""} onChange={(e) => set("description", e.target.value)}
+              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Цена">
+              <input type="number" value={f.price ?? ""} onChange={(e) => set("price", e.target.value === "" ? null : Number(e.target.value))}
+                className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+            </Field>
+            <Field label="Чаттер">
+              <input value={f.chatter ?? ""} onChange={(e) => set("chatter", e.target.value)}
+                className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+            </Field>
+            <Field label="Платформа">
+              <select value={f.platform ?? "Fansly"} onChange={(e) => set("platform", e.target.value)}
+                className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm">
+                {PLATFORMS.map(p => <option key={p}>{p}</option>)}
+              </select>
+            </Field>
+          </div>
+        </fieldset>
+        <div className="grid grid-cols-2 gap-2">
           <Field label="Статус">
             <select value={f.status ?? "new"} onChange={(e) => set("status", e.target.value)}
               className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm">
@@ -277,10 +281,12 @@ function EditModal({ title, initial, models, statusOnly, onClose, onSave, onDele
             </select>
           </Field>
         </div>
-        <Field label="Заметки">
-          <textarea rows={2} value={f.notes ?? ""} onChange={(e) => set("notes", e.target.value)}
-            className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
-        </Field>
+        <fieldset disabled={ro} className={ro ? "opacity-60" : ""}>
+          <Field label="Заметки">
+            <textarea rows={2} value={f.notes ?? ""} onChange={(e) => set("notes", e.target.value)}
+              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+          </Field>
+        </fieldset>
         <div className="flex items-center justify-between pt-2">
           {onDelete ? (
             <button onClick={onDelete} className="text-red text-xs inline-flex items-center gap-1">
