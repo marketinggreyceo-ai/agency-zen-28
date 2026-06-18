@@ -20,6 +20,27 @@ export const Route = createFileRoute("/app")({
 function Layout() {
   const { data: profile, isLoading } = useProfile();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  // Realtime: propagate role/permission/team changes without re-login.
+  useEffect(() => {
+    if (!profile?.id) return;
+    const channel = supabase
+      .channel("access-broadcast")
+      .on("postgres_changes", { event: "*", schema: "public", table: "role_permissions" }, () => {
+        qc.invalidateQueries({ queryKey: ["role_permissions"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: `id=eq.${profile.id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["profile"] });
+        qc.invalidateQueries({ queryKey: ["profiles_all"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "team_members" }, () => {
+        qc.invalidateQueries({ queryKey: ["team_members"] });
+        qc.invalidateQueries({ queryKey: ["team"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.id, qc]);
 
   if (isLoading || !profile) {
     return <div className="min-h-screen bg-background" />;
