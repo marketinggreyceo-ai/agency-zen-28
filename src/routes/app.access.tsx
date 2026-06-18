@@ -8,7 +8,8 @@ import { PAGE_KEYS, FEATURE_GROUPS, ROLES_ORDER, useRolePermissions } from "@/li
 import { inviteUser, listInvites, cancelInvite } from "@/lib/invites.functions";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Mail, Trash2, Check, X } from "lucide-react";
+import { Mail, Trash2, Check, X, Eye } from "lucide-react";
+import { setPreviewRole } from "@/lib/preview-role";
 
 export const Route = createFileRoute("/app/access")({
   ssr: false, component: Page,
