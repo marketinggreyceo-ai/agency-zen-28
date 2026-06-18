@@ -77,6 +77,7 @@ function Page() {
   const list = useServerFn(listInvites);
   const invite = useServerFn(inviteUser);
   const cancel = useServerFn(cancelInvite);
+  const removeUser = useServerFn(deleteUser);
 
   const { data: invites = [] } = useQuery({
     queryKey: ["pending_invites"],
