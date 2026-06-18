@@ -8,7 +8,7 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { MobileMenuDrawer } from "@/components/MobileMenu";
 import {
   LayoutDashboard, Brain, DollarSign, ListTodo, TrendingUp,
-  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu, Send, Video,
+  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu, Send, Video, MessageCircle,
 } from "lucide-react";
 
 type Item = { to: string; label: string; icon: any; page: string };
