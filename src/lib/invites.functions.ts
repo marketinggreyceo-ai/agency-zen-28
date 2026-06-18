@@ -46,3 +46,17 @@ export const cancelInvite = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const deleteUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context.supabase, context.userId);
+    if (data.id === context.userId) throw new Error("Нельзя удалить себя");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("team_members").delete().eq("profile_id", data.id);
+    await supabaseAdmin.from("profiles").delete().eq("id", data.id);
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

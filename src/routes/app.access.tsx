@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, Empty } from "@/components/ui-shared";
 import { useProfile, ROLE_LABELS, type Role, type ProfileStatus } from "@/lib/auth";
 import { PAGE_KEYS, FEATURE_GROUPS, ROLES_ORDER, useRolePermissions } from "@/lib/permissions";
-import { inviteUser, listInvites, cancelInvite } from "@/lib/invites.functions";
+import { inviteUser, listInvites, cancelInvite, deleteUser } from "@/lib/invites.functions";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Mail, Trash2, Check, X, Eye, Save } from "lucide-react";
@@ -77,6 +77,7 @@ function Page() {
   const list = useServerFn(listInvites);
   const invite = useServerFn(inviteUser);
   const cancel = useServerFn(cancelInvite);
+  const removeUser = useServerFn(deleteUser);
 
   const { data: invites = [] } = useQuery({
     queryKey: ["pending_invites"],
@@ -191,9 +192,8 @@ function Page() {
           if (error) throw error;
         }}
         onDelete={async (id) => {
-          const { error } = await supabase.from("profiles").update({ status: "suspended" }).eq("id", id);
-          if (error) throw error;
-          await supabase.from("team_members").delete().eq("profile_id", id);
+          await removeUser({ data: { id } });
+          qc.invalidateQueries({ queryKey: ["pending_invites"] });
         }}
         onRefetch={() => qc.invalidateQueries({ queryKey: ["profiles_all"] })}
       />
@@ -456,16 +456,7 @@ function UsersSection({
                       >
                         <Save className="h-3 w-3" /> Сохранить
                       </button>
-                      {u.status === "suspended" && !isSelf && (
-                        <button onClick={() => onSaveRow(u.id, {}).then(async () => {
-                          await supabase.from("profiles").update({ status: "active" }).eq("id", u.id);
-                          onRefetch(); toast.success("Восстановлен");
-                        })}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bg3 border border-border text-xs text-text2">
-                          <Check className="h-3 w-3" /> Восстановить
-                        </button>
-                      )}
-                      {!isSelf && !isOwnerRow && u.status !== "suspended" && (
+                      {!isSelf && (
                         <button onClick={() => setConfirmDelete(u)}
                           className="inline-flex items-center justify-center w-7 h-7 rounded bg-bg3 border border-border text-text3 hover:text-red hover:border-red/40"
                           title="Удалить">
@@ -488,7 +479,7 @@ function UsersSection({
           <AlertDialogHeader>
             <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
             <AlertDialogDescription>
-              Удалить пользователя <strong>{confirmDelete?.email}</strong>? Они потеряют доступ к системе.
+              Удалить пользователя <strong>{confirmDelete?.email}</strong>? Они смогут зарегистрироваться заново с тем же email.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -501,7 +492,7 @@ function UsersSection({
                 setDeleting(true);
                 try {
                   await onDelete(confirmDelete.id);
-                  toast.success("Пользователь заблокирован");
+                  toast.success("Пользователь удалён. Они могут зарегистрироваться заново.");
                   setConfirmDelete(null);
                   onRefetch();
                 } catch (err: any) { toast.error(err.message); }
