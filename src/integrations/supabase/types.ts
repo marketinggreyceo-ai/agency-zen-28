@@ -83,6 +83,158 @@ export type Database = {
         }
         Relationships: []
       }
+      chatter_accounts: {
+        Row: {
+          account_name: string
+          chatter_id: string
+          commission_pct: number
+          created_at: string
+          id: string
+          is_active: boolean
+          model_id: string
+        }
+        Insert: {
+          account_name: string
+          chatter_id: string
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          model_id: string
+        }
+        Update: {
+          account_name?: string
+          chatter_id?: string
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          model_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatter_accounts_chatter_id_fkey"
+            columns: ["chatter_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_accounts_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatter_daily_sales: {
+        Row: {
+          amount: number
+          chatter_account_id: string
+          chatter_id: string
+          created_at: string
+          id: string
+          month: number
+          period: string
+          sale_date: string
+          year: number
+        }
+        Insert: {
+          amount: number
+          chatter_account_id: string
+          chatter_id: string
+          created_at?: string
+          id?: string
+          month: number
+          period: string
+          sale_date: string
+          year: number
+        }
+        Update: {
+          amount?: number
+          chatter_account_id?: string
+          chatter_id?: string
+          created_at?: string
+          id?: string
+          month?: number
+          period?: string
+          sale_date?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatter_daily_sales_chatter_account_id_fkey"
+            columns: ["chatter_account_id"]
+            isOneToOne: false
+            referencedRelation: "chatter_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_daily_sales_chatter_id_fkey"
+            columns: ["chatter_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatter_periods: {
+        Row: {
+          chatter_id: string
+          commission_amount: number
+          commission_pct: number
+          created_at: string
+          id: string
+          month: number
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          period: string
+          status: string
+          total_sales: number
+          year: number
+        }
+        Insert: {
+          chatter_id: string
+          commission_amount?: number
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          month: number
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          period: string
+          status?: string
+          total_sales?: number
+          year: number
+        }
+        Update: {
+          chatter_id?: string
+          commission_amount?: number
+          commission_pct?: number
+          created_at?: string
+          id?: string
+          month?: number
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          period?: string
+          status?: string
+          total_sales?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatter_periods_chatter_id_fkey"
+            columns: ["chatter_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       closed_months: {
         Row: {
           closed_at: string
