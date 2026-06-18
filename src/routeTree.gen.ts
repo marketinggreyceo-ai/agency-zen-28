@@ -26,6 +26,7 @@ import { Route as AppGrowthRouteImport } from './routes/app.growth'
 import { Route as AppGoalsRouteImport } from './routes/app.goals'
 import { Route as AppFinanceRouteImport } from './routes/app.finance'
 import { Route as AppCustomsRouteImport } from './routes/app.customs'
+import { Route as AppChattingRouteImport } from './routes/app.chatting'
 import { Route as AppAccessRouteImport } from './routes/app.access'
 import { Route as ApiPublicWebhookTasksRouteImport } from './routes/api/public/webhook.tasks'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
@@ -115,6 +116,11 @@ const AppCustomsRoute = AppCustomsRouteImport.update({
   path: '/customs',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChattingRoute = AppChattingRouteImport.update({
+  id: '/chatting',
+  path: '/chatting',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAccessRoute = AppAccessRouteImport.update({
   id: '/access',
   path: '/access',
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/setup': typeof SetupRoute
   '/app/access': typeof AppAccessRoute
+  '/app/chatting': typeof AppChattingRoute
   '/app/customs': typeof AppCustomsRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/setup': typeof SetupRoute
   '/app/access': typeof AppAccessRoute
+  '/app/chatting': typeof AppChattingRoute
   '/app/customs': typeof AppCustomsRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/setup': typeof SetupRoute
   '/app/access': typeof AppAccessRoute
+  '/app/chatting': typeof AppChattingRoute
   '/app/customs': typeof AppCustomsRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/setup'
     | '/app/access'
+    | '/app/chatting'
     | '/app/customs'
     | '/app/finance'
     | '/app/goals'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/setup'
     | '/app/access'
+    | '/app/chatting'
     | '/app/customs'
     | '/app/finance'
     | '/app/goals'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/setup'
     | '/app/access'
+    | '/app/chatting'
     | '/app/customs'
     | '/app/finance'
     | '/app/goals'
@@ -397,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCustomsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/chatting': {
+      id: '/app/chatting'
+      path: '/chatting'
+      fullPath: '/app/chatting'
+      preLoaderRoute: typeof AppChattingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/access': {
       id: '/app/access'
       path: '/access'
@@ -423,6 +442,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccessRoute: typeof AppAccessRoute
+  AppChattingRoute: typeof AppChattingRoute
   AppCustomsRoute: typeof AppCustomsRoute
   AppFinanceRoute: typeof AppFinanceRoute
   AppGoalsRoute: typeof AppGoalsRoute
@@ -439,6 +459,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccessRoute: AppAccessRoute,
+  AppChattingRoute: AppChattingRoute,
   AppCustomsRoute: AppCustomsRoute,
   AppFinanceRoute: AppFinanceRoute,
   AppGoalsRoute: AppGoalsRoute,

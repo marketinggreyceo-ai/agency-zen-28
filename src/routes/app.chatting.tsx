@@ -23,7 +23,7 @@ function Page() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <PageHeader title="Чаттинг" icon={<MessageCircle className="h-5 w-5" />} />
+      <PageHeader title="Чаттинг" />
 
       <div className="flex gap-1 border-b border-border">
         <button
