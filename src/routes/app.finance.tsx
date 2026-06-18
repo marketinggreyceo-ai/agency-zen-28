@@ -413,6 +413,7 @@ function Page() {
               <Row label="Нетто агентства:" value={`${currency}${Math.round(totals.net).toLocaleString()}`} />
               <Row label="− Чаттинг:" value={`−${currency}${Math.round(totals.chattingCost).toLocaleString()}`} color="#BA7517" />
               <Row label="− Расходы:" value={`−${currency}${Math.round(totals.expTotal).toLocaleString()}`} color="#E24B4A" />
+              <Row label="Чаттинг (выплачено):" value={`${currency}${Math.round(chattingPaid).toLocaleString()}`} color="#5DCAA5" />
               <div className="border-t border-border my-2" />
               <Row label="Чистая прибыль:" value={`${currency}${Math.round(totals.profit).toLocaleString()}`}
                 bold color={totals.profit >= 0 ? "#1FB8B0" : "#E24B4A"} />
