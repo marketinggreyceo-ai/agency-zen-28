@@ -65,15 +65,11 @@ function Page() {
       </div>
 
       {tab === "sales" && (
-        <div className="space-y-3">
-          {selectedPeriod && (
-            <div className="rounded border border-border bg-bg2 p-3 text-sm">
-              Выбран период: <b>{periodLabel(selectedPeriod.period, selectedPeriod.month)} {selectedPeriod.year}</b>
-              <button onClick={() => setSelectedPeriod(null)} className="ml-3 text-xs text-text2 underline">сбросить</button>
-            </div>
-          )}
-          <Empty message="Вкладка «Продажи» появится в следующем обновлении." />
-        </div>
+        <SalesTab
+          isOwner={!!isOwner}
+          profile={profile}
+          initialPeriod={selectedPeriod}
+        />
       )}
       {tab === "history" && (
         <HistoryTab
