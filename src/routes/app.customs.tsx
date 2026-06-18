@@ -46,7 +46,9 @@ function Page() {
   const isMobile = useIsMobile();
   const { data: profile } = useProfile();
   const role = profile?.role;
+  const isChatter = role === "chatter";
   const canEdit = role === "owner" || role === "creative" || role === "production";
+  const ownChatterName = profile?.assignee_name || profile?.full_name || "";
 
   const { data: models = [] } = useQuery({
     queryKey: ["models_min"],
@@ -73,12 +75,13 @@ function Page() {
 
   const filtered = useMemo(() => {
     return customs.filter(c => {
+      if (isChatter && (c.chatter ?? "") !== ownChatterName) return false;
       if (modelFilter && c.model_id !== modelFilter) return false;
       if (chatterFilter && c.chatter !== chatterFilter) return false;
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
       return true;
     });
-  }, [customs, modelFilter, chatterFilter, statusFilter]);
+  }, [customs, modelFilter, chatterFilter, statusFilter, isChatter, ownChatterName]);
 
   const upsert = useMutation({
     mutationFn: async (row: Partial<Custom> & { id?: string }) => {
