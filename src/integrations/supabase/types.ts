@@ -1186,7 +1186,7 @@ export type Database = {
       owner_exists: { Args: never; Returns: boolean }
     }
     Enums: {
-      app_role: "owner" | "production" | "creative" | "va"
+      app_role: "owner" | "production" | "creative" | "va" | "chatter"
       profile_status: "pending" | "active" | "suspended"
     }
     CompositeTypes: {
@@ -1315,7 +1315,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["owner", "production", "creative", "va"],
+      app_role: ["owner", "production", "creative", "va", "chatter"],
       profile_status: ["pending", "active", "suspended"],
     },
   },
