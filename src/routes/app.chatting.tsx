@@ -1149,12 +1149,18 @@ function ChatterSalesTable({
           <thead className="bg-bg2 text-text2 text-[10px] uppercase">
             <tr>
               <th className="text-left p-2 sticky left-0 bg-bg2 z-10 min-w-[80px]">Дата</th>
-              {accounts.map((a) => (
-                <th key={a.id} className="text-right p-2 min-w-[100px]">
-                  <div className="font-semibold normal-case text-xs text-text">{a.account_name}</div>
-                  <div className="text-[9px] text-text2">{modelMap.get(a.model_id) ?? ""}</div>
-                </th>
-              ))}
+              {accounts.map((a) => {
+                const wh = (a as any).work_hours_start && (a as any).work_hours_end
+                  ? `${String((a as any).work_hours_start).slice(0,5)}-${String((a as any).work_hours_end).slice(0,5)}`
+                  : null;
+                return (
+                  <th key={a.id} className="text-right p-2 min-w-[100px]">
+                    <div className="font-semibold normal-case text-xs text-text">{a.account_name}</div>
+                    <div className="text-[9px] text-text2">{modelMap.get(a.model_id) ?? ""}</div>
+                    {wh && <div className="text-[9px] text-text3">{wh}</div>}
+                  </th>
+                );
+              })}
               <th className="text-right p-2 min-w-[80px]">Итого</th>
               <th className="text-right p-2 min-w-[90px]">Комиссия</th>
               <th className="text-right p-2 min-w-[80px]">Выплата</th>
