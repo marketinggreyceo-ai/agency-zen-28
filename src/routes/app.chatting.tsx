@@ -757,17 +757,39 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
           ))}
         </div>
         {isOwner && (
-          <button
-            onClick={() => setAddOpen(true)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-teal text-primary-foreground text-sm font-medium"
-          >
-            <Plus className="h-4 w-4" /> Добавить чаттера
-          </button>
+          <div className="flex items-center gap-2">
+            <select
+              value={ownerSelectedChatter}
+              onChange={(e) => setOwnerSelectedChatter(e.target.value)}
+              className="bg-bg3 border border-border rounded px-2 py-1.5 text-sm"
+            >
+              {chatterMembers.length === 0 && <option value="">Нет чаттеров</option>}
+              {chatterMembers.map((m: any) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}{activeChatterIds.has(m.id) ? "" : " (без аккаунтов)"}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => setAddOpen(true)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-teal text-primary-foreground text-sm font-medium"
+            >
+              <Plus className="h-4 w-4" /> Добавить чаттера
+            </button>
+          </div>
         )}
       </div>
 
-      {visibleChatterIds.length === 0 ? (
-        <Empty message={isOwner ? "Нет активных чаттеров. Добавьте аккаунты в Настройках." : "Для вас пока нет назначенных аккаунтов."} />
+      {visibleChatterIds.length === 0 || (isOwner && !activeChatterIds.has(ownerSelectedChatter)) ? (
+        <Empty message={
+          isOwner
+            ? (chatterMembers.length === 0
+                ? "Нет чаттеров. Добавьте участника с ролью Chatter на странице Команда."
+                : "У этого чаттера ещё нет активных аккаунтов. Добавьте их в Настройках.")
+            : (chatterNoMatch
+                ? "Обратитесь к администратору для назначения аккаунтов"
+                : "Для вас пока нет назначенных аккаунтов.")
+        } />
       ) : (
         visibleChatterIds.map((cid) => {
           const chatter = members.find((m: any) => m.id === cid);
