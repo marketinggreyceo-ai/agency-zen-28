@@ -186,6 +186,25 @@ export function TaskModal({ task, open, onClose, defaultAssignee, defaultWeekly,
             options={[["", "—"], ...taskTypes.map((t) => [t.name, t.name] as [string, string])]} />
           <Select label="Статус" value={form.status ?? "incoming"} onChange={(v) => setForm({ ...form, status: v })}
             options={STATUSES.map((s) => [s.value, s.label])} />
+          <div className="flex gap-4 text-xs">
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={!!form.is_weekly}
+                onChange={(e) => setForm({ ...form, is_weekly: e.target.checked, is_permanent: e.target.checked ? false : form.is_permanent })}
+                className="h-3.5 w-3.5 accent-teal" />
+              Еженедельная
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={!!form.is_permanent}
+                onChange={(e) => setForm({ ...form, is_permanent: e.target.checked, is_weekly: e.target.checked ? false : form.is_weekly })}
+                className="h-3.5 w-3.5 accent-teal" />
+              Постоянная
+            </label>
+          </div>
+          {form.is_weekly && (
+            <Select label="День недели" value={form.day_of_week != null ? String(form.day_of_week) : ""}
+              onChange={(v) => setForm({ ...form, day_of_week: v === "" ? null : Number(v) })}
+              options={[["", "— любой —"], ["1", "Пн"], ["2", "Вт"], ["3", "Ср"], ["4", "Чт"], ["5", "Пт"], ["6", "Сб"], ["0", "Вс"]]} />
+          )}
           <div>
             <label className="text-xs text-text2 block mb-1">Дедлайн</label>
             <input type="date" value={form.deadline ?? ""}
