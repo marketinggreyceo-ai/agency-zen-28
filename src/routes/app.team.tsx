@@ -12,7 +12,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  Mail, Trash2, Send, Plus, Copy, X, UserMinus,
+  Mail, Trash2, Send, Plus, Copy, X, UserMinus, Check, ShieldOff,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
