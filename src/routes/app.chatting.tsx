@@ -639,7 +639,35 @@ function ChatterBlock({
                         />
                       </td>
                       <td className="p-2">
-                        <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="time"
+                            defaultValue={(a as any).work_hours_start ?? ""}
+                            key={`whs-${a.id}-${(a as any).work_hours_start ?? ""}`}
+                            onBlur={(e) => {
+                              const v = e.target.value || null;
+                              if (v !== ((a as any).work_hours_start ?? null)) {
+                                updateAccount.mutate({ id: a.id, patch: { work_hours_start: v } as any });
+                              }
+                            }}
+                            className="bg-bg3 border border-border rounded px-1.5 py-1 text-xs w-[90px]"
+                          />
+                          <span className="text-text2 text-xs">—</span>
+                          <input
+                            type="time"
+                            defaultValue={(a as any).work_hours_end ?? ""}
+                            key={`whe-${a.id}-${(a as any).work_hours_end ?? ""}`}
+                            onBlur={(e) => {
+                              const v = e.target.value || null;
+                              if (v !== ((a as any).work_hours_end ?? null)) {
+                                updateAccount.mutate({ id: a.id, patch: { work_hours_end: v } as any });
+                              }
+                            }}
+                            className="bg-bg3 border border-border rounded px-1.5 py-1 text-xs w-[90px]"
+                          />
+                        </div>
+                      </td>
+                      <td className="p-2">
                           <input
                             type="checkbox"
                             checked={a.is_active}
