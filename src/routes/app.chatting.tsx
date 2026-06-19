@@ -260,7 +260,7 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
                     className="border-t border-border hover:bg-bg2/50 cursor-pointer"
                     onClick={() => onOpenPeriod(p)}
                   >
-                    <td className="p-3">{periodLabel(p.period, p.month)} {p.year}</td>
+                    <td className="p-3">{periodLabel(p.period, p.month, p.year)} {p.year}</td>
                     <td className="p-3">{memberMap.get(p.chatter_id) ?? "—"}</td>
                     <td className="p-3 text-text2 max-w-[200px] truncate" title={accs.map((a) => a.account_name).join(", ")}>
                       {accs.length === 0 ? "—" : accs.map((a) => a.account_name).join(", ")}
