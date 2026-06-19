@@ -212,7 +212,10 @@ function MemberRow({
   onOpen: () => void; onInvite: () => void; onRevoke: () => void; onDelete: () => void;
   onSaved: () => void;
 }) {
-  const status = statusOf(m);
+  const status = statusOf(m, profile);
+  const approve = useServerFn(approveMember);
+  const reject = useServerFn(rejectMember);
+  const qc = useQueryClient();
   const email = profile?.email || m.invite_email || "—";
   const currentRole: Role = (profile?.role as Role) || (m.role_label as Role) || "va";
 
