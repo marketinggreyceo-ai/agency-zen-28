@@ -163,6 +163,9 @@ function Page() {
                     {items.map((g) => (
                       <GoalCard key={g.id} goal={g} weekPassed={weekPassed}
                         canEdit={isOwner} canProgress={isOwner || g.assigned_to === myName}
+                        sundayISO={weekEndForTasks}
+                        linkedAssignee={goalTaskByTitle.get(g.title) ?? null}
+                        onTaskCreated={() => qc.invalidateQueries({ queryKey: ["goal_tasks", weekISO, weekEndForTasks] })}
                         onUpdate={(patch) => updateGoal.mutate({ id: g.id, patch })}
                         onDelete={() => deleteGoal.mutate(g.id)} />
                     ))}
