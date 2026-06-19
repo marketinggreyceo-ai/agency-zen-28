@@ -11,7 +11,7 @@ import {
 } from "@/lib/invites.functions";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Mail, Trash2, Send, Plus, Copy, X, Check, ShieldOff } from "lucide-react";
+import { Mail, Trash2, Send, Plus, Copy, X, Check, ShieldOff, Pencil } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
