@@ -105,18 +105,23 @@ function PreviewBanner() {
 
 function Onboarding({ profile }: { profile: any }) {
   const qc = useQueryClient();
-  const [fullName, setFullName] = useState(profile.full_name ?? "");
+  const initialName = profile.full_name && !/@/.test(profile.full_name) ? profile.full_name : "";
+  const [fullName, setFullName] = useState(initialName);
   const [handle, setHandle] = useState(profile.telegram_handle ?? "");
   const [saving, setSaving] = useState(false);
 
-  async function save(skip = false) {
+  async function save(e?: React.FormEvent) {
+    e?.preventDefault();
+    const name = fullName.trim();
+    if (!name) { toast.error("Введите имя"); return; }
     setSaving(true);
     const cleanHandle = handle.trim().replace(/^@/, "");
     const patch: any = {
-      full_name: fullName.trim() || profile.email,
+      full_name: name,
+      assignee_name: name,
+      telegram_handle: cleanHandle || null,
       onboarded_at: new Date().toISOString(),
     };
-    if (!skip && cleanHandle) patch.telegram_handle = cleanHandle;
     const { error } = await supabase.from("profiles").update(patch).eq("id", profile.id);
     if (error) { toast.error(error.message); setSaving(false); return; }
     await qc.invalidateQueries({ queryKey: ["profile"] });
@@ -124,18 +129,18 @@ function Onboarding({ profile }: { profile: any }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
-      <div className="w-full max-w-md bg-card border border-border rounded-lg p-6 space-y-4">
+      <form onSubmit={save} className="w-full max-w-md bg-card border border-border rounded-lg p-6 space-y-4">
         <div>
-          <h1 className="text-lg font-semibold">Добро пожаловать 👋</h1>
+          <h1 className="text-lg font-semibold">Расскажи о себе</h1>
           <p className="text-sm text-text2 mt-1">
-            Заполни короткий профиль, чтобы Telegram-бот мог корректно отмечать тебя в задачах.
+            Заполни короткий профиль, чтобы корректно отмечать тебя в задачах.
           </p>
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs text-text3 uppercase tracking-wide">Полное имя</label>
+          <label className="text-xs text-text3 uppercase tracking-wide">Как тебя зовут? *</label>
           <input value={fullName} onChange={(e) => setFullName(e.target.value)}
-            placeholder="Имя Фамилия" required
+            placeholder="Имя Фамилия" required autoFocus
             className="w-full bg-bg3 border border-border rounded px-3 py-2 text-sm" />
         </div>
 
@@ -143,28 +148,18 @@ function Onboarding({ profile }: { profile: any }) {
           <label className="text-xs text-text3 uppercase tracking-wide flex items-center gap-1">
             <Send className="h-3 w-3" /> Telegram username
           </label>
-          <div className="flex items-center bg-bg3 border border-border rounded px-3 py-2">
-            <span className="text-text3 text-sm mr-1">@</span>
-            <input value={handle} onChange={(e) => setHandle(e.target.value.replace(/^@/, ""))}
-              placeholder="andrew_grey"
-              className="flex-1 bg-transparent text-sm outline-none" />
-          </div>
-          <p className="text-[11px] text-text3">
-            Напиши свой username из Telegram без @, например: andrew_grey
-          </p>
+          <input value={handle} onChange={(e) => setHandle(e.target.value.replace(/^@/, ""))}
+            placeholder="@username без @"
+            className="w-full bg-bg3 border border-border rounded px-3 py-2 text-sm" />
         </div>
 
-        <div className="flex justify-between gap-2 pt-2">
-          <button onClick={() => save(true)} disabled={saving}
-            className="text-xs text-text3 hover:text-text2 px-2 py-2">
-            Пропустить
-          </button>
-          <button onClick={() => save(false)} disabled={saving || !fullName.trim()}
+        <div className="flex justify-end pt-2">
+          <button type="submit" disabled={saving || !fullName.trim()}
             className="px-4 py-2 rounded bg-teal text-primary-foreground text-sm font-medium disabled:opacity-50">
             {saving ? "Сохранение…" : "Продолжить"}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
