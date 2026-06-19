@@ -289,7 +289,7 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
                       {isOwner && p.status === "paid" && (
                         <button
                           onClick={() => {
-                            if (confirm(`Разблокировать период? Авто-расход в Финансах тоже будет удалён.`)) reopen.mutate(p);
+                            if (confirm(`Разблокировать период?`)) reopen.mutate(p);
                           }}
                           className="inline-flex items-center gap-1 px-2 py-1 rounded border border-amber-500 text-amber-500 text-xs font-medium"
                         >
