@@ -222,12 +222,12 @@ function ProfileRowView({
   }
 
   return (
-    <tr className="border-b border-border last:border-0 hover:bg-bg3/40">
+    <tr className="border-b border-border last:border-0 hover:bg-bg3/40 group">
       <td className="p-3">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full bg-bg3 flex items-center justify-center text-xs font-medium shrink-0">{initials}</div>
-          <div>
-            <div className="font-medium">{displayName}</div>
+          <div className="min-w-0">
+            <EditableName profileId={p.id} value={p.full_name ?? ""} fallback={displayName} onSaved={onSaved} />
             {isSelf && <div className="text-[10px] text-text3 mt-0.5">это вы</div>}
           </div>
         </div>
