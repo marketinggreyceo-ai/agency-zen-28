@@ -7,6 +7,7 @@ import { useProfile, ROLE_LABELS, type Role } from "@/lib/auth";
 import { ROLES_ORDER } from "@/lib/permissions";
 import {
   inviteTeamMember, cancelTeamInvite, revokeAccess, removeTeamMember,
+  approveMember, rejectMember,
 } from "@/lib/invites.functions";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
