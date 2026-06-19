@@ -2,18 +2,156 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+const RoleEnum = z.enum(["owner", "production", "creative", "va", "chatter"]);
+
 async function assertOwner(supabase: any, userId: string) {
   const { data, error } = await supabase.from("profiles").select("role").eq("id", userId).single();
   if (error) throw new Error(error.message);
   if (data?.role !== "owner") throw new Error("Только владелец может управлять приглашениями");
 }
 
+/**
+ * Invite a team member by id + email.
+ * Stamps invited_at/invite_email on the team_member row, creates the auth user
+ * (or reuses an existing pending one), and returns a copy-able invite link.
+ * Supabase will also attempt to send a default invitation email; if no SMTP
+ * is configured, just share the returned link manually.
+ */
+export const inviteTeamMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({
+      team_member_id: z.string().uuid(),
+      email: z.string().email(),
+      role: RoleEnum,
+    }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: tm, error: tmErr } = await supabaseAdmin
+      .from("team_members").select("*").eq("id", data.team_member_id).single();
+    if (tmErr || !tm) throw new Error("Участник не найден");
+
+    // Generate the invite link (also creates the auth user in invited state).
+    const redirectTo = (process.env.SITE_URL || "") + "/auth";
+    const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email: data.email,
+      options: {
+        data: {
+          role: data.role,
+          full_name: tm.name,
+          assignee_name: tm.assignee_name ?? tm.name,
+          telegram_handle: tm.telegram_handle ?? null,
+        },
+        redirectTo: redirectTo || undefined,
+      },
+    });
+    if (linkErr) {
+      // If user already exists in invited state, fall back to inviteUserByEmail
+      const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin
+        .inviteUserByEmail(data.email, { data: { role: data.role } });
+      if (inviteErr) throw new Error(linkErr.message || inviteErr.message);
+      await supabaseAdmin.from("team_members").update({
+        invited_at: new Date().toISOString(),
+        invite_email: data.email,
+      }).eq("id", data.team_member_id);
+      return { id: invited.user?.id, email: invited.user?.email, action_link: null as string | null };
+    }
+
+    await supabaseAdmin.from("team_members").update({
+      invited_at: new Date().toISOString(),
+      invite_email: data.email,
+    }).eq("id", data.team_member_id);
+
+    return {
+      id: link.user?.id,
+      email: data.email,
+      action_link: link.properties?.action_link ?? null,
+    };
+  });
+
+/** Cancel a pending invite — clears stamps and deletes the unregistered auth user. */
+export const cancelTeamInvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ team_member_id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: tm } = await supabaseAdmin
+      .from("team_members").select("invite_email, profile_id").eq("id", data.team_member_id).single();
+
+    if (tm?.invite_email && !tm.profile_id) {
+      // Find auth user by email and delete if still unregistered.
+      const { data: list } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+      const u = list?.users.find((x: any) => x.email?.toLowerCase() === tm.invite_email!.toLowerCase());
+      if (u && !u.last_sign_in_at) {
+        await supabaseAdmin.auth.admin.deleteUser(u.id);
+      }
+    }
+
+    await supabaseAdmin.from("team_members").update({
+      invited_at: null, invite_email: null,
+    }).eq("id", data.team_member_id);
+
+    return { ok: true };
+  });
+
+/** Revoke a registered user's access: delete profile + auth user, keep team_member. */
+export const revokeAccess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ team_member_id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: tm } = await supabaseAdmin
+      .from("team_members").select("profile_id").eq("id", data.team_member_id).single();
+    if (!tm?.profile_id) throw new Error("Нет привязанного аккаунта");
+    if (tm.profile_id === context.userId) throw new Error("Нельзя удалить свой доступ");
+
+    await supabaseAdmin.from("team_members").update({
+      profile_id: null, invited_at: null, invite_email: null,
+    }).eq("id", data.team_member_id);
+    await supabaseAdmin.from("profiles").delete().eq("id", tm.profile_id);
+    await supabaseAdmin.auth.admin.deleteUser(tm.profile_id);
+
+    return { ok: true };
+  });
+
+/** Delete a team member entirely (and any linked profile/auth user). */
+export const deleteTeamMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ team_member_id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: tm } = await supabaseAdmin
+      .from("team_members").select("profile_id, invite_email").eq("id", data.team_member_id).single();
+
+    if (tm?.profile_id) {
+      if (tm.profile_id === context.userId) throw new Error("Нельзя удалить себя");
+      await supabaseAdmin.from("profiles").delete().eq("id", tm.profile_id);
+      await supabaseAdmin.auth.admin.deleteUser(tm.profile_id);
+    } else if (tm?.invite_email) {
+      const { data: list } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+      const u = list?.users.find((x: any) => x.email?.toLowerCase() === tm.invite_email!.toLowerCase());
+      if (u && !u.last_sign_in_at) await supabaseAdmin.auth.admin.deleteUser(u.id);
+    }
+
+    await supabaseAdmin.from("team_members").delete().eq("id", data.team_member_id);
+    return { ok: true };
+  });
+
+// ─── Legacy compatibility (kept so older imports don't break) ──────────────
+
 export const inviteUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) => z.object({
-    email: z.string().email(),
-    role: z.enum(["owner", "production", "creative", "va"]),
-  }).parse(data))
+  .inputValidator((data) => z.object({ email: z.string().email(), role: RoleEnum }).parse(data))
   .handler(async ({ data, context }) => {
     await assertOwner(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -28,12 +166,15 @@ export const listInvites = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertOwner(context.supabase, context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+    const { data, error } = await context.supabase
+      .from("team_members")
+      .select("id, name, invite_email, invited_at, role_label")
+      .not("invited_at", "is", null)
+      .is("profile_id", null);
     if (error) throw new Error(error.message);
-    return (data?.users ?? [])
-      .filter((u: any) => u.invited_at && !u.email_confirmed_at && !u.last_sign_in_at)
-      .map((u: any) => ({ id: u.id, email: u.email, invited_at: u.invited_at, role: u.user_metadata?.role ?? null }));
+    return (data ?? []).map((r: any) => ({
+      id: r.id, email: r.invite_email, invited_at: r.invited_at, role: r.role_label,
+    }));
   });
 
 export const cancelInvite = createServerFn({ method: "POST" })
@@ -42,8 +183,9 @@ export const cancelInvite = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertOwner(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.id);
-    if (error) throw new Error(error.message);
+    await supabaseAdmin.from("team_members").update({
+      invited_at: null, invite_email: null,
+    }).eq("id", data.id);
     return { ok: true };
   });
 
@@ -54,7 +196,7 @@ export const deleteUser = createServerFn({ method: "POST" })
     await assertOwner(context.supabase, context.userId);
     if (data.id === context.userId) throw new Error("Нельзя удалить себя");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("team_members").delete().eq("profile_id", data.id);
+    await supabaseAdmin.from("team_members").update({ profile_id: null }).eq("profile_id", data.id);
     await supabaseAdmin.from("profiles").delete().eq("id", data.id);
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.id);
     if (error) throw new Error(error.message);
