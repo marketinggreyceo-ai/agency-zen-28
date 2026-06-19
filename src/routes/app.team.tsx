@@ -6,7 +6,7 @@ import { PageHeader, Empty } from "@/components/ui-shared";
 import { useProfile, ROLE_LABELS, type Role, type ProfileStatus } from "@/lib/auth";
 import { ROLES_ORDER } from "@/lib/permissions";
 import { inviteUser, listInvites, cancelInvite, deleteUser } from "@/lib/invites.functions";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Mail, Trash2, Save, X, Send } from "lucide-react";
 import {
@@ -253,7 +253,10 @@ function DetailModal({ user, isOwner, onClose, onSaved }: {
 }) {
   const [resp, setResp] = useState("");
   const [weekly, setWeekly] = useState("");
-  useState(() => { setResp(user?.responsibilities ?? ""); setWeekly(user?.weekly_tasks ?? ""); });
+  useEffect(() => {
+    setResp(user?.responsibilities ?? "");
+    setWeekly(user?.weekly_tasks ?? "");
+  }, [user]);
   if (!user) return null;
 
   async function save() {
