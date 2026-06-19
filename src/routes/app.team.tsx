@@ -295,7 +295,24 @@ function MemberRow({
               <X className="h-3 w-3" /> Отменить
             </button>
           )}
-          {isOwner && status === "active" && (
+          {isOwner && status === "awaiting" && profile && (
+            <>
+              <button onClick={async () => {
+                try { await approve({ data: { profile_id: profile.id } }); toast.success("Подтверждён"); qc.invalidateQueries({ queryKey: ["profiles_lite"] }); qc.invalidateQueries({ queryKey: ["profiles-pending-count"] }); }
+                catch (e: any) { toast.error(e.message); }
+              }} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-teal text-primary-foreground text-xs font-medium">
+                <Check className="h-3 w-3" /> Подтвердить
+              </button>
+              <button onClick={async () => {
+                if (!confirm(`Отклонить ${m.name}?`)) return;
+                try { await reject({ data: { profile_id: profile.id } }); toast.success("Отклонено"); qc.invalidateQueries({ queryKey: ["profiles_lite"] }); qc.invalidateQueries({ queryKey: ["profiles-pending-count"] }); }
+                catch (e: any) { toast.error(e.message); }
+              }} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bg3 border border-border text-xs text-red">
+                <ShieldOff className="h-3 w-3" /> Отклонить
+              </button>
+            </>
+          )}
+          {isOwner && (status === "active" || status === "rejected") && (
             <button onClick={onRevoke}
               className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bg3 border border-border text-xs text-text2 hover:text-red">
               <UserMinus className="h-3 w-3" /> Доступ
