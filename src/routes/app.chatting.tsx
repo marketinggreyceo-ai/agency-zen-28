@@ -279,7 +279,7 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
                       {isOwner && p.status !== "paid" && (
                         <button
                           onClick={() => {
-                            if (confirm(`Оплатить период «${periodLabel(p.period, p.month)} ${p.year}»? Будет создан расход в категории «Зарплата».`)) markPaid.mutate(p);
+                            if (confirm(`Отметить период «${periodLabel(p.period, p.month, p.year)} ${p.year}» как оплаченный?`)) markPaid.mutate(p);
                           }}
                           className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green text-primary-foreground text-xs font-medium"
                         >
