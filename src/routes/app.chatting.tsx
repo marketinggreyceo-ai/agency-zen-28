@@ -332,38 +332,39 @@ function SettingsTab() {
     queryFn: async () => (await supabase.from("models").select("id, name").order("name")).data ?? [],
   });
 
-  const chatterProfileIds = useMemo(
-    () => new Set((profilesLite as any[]).filter((p) => p.role === "chatter").map((p) => p.id)),
+  // STRICT: chatter candidates = profiles with role='chatter' (single source of truth)
+  const chatterProfiles = useMemo(
+    () => (profilesLite as any[]).filter((p) => p.role === "chatter"),
     [profilesLite],
   );
-  const chatterMembers = useMemo(
-    () => (members as any[]).filter((m) =>
-      (m.role_label && String(m.role_label).toLowerCase() === "chatter") ||
-      (m.profile_id && chatterProfileIds.has(m.profile_id)),
-    ),
-    [members, chatterProfileIds],
-  );
 
-  const accountsByChatter = useMemo(() => {
+  // For each chatter profile, find (or imply) a team_members row used as chatter_id
+  const memberByProfileId = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const tm of members as any[]) if (tm.profile_id) m.set(tm.profile_id, tm);
+    return m;
+  }, [members]);
+
+  const accountsByProfileId = useMemo(() => {
     const m = new Map<string, any[]>();
     for (const a of accounts as any[]) {
-      if (!m.has(a.chatter_id)) m.set(a.chatter_id, []);
-      m.get(a.chatter_id)!.push(a);
+      const pid = a.chatter_profile_id;
+      if (!pid) continue;
+      if (!m.has(pid)) m.set(pid, []);
+      m.get(pid)!.push(a);
     }
     return m;
   }, [accounts]);
 
   // Show blocks for: chatters with accounts + explicitly added
-  const visibleChatterIds = useMemo(() => {
+  const visibleChatterProfileIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const m of chatterMembers) {
-      if (accountsByChatter.has(m.id)) ids.add(m.id);
-    }
+    for (const p of chatterProfiles) if (accountsByProfileId.has(p.id)) ids.add(p.id);
     for (const id of extraChatterIds) ids.add(id);
     return Array.from(ids);
-  }, [chatterMembers, accountsByChatter, extraChatterIds]);
+  }, [chatterProfiles, accountsByProfileId, extraChatterIds]);
 
-  const availableToAdd = chatterMembers.filter((m: any) => !visibleChatterIds.includes(m.id));
+  const availableToAdd = chatterProfiles.filter((p: any) => !visibleChatterProfileIds.includes(p.id));
 
   const deleteChatter = useMutation({
     mutationFn: async (chatterId: string) => {
