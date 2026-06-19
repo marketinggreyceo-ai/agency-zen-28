@@ -151,7 +151,7 @@ function Page() {
 }
 
 function PendingInvites({ members }: { members: TeamMember[] }) {
-  const pending = members.filter((m) => statusOf(m) === "pending");
+  const pending = members.filter((m) => !m.profile_id && !!m.invited_at);
   if (pending.length === 0) return null;
   return (
     <section className="rounded-lg border border-amber/40 bg-amber/5 p-4">
