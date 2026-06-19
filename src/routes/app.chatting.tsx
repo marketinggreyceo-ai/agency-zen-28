@@ -589,6 +589,7 @@ function ChatterBlock({
                     <th className="text-left p-2">Аккаунт</th>
                     <th className="text-left p-2">Модель</th>
                     <th className="text-left p-2">Комиссия %</th>
+                    <th className="text-left p-2">Часы работы</th>
                     <th className="text-left p-2">Статус</th>
                     <th className="text-right p-2">Удалить</th>
                   </tr>
