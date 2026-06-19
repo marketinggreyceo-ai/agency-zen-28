@@ -668,6 +668,7 @@ function ChatterBlock({
                         </div>
                       </td>
                       <td className="p-2">
+                        <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
                           <input
                             type="checkbox"
                             checked={a.is_active}
