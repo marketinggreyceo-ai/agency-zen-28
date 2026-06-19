@@ -54,9 +54,7 @@ function Layout() {
   }
 
   const needsOnboarding =
-    !profile.telegram_handle &&
-    typeof window !== "undefined" &&
-    !window.localStorage.getItem(`onboarded:${profile.id}`);
+    !profile.onboarded_at && !profile.full_name?.trim();
 
   if (needsOnboarding) return <Onboarding profile={profile} />;
 
