@@ -16,6 +16,10 @@ export interface Task {
   deadline: string | null;
   notes: string | null;
   created_at: string;
+  is_weekly?: boolean | null;
+  is_permanent?: boolean | null;
+  day_of_week?: number | null;
+  weekly_done_at?: string | null;
 }
 
 /** @deprecated read from `useTaskTypes()` instead */
