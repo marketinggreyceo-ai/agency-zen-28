@@ -170,9 +170,9 @@ function WaitingScreen({ status, onLogout }: { status: "pending" | "suspended" |
     status === "suspended" ? "Доступ заблокирован" :
     "Ожидание подтверждения";
   const text =
-    status === "rejected" ? "Ваша заявка отклонена администратором." :
-    status === "suspended" ? "Ваш аккаунт был заблокирован. Свяжитесь с администратором." :
-    "Ваш аккаунт ожидает подтверждения администратором.";
+    status === "rejected" ? "Ваша заявка отклонена администратором. Свяжитесь с @marketinggrey в Telegram." :
+    status === "suspended" ? "Доступ запрещён. Свяжитесь с @marketinggrey в Telegram." :
+    "Ваш аккаунт ожидает подтверждения администратором. Свяжитесь с @marketinggrey в Telegram.";
   const color = status === "pending" ? "text-amber" : "text-red";
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
