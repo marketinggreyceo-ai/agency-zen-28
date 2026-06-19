@@ -25,8 +25,18 @@ const RU_MONTHS_SHORT = [
   "июл", "авг", "сен", "окт", "ноя", "дек",
 ];
 
-export function periodLabel(period: string, month: number) {
-  return `${period} ${RU_MONTHS_GENITIVE[month - 1] ?? ""}`.trim();
+export function periodLabel(period: string, month: number, year?: number) {
+  const monthName = RU_MONTHS_GENITIVE[month - 1] ?? "";
+  if (period !== "1-15" && year != null) {
+    const last = new Date(year, month, 0).getDate();
+    return `16-${last} ${monthName}`.trim();
+  }
+  if (period !== "1-15") {
+    // fallback when year unknown — use non-leap default for the month
+    const last = new Date(2025, month, 0).getDate();
+    return `16-${last} ${monthName}`.trim();
+  }
+  return `${period} ${monthName}`.trim();
 }
 
 function daysInMonth(year: number, month: number) {
@@ -142,17 +152,6 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
     mutationFn: async (p: any) => {
       const chatterName = memberMap.get(p.chatter_id) ?? "Чаттер";
       const today = new Date();
-      const expenseName = `${chatterName} — ${periodLabel(p.period, p.month)} ${p.year}`;
-      const { error: expErr } = await supabase.from("expenses").insert({
-        name: expenseName,
-        category: "Зарплата",
-        amount: Number(p.commission_amount) || 0,
-        date: today.toISOString().slice(0, 10),
-        month: p.month,
-        year: p.year,
-        notes: "Авто из Чаттинг",
-      } as any);
-      if (expErr) throw expErr;
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "paid", paid_at: today.toISOString(), paid_by: chatterName })
@@ -160,27 +159,15 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Отмечено как выплачено и добавлено в расходы");
+      toast.success("Период отмечен как оплаченный ✓");
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
-      qc.invalidateQueries({ queryKey: ["expenses-all"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
 
   const reopen = useMutation({
     mutationFn: async (p: any) => {
-      const chatterName = memberMap.get(p.chatter_id) ?? "Чаттер";
-      const expenseName = `${chatterName} — ${periodLabel(p.period, p.month)} ${p.year}`;
-      // Delete auto-created expense (match by name + notes + month + year)
-      const { error: delErr } = await supabase
-        .from("expenses")
-        .delete()
-        .eq("name", expenseName)
-        .eq("notes", "Авто из Чаттинг")
-        .eq("month", p.month)
-        .eq("year", p.year);
-      if (delErr) throw delErr;
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "pending", paid_at: null, paid_by: null })
@@ -188,10 +175,9 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Период разблокирован, авто-расход удалён");
+      toast.success("Период разблокирован");
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
-      qc.invalidateQueries({ queryKey: ["expenses-all"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -201,7 +187,7 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
     for (const p of filtered) {
       const accs = (accountsByChatter.get(p.chatter_id) ?? []).map((a) => a.account_name).join(", ");
       rows.push([
-        `${periodLabel(p.period, p.month)} ${p.year}`,
+        `${periodLabel(p.period, p.month, p.year)} ${p.year}`,
         memberMap.get(p.chatter_id) ?? "",
         accs,
         String(p.total_sales),
@@ -274,7 +260,7 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
                     className="border-t border-border hover:bg-bg2/50 cursor-pointer"
                     onClick={() => onOpenPeriod(p)}
                   >
-                    <td className="p-3">{periodLabel(p.period, p.month)} {p.year}</td>
+                    <td className="p-3">{periodLabel(p.period, p.month, p.year)} {p.year}</td>
                     <td className="p-3">{memberMap.get(p.chatter_id) ?? "—"}</td>
                     <td className="p-3 text-text2 max-w-[200px] truncate" title={accs.map((a) => a.account_name).join(", ")}>
                       {accs.length === 0 ? "—" : accs.map((a) => a.account_name).join(", ")}
@@ -293,7 +279,7 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
                       {isOwner && p.status !== "paid" && (
                         <button
                           onClick={() => {
-                            if (confirm(`Оплатить период «${periodLabel(p.period, p.month)} ${p.year}»? Будет создан расход в категории «Зарплата».`)) markPaid.mutate(p);
+                            if (confirm(`Отметить период «${periodLabel(p.period, p.month, p.year)} ${p.year}» как оплаченный?`)) markPaid.mutate(p);
                           }}
                           className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green text-primary-foreground text-xs font-medium"
                         >
@@ -303,7 +289,7 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
                       {isOwner && p.status === "paid" && (
                         <button
                           onClick={() => {
-                            if (confirm(`Разблокировать период? Авто-расход в Финансах тоже будет удалён.`)) reopen.mutate(p);
+                            if (confirm(`Разблокировать период?`)) reopen.mutate(p);
                           }}
                           className="inline-flex items-center gap-1 px-2 py-1 rounded border border-amber-500 text-amber-500 text-xs font-medium"
                         >
@@ -890,7 +876,6 @@ function ChatterSalesTable({
   const markPaid = useMutation({
     mutationFn: async () => {
       const today = new Date();
-      const dateStrToday = today.toISOString().slice(0, 10);
       // Ensure period row exists
       let pid = periodRow?.id;
       if (!pid) {
@@ -906,15 +891,6 @@ function ChatterSalesTable({
         if (error) throw error;
         pid = (data as any).id;
       }
-      const { error: expErr } = await supabase.from("expenses").insert({
-        name: `${chatter.name} — ${periodLabel(period, month)} ${year}`,
-        category: "Зарплата",
-        amount: totalCommission,
-        date: dateStrToday,
-        month, year,
-        notes: "Авто из Чаттинг",
-      } as any);
-      if (expErr) throw expErr;
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "paid", paid_at: today.toISOString(), paid_by: chatter.name })
@@ -922,11 +898,10 @@ function ChatterSalesTable({
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success(`Выплата $${Math.round(totalCommission).toLocaleString()} добавлена в расходы ✓`);
+      toast.success("Период отмечен как оплаченный ✓");
       qc.invalidateQueries({ queryKey: ["chatter_period", chatter?.id] });
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
-      qc.invalidateQueries({ queryKey: ["expenses-all"] });
       setConfirmPay(false);
     },
     onError: (e: any) => toast.error(e.message),
@@ -935,15 +910,6 @@ function ChatterSalesTable({
   const reopenPeriod = useMutation({
     mutationFn: async () => {
       if (!periodRow?.id) return;
-      const expenseName = `${chatter.name} — ${periodLabel(period, month)} ${year}`;
-      const { error: delErr } = await supabase
-        .from("expenses")
-        .delete()
-        .eq("name", expenseName)
-        .eq("notes", "Авто из Чаттинг")
-        .eq("month", month)
-        .eq("year", year);
-      if (delErr) throw delErr;
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "pending", paid_at: null, paid_by: null })
@@ -951,11 +917,10 @@ function ChatterSalesTable({
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Период разблокирован, авто-расход удалён");
+      toast.success("Период разблокирован");
       qc.invalidateQueries({ queryKey: ["chatter_period", chatter?.id] });
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
-      qc.invalidateQueries({ queryKey: ["expenses-all"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1086,7 +1051,7 @@ function ChatterSalesTable({
           )}
           {isOwner && isPaid && (
             <button
-              onClick={() => { if (confirm("Разблокировать период? Авто-расход в Финансах тоже будет удалён.")) reopenPeriod.mutate(); }}
+              onClick={() => { if (confirm("Разблокировать период?")) reopenPeriod.mutate(); }}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded border border-amber-500 text-amber-500 text-xs font-medium"
             >
               <Lock className="h-3 w-3" /> Разблокировать
@@ -1111,11 +1076,11 @@ function ChatterSalesTable({
             </div>
             <div className="space-y-1 text-sm">
               <div><span className="text-text2">Чаттер:</span> <b>{chatter?.name}</b></div>
-              <div><span className="text-text2">Период:</span> <b>{periodLabel(period, month)} {year}</b></div>
+              <div><span className="text-text2">Период:</span> <b>{periodLabel(period, month, year)} {year}</b></div>
               <div><span className="text-text2">Сумма:</span> <b className="text-green">${Math.round(totalCommission).toLocaleString()}</b></div>
             </div>
             <p className="text-xs text-text2">
-              Будет создан расход в категории «Зарплата» и период будет заблокирован от изменений.
+              Период будет отмечен как оплаченный и заблокирован от изменений. Расход в Финансы добавьте вручную.
             </p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setConfirmPay(false)} className="px-3 py-1.5 rounded border border-border text-sm">Отмена</button>
