@@ -460,8 +460,8 @@ function SettingsTab() {
 }
 
 function ChatterBlock({
-  member, accounts, models, onDelete,
-}: { member: any; accounts: any[]; models: any[]; onDelete: () => void }) {
+  profileId, member, accounts, models, onDelete,
+}: { profileId: string; member: any; accounts: any[]; models: any[]; onDelete: () => void }) {
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(true);
   const [editName, setEditName] = useState(false);
