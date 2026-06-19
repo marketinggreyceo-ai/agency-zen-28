@@ -187,7 +187,7 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
     for (const p of filtered) {
       const accs = (accountsByChatter.get(p.chatter_id) ?? []).map((a) => a.account_name).join(", ");
       rows.push([
-        `${periodLabel(p.period, p.month)} ${p.year}`,
+        `${periodLabel(p.period, p.month, p.year)} ${p.year}`,
         memberMap.get(p.chatter_id) ?? "",
         accs,
         String(p.total_sales),
