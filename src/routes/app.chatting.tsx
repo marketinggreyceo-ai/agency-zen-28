@@ -856,12 +856,7 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
     queryFn: async () => (await supabase.from("models").select("id, name").order("name")).data ?? [],
   });
 
-  // Active chatters: those who have at least one active account
-  const activeChatterIds = useMemo(() => {
-    const s = new Set<string>();
-    for (const a of accounts as any[]) if (a.is_active) s.add(a.chatter_id);
-    return s;
-  }, [accounts]);
+
 
   // Chatter candidates = profiles with role='chatter' (strict)
   const chatterProfiles = useMemo(
