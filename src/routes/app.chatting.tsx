@@ -903,12 +903,6 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
                 </option>
               ))}
             </select>
-            <button
-              onClick={() => setAddOpen(true)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-teal text-primary-foreground text-sm font-medium"
-            >
-              <Plus className="h-4 w-4" /> Добавить чаттера
-            </button>
           </div>
         )}
       </div>
