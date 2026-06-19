@@ -16,6 +16,10 @@ export interface Task {
   deadline: string | null;
   notes: string | null;
   created_at: string;
+  is_weekly?: boolean;
+  is_permanent?: boolean;
+  day_of_week?: number | null;
+  weekly_done_at?: string | null;
 }
 
 /** @deprecated read from `useTaskTypes()` instead */
@@ -108,8 +112,9 @@ export function TaskCard({ task, models, onClick }: {
   );
 }
 
-export function TaskModal({ task, open, onClose, defaultAssignee }: {
-  task: Task | null; open: boolean; onClose: () => void; defaultAssignee?: string;
+export function TaskModal({ task, open, onClose, defaultAssignee, defaultWeekly, defaultPermanent }: {
+  task: Task | null; open: boolean; onClose: () => void;
+  defaultAssignee?: string; defaultWeekly?: boolean; defaultPermanent?: boolean;
 }) {
   const qc = useQueryClient();
   const { data: models = [] } = useQuery({
@@ -128,9 +133,10 @@ export function TaskModal({ task, open, onClose, defaultAssignee }: {
       setForm(task ?? {
         title: "", assignee: defaultAssignee ?? null, status: "incoming",
         model_id: null, task_type: null, deadline: null, notes: null,
+        is_weekly: !!defaultWeekly, is_permanent: !!defaultPermanent, day_of_week: null,
       });
     }
-  }, [open, task, defaultAssignee]);
+  }, [open, task, defaultAssignee, defaultWeekly, defaultPermanent]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -180,6 +186,25 @@ export function TaskModal({ task, open, onClose, defaultAssignee }: {
             options={[["", "—"], ...taskTypes.map((t) => [t.name, t.name] as [string, string])]} />
           <Select label="Статус" value={form.status ?? "incoming"} onChange={(v) => setForm({ ...form, status: v })}
             options={STATUSES.map((s) => [s.value, s.label])} />
+          <div className="flex gap-4 text-xs">
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={!!form.is_weekly}
+                onChange={(e) => setForm({ ...form, is_weekly: e.target.checked, is_permanent: e.target.checked ? false : form.is_permanent })}
+                className="h-3.5 w-3.5 accent-teal" />
+              Еженедельная
+            </label>
+            <label className="flex items-center gap-1.5">
+              <input type="checkbox" checked={!!form.is_permanent}
+                onChange={(e) => setForm({ ...form, is_permanent: e.target.checked, is_weekly: e.target.checked ? false : form.is_weekly })}
+                className="h-3.5 w-3.5 accent-teal" />
+              Постоянная
+            </label>
+          </div>
+          {form.is_weekly && (
+            <Select label="День недели" value={form.day_of_week != null ? String(form.day_of_week) : ""}
+              onChange={(v) => setForm({ ...form, day_of_week: v === "" ? null : Number(v) })}
+              options={[["", "— любой —"], ["1", "Пн"], ["2", "Вт"], ["3", "Ср"], ["4", "Чт"], ["5", "Пт"], ["6", "Сб"], ["0", "Вс"]]} />
+          )}
           <div>
             <label className="text-xs text-text2 block mb-1">Дедлайн</label>
             <input type="date" value={form.deadline ?? ""}
