@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePreviewRole } from "@/lib/preview-role";
 
 export type Role = "owner" | "production" | "creative" | "va" | "chatter";
-export type ProfileStatus = "pending" | "active" | "suspended";
+export type ProfileStatus = "pending" | "active" | "suspended" | "rejected";
 export interface Profile {
   id: string;
   full_name: string | null;
@@ -13,6 +13,7 @@ export interface Profile {
   invited_role: Role | null;
   assignee_name: string | null;
   telegram_handle: string | null;
+  onboarded_at: string | null;
 }
 
 function useProfileRaw() {
