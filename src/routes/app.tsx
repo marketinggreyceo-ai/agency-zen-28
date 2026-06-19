@@ -168,14 +168,17 @@ function Onboarding({ profile }: { profile: any }) {
   );
 }
 
-function WaitingScreen({ status, onLogout }: { status: "pending" | "suspended"; onLogout: () => void }) {
-  const suspended = status === "suspended";
-  const Icon = suspended ? ShieldOff : Clock;
-  const title = suspended ? "Доступ заблокирован" : "Ожидание подтверждения";
-  const text = suspended
-    ? "Ваш аккаунт был заблокирован. Свяжитесь с администратором."
-    : "Ваш аккаунт ожидает подтверждения. Свяжитесь с администратором.";
-  const color = suspended ? "text-red" : "text-amber";
+function WaitingScreen({ status, onLogout }: { status: "pending" | "suspended" | "rejected"; onLogout: () => void }) {
+  const Icon = status === "pending" ? Clock : ShieldOff;
+  const title =
+    status === "rejected" ? "Заявка отклонена" :
+    status === "suspended" ? "Доступ заблокирован" :
+    "Ожидание подтверждения";
+  const text =
+    status === "rejected" ? "Ваша заявка отклонена администратором." :
+    status === "suspended" ? "Ваш аккаунт был заблокирован. Свяжитесь с администратором." :
+    "Ваш аккаунт ожидает подтверждения администратором.";
+  const color = status === "pending" ? "text-amber" : "text-red";
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="max-w-md w-full bg-card border border-border rounded-lg p-8 text-center space-y-4">
