@@ -888,38 +888,50 @@ export type Database = {
         Row: {
           assignee: string | null
           created_at: string
+          day_of_week: number | null
           deadline: string | null
           id: string
+          is_permanent: boolean
+          is_weekly: boolean
           model_id: string | null
           notes: string | null
           status: string | null
           task_type: string | null
           telegram_message_id: string | null
           title: string
+          weekly_done_at: string | null
         }
         Insert: {
           assignee?: string | null
           created_at?: string
+          day_of_week?: number | null
           deadline?: string | null
           id?: string
+          is_permanent?: boolean
+          is_weekly?: boolean
           model_id?: string | null
           notes?: string | null
           status?: string | null
           task_type?: string | null
           telegram_message_id?: string | null
           title: string
+          weekly_done_at?: string | null
         }
         Update: {
           assignee?: string | null
           created_at?: string
+          day_of_week?: number | null
           deadline?: string | null
           id?: string
+          is_permanent?: boolean
+          is_weekly?: boolean
           model_id?: string | null
           notes?: string | null
           status?: string | null
           task_type?: string | null
           telegram_message_id?: string | null
           title?: string
+          weekly_done_at?: string | null
         }
         Relationships: [
           {
