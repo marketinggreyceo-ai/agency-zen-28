@@ -192,7 +192,7 @@ export const removeTeamMember = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Approve a pending member — sets profile.status = 'active'. */
+/** Approve a pending member — sets profile.status='active' and is_approved=true. */
 export const approveMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ profile_id: z.string().uuid() }).parse(data))
@@ -200,12 +200,12 @@ export const approveMember = createServerFn({ method: "POST" })
     await assertOwner(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("profiles")
-      .update({ status: "active" }).eq("id", data.profile_id);
+      .update({ status: "active", is_approved: true } as any).eq("id", data.profile_id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
-/** Reject a pending member — sets profile.status = 'rejected'. */
+/** Reject a pending member — sets profile.status='rejected' and is_approved=false. */
 export const rejectMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ profile_id: z.string().uuid() }).parse(data))
@@ -214,7 +214,7 @@ export const rejectMember = createServerFn({ method: "POST" })
     if (data.profile_id === context.userId) throw new Error("Нельзя отклонить себя");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("profiles")
-      .update({ status: "rejected" }).eq("id", data.profile_id);
+      .update({ status: "rejected", is_approved: false } as any).eq("id", data.profile_id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
