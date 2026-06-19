@@ -723,7 +723,7 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
                   : "border-border text-text2 bg-card"
               }`}
             >
-              {p} {RU_MONTHS_GENITIVE[month - 1]}
+              {periodLabel(p, month, year)}
             </button>
           ))}
         </div>
