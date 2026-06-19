@@ -152,17 +152,6 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
     mutationFn: async (p: any) => {
       const chatterName = memberMap.get(p.chatter_id) ?? "Чаттер";
       const today = new Date();
-      const expenseName = `${chatterName} — ${periodLabel(p.period, p.month)} ${p.year}`;
-      const { error: expErr } = await supabase.from("expenses").insert({
-        name: expenseName,
-        category: "Зарплата",
-        amount: Number(p.commission_amount) || 0,
-        date: today.toISOString().slice(0, 10),
-        month: p.month,
-        year: p.year,
-        notes: "Авто из Чаттинг",
-      } as any);
-      if (expErr) throw expErr;
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "paid", paid_at: today.toISOString(), paid_by: chatterName })
@@ -170,27 +159,15 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Отмечено как выплачено и добавлено в расходы");
+      toast.success("Период отмечен как оплаченный ✓");
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
-      qc.invalidateQueries({ queryKey: ["expenses-all"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
 
   const reopen = useMutation({
     mutationFn: async (p: any) => {
-      const chatterName = memberMap.get(p.chatter_id) ?? "Чаттер";
-      const expenseName = `${chatterName} — ${periodLabel(p.period, p.month)} ${p.year}`;
-      // Delete auto-created expense (match by name + notes + month + year)
-      const { error: delErr } = await supabase
-        .from("expenses")
-        .delete()
-        .eq("name", expenseName)
-        .eq("notes", "Авто из Чаттинг")
-        .eq("month", p.month)
-        .eq("year", p.year);
-      if (delErr) throw delErr;
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "pending", paid_at: null, paid_by: null })
@@ -198,10 +175,9 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Период разблокирован, авто-расход удалён");
+      toast.success("Период разблокирован");
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
-      qc.invalidateQueries({ queryKey: ["expenses-all"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
