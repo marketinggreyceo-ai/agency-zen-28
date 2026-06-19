@@ -956,6 +956,8 @@ export type Database = {
         Row: {
           assignee_name: string | null
           id: string
+          invite_email: string | null
+          invited_at: string | null
           is_archived: boolean
           name: string
           profile_id: string | null
@@ -967,6 +969,8 @@ export type Database = {
         Insert: {
           assignee_name?: string | null
           id?: string
+          invite_email?: string | null
+          invited_at?: string | null
           is_archived?: boolean
           name: string
           profile_id?: string | null
@@ -978,6 +982,8 @@ export type Database = {
         Update: {
           assignee_name?: string | null
           id?: string
+          invite_email?: string | null
+          invited_at?: string | null
           is_archived?: boolean
           name?: string
           profile_id?: string | null
