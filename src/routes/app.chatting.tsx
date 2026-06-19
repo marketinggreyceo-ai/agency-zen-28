@@ -512,13 +512,23 @@ function ChatterBlock({
     mutationFn: async () => {
       if (!newAcc.account_name.trim()) throw new Error("Укажите название аккаунта");
       if (!newAcc.model_id) throw new Error("Выберите модель");
+      // Ensure team_members row exists for this profile (legacy chatter_id link).
+      let chatterId: string | null = member.id ?? null;
+      if (!chatterId) {
+        const { data: tm, error: tmErr } = await supabase.from("team_members")
+          .insert({ name: member.name ?? "Chatter", role_label: "Chatter", profile_id: profileId, assignee_name: member.name ?? null })
+          .select("id").single();
+        if (tmErr) throw tmErr;
+        chatterId = (tm as any).id;
+      }
       const { error } = await supabase.from("chatter_accounts").insert({
-        chatter_id: member.id,
+        chatter_id: chatterId,
+        chatter_profile_id: profileId,
         account_name: newAcc.account_name.trim(),
         model_id: newAcc.model_id,
         commission_pct: newAcc.commission_pct,
         is_active: true,
-      });
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => {
