@@ -698,9 +698,12 @@ export type Database = {
           full_name: string | null
           id: string
           invited_role: Database["public"]["Enums"]["app_role"] | null
+          onboarded_at: string | null
+          responsibilities: string | null
           role: Database["public"]["Enums"]["app_role"]
           status: Database["public"]["Enums"]["profile_status"]
           telegram_handle: string | null
+          weekly_tasks: string | null
         }
         Insert: {
           assignee_name?: string | null
@@ -709,9 +712,12 @@ export type Database = {
           full_name?: string | null
           id: string
           invited_role?: Database["public"]["Enums"]["app_role"] | null
+          onboarded_at?: string | null
+          responsibilities?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["profile_status"]
           telegram_handle?: string | null
+          weekly_tasks?: string | null
         }
         Update: {
           assignee_name?: string | null
@@ -720,9 +726,12 @@ export type Database = {
           full_name?: string | null
           id?: string
           invited_role?: Database["public"]["Enums"]["app_role"] | null
+          onboarded_at?: string | null
+          responsibilities?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["profile_status"]
           telegram_handle?: string | null
+          weekly_tasks?: string | null
         }
         Relationships: []
       }
