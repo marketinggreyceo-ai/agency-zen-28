@@ -111,11 +111,13 @@ function Onboarding({ profile }: { profile: any }) {
   async function save(skip = false) {
     setSaving(true);
     const cleanHandle = handle.trim().replace(/^@/, "");
-    const patch: any = { full_name: fullName.trim() || profile.email };
+    const patch: any = {
+      full_name: fullName.trim() || profile.email,
+      onboarded_at: new Date().toISOString(),
+    };
     if (!skip && cleanHandle) patch.telegram_handle = cleanHandle;
     const { error } = await supabase.from("profiles").update(patch).eq("id", profile.id);
     if (error) { toast.error(error.message); setSaving(false); return; }
-    window.localStorage.setItem(`onboarded:${profile.id}`, "1");
     await qc.invalidateQueries({ queryKey: ["profile"] });
   }
 
