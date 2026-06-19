@@ -242,11 +242,7 @@ function ProfileRowView({
         ) : ROLE_LABELS[p.role]}
       </td>
       <td className="p-3">
-        {p.telegram_handle ? (
-          <a href={`tg://resolve?domain=${p.telegram_handle}`} className="inline-flex items-center gap-1 text-teal text-xs">
-            <Send className="h-3 w-3" />@{p.telegram_handle}
-          </a>
-        ) : <span className="text-text3 text-xs">—</span>}
+        <EditableTelegram profileId={p.id} value={p.telegram_handle ?? ""} onSaved={onSaved} />
       </td>
       <td className="p-3"><StatusBadge s={p.status} /></td>
       <td className="p-3 text-right whitespace-nowrap">
