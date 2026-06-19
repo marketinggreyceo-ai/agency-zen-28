@@ -35,11 +35,16 @@ type TeamMember = {
 };
 type ProfileLite = {
   id: string; email: string | null; role: Role; full_name: string | null;
+  status: "active" | "pending" | "suspended" | "rejected";
 };
 
-type Status = "active" | "pending" | "none";
-function statusOf(m: TeamMember): Status {
-  if (m.profile_id) return "active";
+type Status = "active" | "awaiting" | "rejected" | "pending" | "none";
+function statusOf(m: TeamMember, profile: ProfileLite | null): Status {
+  if (m.profile_id && profile) {
+    if (profile.status === "pending") return "awaiting";
+    if (profile.status === "rejected") return "rejected";
+    return "active";
+  }
   if (m.invited_at) return "pending";
   return "none";
 }
