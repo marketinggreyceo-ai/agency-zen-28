@@ -6,7 +6,8 @@ import { useProfile } from "@/lib/auth";
 import { useAssignees } from "@/lib/lookups";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Plus, Target, Users, UserCircle, X, Check, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Target, Users, UserCircle, X, Check, Trash2, ListPlus } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/app/goals")({
   ssr: false, component: Page,
