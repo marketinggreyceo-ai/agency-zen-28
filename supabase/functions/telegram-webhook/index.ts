@@ -118,7 +118,7 @@ async function resolveAssignee(mention: string | null) {
   if (!mention) return "Я";
   const key = normalize(mention);
 
-  // 1) profiles.telegram_handle (set during onboarding) — highest priority
+  // 1) profiles.telegram_handle (a.k.a. telegram_username) — strip @, case-insensitive
   const { data: profiles } = await admin
     .from("profiles")
     .select("full_name, assignee_name, telegram_handle")
@@ -126,28 +126,32 @@ async function resolveAssignee(mention: string | null) {
   const profMatch = (profiles ?? []).find((p: any) =>
     normalize(p.telegram_handle) === key
   );
-  if (profMatch) return profMatch.assignee_name || profMatch.full_name || mention;
+  if (profMatch) return profMatch.assignee_name || profMatch.full_name || `@${mention}`;
 
-  // 2) team_members exact match
+  // 2) team_members.telegram_handle exact
   const { data: members } = await admin
     .from("team_members")
     .select("name, assignee_name, telegram_handle")
     .eq("is_archived", false);
-  const exact = (members ?? []).find((m: any) =>
-    normalize(m.telegram_handle) === key ||
-    normalize(m.assignee_name) === key ||
-    normalize(m.name) === key
-  );
-  if (exact) return exact.assignee_name || exact.name || mention;
+  const tgExact = (members ?? []).find((m: any) => normalize(m.telegram_handle) === key);
+  if (tgExact) return tgExact.assignee_name || tgExact.name || `@${mention}`;
 
-  // 3) partial name match
-  const partial = (members ?? []).find((m: any) => {
+  // 3) team_members.assignee_name partial (case-insensitive)
+  const asgPartial = (members ?? []).find((m: any) => {
+    const n = normalize(m.assignee_name);
+    return n && (n.includes(key) || key.includes(n));
+  });
+  if (asgPartial) return asgPartial.assignee_name || asgPartial.name || `@${mention}`;
+
+  // 4) team_members.name partial (case-insensitive)
+  const namePartial = (members ?? []).find((m: any) => {
     const n = normalize(m.name);
     return n && (n.includes(key) || key.includes(n));
   });
-  if (partial) return partial.assignee_name || partial.name || mention;
+  if (namePartial) return namePartial.assignee_name || namePartial.name || `@${mention}`;
 
-  return mention;
+  // 5) Fallback — save raw mention as-is, never fail
+  return `@${mention}`;
 }
 
 async function resolveChatter(senderUsername: string | null, fallback: string) {
