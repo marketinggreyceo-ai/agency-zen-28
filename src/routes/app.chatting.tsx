@@ -1076,11 +1076,11 @@ function ChatterSalesTable({
             </div>
             <div className="space-y-1 text-sm">
               <div><span className="text-text2">Чаттер:</span> <b>{chatter?.name}</b></div>
-              <div><span className="text-text2">Период:</span> <b>{periodLabel(period, month)} {year}</b></div>
+              <div><span className="text-text2">Период:</span> <b>{periodLabel(period, month, year)} {year}</b></div>
               <div><span className="text-text2">Сумма:</span> <b className="text-green">${Math.round(totalCommission).toLocaleString()}</b></div>
             </div>
             <p className="text-xs text-text2">
-              Будет создан расход в категории «Зарплата» и период будет заблокирован от изменений.
+              Период будет отмечен как оплаченный и заблокирован от изменений. Расход в Финансы добавьте вручную.
             </p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setConfirmPay(false)} className="px-3 py-1.5 rounded border border-border text-sm">Отмена</button>
