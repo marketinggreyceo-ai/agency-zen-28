@@ -86,7 +86,8 @@ export type Database = {
       chatter_accounts: {
         Row: {
           account_name: string
-          chatter_id: string
+          chatter_id: string | null
+          chatter_profile_id: string | null
           commission_pct: number
           created_at: string
           id: string
@@ -97,7 +98,8 @@ export type Database = {
         }
         Insert: {
           account_name: string
-          chatter_id: string
+          chatter_id?: string | null
+          chatter_profile_id?: string | null
           commission_pct?: number
           created_at?: string
           id?: string
@@ -108,7 +110,8 @@ export type Database = {
         }
         Update: {
           account_name?: string
-          chatter_id?: string
+          chatter_id?: string | null
+          chatter_profile_id?: string | null
           commission_pct?: number
           created_at?: string
           id?: string
@@ -123,6 +126,13 @@ export type Database = {
             columns: ["chatter_id"]
             isOneToOne: false
             referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_accounts_chatter_profile_id_fkey"
+            columns: ["chatter_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -704,6 +714,7 @@ export type Database = {
           full_name: string | null
           id: string
           invited_role: Database["public"]["Enums"]["app_role"] | null
+          is_approved: boolean
           onboarded_at: string | null
           responsibilities: string | null
           role: Database["public"]["Enums"]["app_role"]
@@ -718,6 +729,7 @@ export type Database = {
           full_name?: string | null
           id: string
           invited_role?: Database["public"]["Enums"]["app_role"] | null
+          is_approved?: boolean
           onboarded_at?: string | null
           responsibilities?: string | null
           role?: Database["public"]["Enums"]["app_role"]
@@ -732,6 +744,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           invited_role?: Database["public"]["Enums"]["app_role"] | null
+          is_approved?: boolean
           onboarded_at?: string | null
           responsibilities?: string | null
           role?: Database["public"]["Enums"]["app_role"]
