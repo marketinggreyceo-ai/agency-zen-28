@@ -219,6 +219,34 @@ export const rejectMember = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Change a profile's role. */
+export const setProfileRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ profile_id: z.string().uuid(), role: RoleEnum }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("profiles")
+      .update({ role: data.role, invited_role: data.role }).eq("id", data.profile_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Delete a profile + auth user. Also unlinks any team_members row. */
+export const deleteProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ profile_id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context.supabase, context.userId);
+    if (data.profile_id === context.userId) throw new Error("Нельзя удалить себя");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("team_members").update({ profile_id: null }).eq("profile_id", data.profile_id);
+    await supabaseAdmin.from("profiles").delete().eq("id", data.profile_id);
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.profile_id);
+    if (error && !/not found/i.test(error.message)) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ─── Legacy compatibility (kept so older imports don't break) ──────────────
 
 export const inviteUser = createServerFn({ method: "POST" })
