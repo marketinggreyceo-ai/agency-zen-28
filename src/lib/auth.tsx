@@ -26,7 +26,7 @@ function useProfileRaw() {
       return (data as Profile | null) ?? {
         id: u.user.id, full_name: u.user.email ?? null, email: u.user.email ?? null,
         role: "va" as Role, status: "pending" as ProfileStatus, invited_role: null,
-        assignee_name: null, telegram_handle: null,
+        assignee_name: null, telegram_handle: null, onboarded_at: null,
       };
     },
   });
