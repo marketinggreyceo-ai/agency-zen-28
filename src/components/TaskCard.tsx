@@ -112,8 +112,9 @@ export function TaskCard({ task, models, onClick }: {
   );
 }
 
-export function TaskModal({ task, open, onClose, defaultAssignee }: {
-  task: Task | null; open: boolean; onClose: () => void; defaultAssignee?: string;
+export function TaskModal({ task, open, onClose, defaultAssignee, defaultWeekly, defaultPermanent }: {
+  task: Task | null; open: boolean; onClose: () => void;
+  defaultAssignee?: string; defaultWeekly?: boolean; defaultPermanent?: boolean;
 }) {
   const qc = useQueryClient();
   const { data: models = [] } = useQuery({
@@ -132,9 +133,10 @@ export function TaskModal({ task, open, onClose, defaultAssignee }: {
       setForm(task ?? {
         title: "", assignee: defaultAssignee ?? null, status: "incoming",
         model_id: null, task_type: null, deadline: null, notes: null,
+        is_weekly: !!defaultWeekly, is_permanent: !!defaultPermanent, day_of_week: null,
       });
     }
-  }, [open, task, defaultAssignee]);
+  }, [open, task, defaultAssignee, defaultWeekly, defaultPermanent]);
 
   const save = useMutation({
     mutationFn: async () => {
