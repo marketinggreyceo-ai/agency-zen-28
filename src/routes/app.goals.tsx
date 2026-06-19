@@ -59,6 +59,25 @@ function Page() {
     queryFn: async () => (await supabase.from("models").select("id, name").order("name")).data ?? [],
   });
 
+  // Map of goal-title → task assignee (for badge on goal card).
+  const weekEndForTasks = fmtISO(addDays(weekStart, 6));
+  const { data: weekTasks = [] } = useQuery({
+    queryKey: ["goal_tasks", weekISO, weekEndForTasks],
+    queryFn: async () => {
+      const { data } = await supabase.from("tasks")
+        .select("id, title, assignee, deadline")
+        .eq("task_type", "Цель недели")
+        .gte("deadline", weekISO)
+        .lte("deadline", weekEndForTasks);
+      return data ?? [];
+    },
+  });
+  const goalTaskByTitle = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of weekTasks as any[]) if (t.title) m.set(t.title, t.assignee ?? "");
+    return m;
+  }, [weekTasks]);
+
   const updateGoal = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<Goal> }) => {
       const { error } = await (supabase as any).from("weekly_goals").update(patch).eq("id", id);
