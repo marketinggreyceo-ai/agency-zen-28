@@ -283,7 +283,7 @@ function DetailModal({ user, isOwner, onClose, onSaved }: {
           <div>
             <label className="text-[10px] uppercase tracking-wide text-text3 mb-1 block">Зона ответственности</label>
             {isOwner ? (
-              <textarea defaultValue={user.responsibilities ?? ""} rows={3}
+              <textarea value={resp} rows={3}
                 onChange={(e) => setResp(e.target.value)}
                 className="w-full bg-bg3 border border-border rounded px-2 py-1.5 text-sm" />
             ) : <p className="text-text2">{user.responsibilities || "—"}</p>}
@@ -291,7 +291,7 @@ function DetailModal({ user, isOwner, onClose, onSaved }: {
           <div>
             <label className="text-[10px] uppercase tracking-wide text-text3 mb-1 block">Еженедельные задачи</label>
             {isOwner ? (
-              <textarea defaultValue={user.weekly_tasks ?? ""} rows={3}
+              <textarea value={weekly} rows={3}
                 onChange={(e) => setWeekly(e.target.value)}
                 className="w-full bg-bg3 border border-border rounded px-2 py-1.5 text-sm" />
             ) : <p className="text-text2">{user.weekly_tasks || "—"}</p>}
