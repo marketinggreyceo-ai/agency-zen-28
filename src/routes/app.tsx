@@ -53,8 +53,9 @@ function Layout() {
     }} />;
   }
 
+  const looksLikeEmail = (s: string | null | undefined) => !!s && /@/.test(s);
   const needsOnboarding =
-    !profile.onboarded_at && !profile.full_name?.trim();
+    !profile.onboarded_at || !profile.full_name?.trim() || looksLikeEmail(profile.full_name);
 
   if (needsOnboarding) return <Onboarding profile={profile} />;
 
