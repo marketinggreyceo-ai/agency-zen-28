@@ -242,11 +242,7 @@ function ProfileRowView({
         ) : ROLE_LABELS[p.role]}
       </td>
       <td className="p-3">
-        {p.telegram_handle ? (
-          <a href={`tg://resolve?domain=${p.telegram_handle}`} className="inline-flex items-center gap-1 text-teal text-xs">
-            <Send className="h-3 w-3" />@{p.telegram_handle}
-          </a>
-        ) : <span className="text-text3 text-xs">—</span>}
+        <EditableTelegram profileId={p.id} value={p.telegram_handle ?? ""} onSaved={onSaved} />
       </td>
       <td className="p-3"><StatusBadge s={p.status} /></td>
       <td className="p-3 text-right whitespace-nowrap">
@@ -317,6 +313,59 @@ function EditableName({ profileId, value, fallback, onSaved }: {
       className="font-medium inline-flex items-center gap-1.5 hover:text-teal text-left">
       <span>{value?.trim() || fallback}</span>
       <Pencil className="h-3 w-3 text-text3 opacity-0 group-hover:opacity-100 transition" />
+    </button>
+  );
+}
+
+function EditableTelegram({ profileId, value, onSaved }: {
+  profileId: string; value: string; onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const qc = useQueryClient();
+  useEffect(() => { setDraft(value); }, [value]);
+
+  async function commit() {
+    const next = draft.trim().replace(/^@/, "");
+    setEditing(false);
+    if (next === (value ?? "").trim()) return;
+    const { error } = await supabase.from("profiles").update({ telegram_handle: next || null }).eq("id", profileId);
+    if (error) { toast.error(error.message); setDraft(value); return; }
+    toast.success("Telegram обновлён ✓");
+    qc.invalidateQueries({ queryKey: ["profiles_all"] });
+    onSaved();
+  }
+
+  if (editing) {
+    return (
+      <div className="inline-flex items-center gap-1">
+        <span className="text-text2 text-sm">@</span>
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value.replace(/^@/, ""))}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+            if (e.key === "Escape") { setDraft(value); setEditing(false); }
+          }}
+          className="bg-bg3 border border-border rounded px-2 py-0.5 text-sm w-36"
+        />
+      </div>
+    );
+  }
+  const hasValue = value?.trim();
+  return (
+    <button onClick={() => setEditing(true)} title="Нажми, чтобы изменить"
+      className={`inline-flex items-center gap-1.5 text-left ${hasValue ? "text-teal text-xs" : "text-text3 text-xs italic"}`}>
+      {hasValue ? (
+        <>
+          <Send className="h-3 w-3 shrink-0" />@{value}
+        </>
+      ) : (
+        <span>добавить @username</span>
+      )}
+      <Pencil className="h-3 w-3 text-text3 opacity-0 group-hover:opacity-100 transition shrink-0" />
     </button>
   );
 }
