@@ -92,6 +92,8 @@ export type Database = {
           id: string
           is_active: boolean
           model_id: string
+          work_hours_end: string | null
+          work_hours_start: string | null
         }
         Insert: {
           account_name: string
@@ -101,6 +103,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           model_id: string
+          work_hours_end?: string | null
+          work_hours_start?: string | null
         }
         Update: {
           account_name?: string
@@ -110,6 +114,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           model_id?: string
+          work_hours_end?: string | null
+          work_hours_start?: string | null
         }
         Relationships: [
           {
@@ -1223,7 +1229,7 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "production" | "creative" | "va" | "chatter"
-      profile_status: "pending" | "active" | "suspended"
+      profile_status: "pending" | "active" | "suspended" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1352,7 +1358,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "production", "creative", "va", "chatter"],
-      profile_status: ["pending", "active", "suspended"],
+      profile_status: ["pending", "active", "suspended", "rejected"],
     },
   },
 } as const
