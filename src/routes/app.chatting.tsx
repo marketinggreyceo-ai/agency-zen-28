@@ -476,12 +476,14 @@ function ChatterBlock({
 
   const saveName = useMutation({
     mutationFn: async (name: string) => {
-      const { error } = await supabase.from("team_members").update({ name }).eq("id", member.id);
+      // Name is owned by profiles, not team_members.
+      const { error } = await supabase.from("profiles").update({ full_name: name }).eq("id", profileId);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Имя обновлено");
-      qc.invalidateQueries({ queryKey: ["team_members_all"] });
+      qc.invalidateQueries({ queryKey: ["profiles_chatters"] });
+      qc.invalidateQueries({ queryKey: ["profiles_all"] });
       setEditName(false);
     },
     onError: (e: any) => toast.error(e.message),
