@@ -876,7 +876,6 @@ function ChatterSalesTable({
   const markPaid = useMutation({
     mutationFn: async () => {
       const today = new Date();
-      const dateStrToday = today.toISOString().slice(0, 10);
       // Ensure period row exists
       let pid = periodRow?.id;
       if (!pid) {
@@ -892,15 +891,6 @@ function ChatterSalesTable({
         if (error) throw error;
         pid = (data as any).id;
       }
-      const { error: expErr } = await supabase.from("expenses").insert({
-        name: `${chatter.name} — ${periodLabel(period, month)} ${year}`,
-        category: "Зарплата",
-        amount: totalCommission,
-        date: dateStrToday,
-        month, year,
-        notes: "Авто из Чаттинг",
-      } as any);
-      if (expErr) throw expErr;
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "paid", paid_at: today.toISOString(), paid_by: chatter.name })
@@ -908,11 +898,10 @@ function ChatterSalesTable({
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success(`Выплата $${Math.round(totalCommission).toLocaleString()} добавлена в расходы ✓`);
+      toast.success("Период отмечен как оплаченный ✓");
       qc.invalidateQueries({ queryKey: ["chatter_period", chatter?.id] });
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
-      qc.invalidateQueries({ queryKey: ["expenses-all"] });
       setConfirmPay(false);
     },
     onError: (e: any) => toast.error(e.message),
@@ -921,15 +910,6 @@ function ChatterSalesTable({
   const reopenPeriod = useMutation({
     mutationFn: async () => {
       if (!periodRow?.id) return;
-      const expenseName = `${chatter.name} — ${periodLabel(period, month)} ${year}`;
-      const { error: delErr } = await supabase
-        .from("expenses")
-        .delete()
-        .eq("name", expenseName)
-        .eq("notes", "Авто из Чаттинг")
-        .eq("month", month)
-        .eq("year", year);
-      if (delErr) throw delErr;
       const { error } = await supabase
         .from("chatter_periods")
         .update({ status: "pending", paid_at: null, paid_by: null })
@@ -937,11 +917,10 @@ function ChatterSalesTable({
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Период разблокирован, авто-расход удалён");
+      toast.success("Период разблокирован");
       qc.invalidateQueries({ queryKey: ["chatter_period", chatter?.id] });
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
-      qc.invalidateQueries({ queryKey: ["expenses-all"] });
     },
     onError: (e: any) => toast.error(e.message),
   });
