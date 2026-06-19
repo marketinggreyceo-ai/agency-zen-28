@@ -1,23 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader, Empty } from "@/components/ui-shared";
-import { useProfile, ROLE_LABELS, type Role, type ProfileStatus } from "@/lib/auth";
+import { PageHeader } from "@/components/ui-shared";
+import { useProfile, ROLE_LABELS, type Role } from "@/lib/auth";
 import { PAGE_KEYS, FEATURE_GROUPS, ROLES_ORDER, useRolePermissions } from "@/lib/permissions";
-import { inviteUser, listInvites, cancelInvite, deleteUser } from "@/lib/invites.functions";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
-import { Mail, Trash2, Check, X, Eye, Save } from "lucide-react";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Eye } from "lucide-react";
 import { setPreviewRole } from "@/lib/preview-role";
 
-export const Route = createFileRoute("/app/access")({
-  ssr: false, component: Page,
-});
+export const Route = createFileRoute("/app/access")({ ssr: false, component: Page });
 
 const ROLES: Role[] = ROLES_ORDER;
 
@@ -32,27 +24,10 @@ function Page() {
     if (!isLoading && profile && !isOwner) navigate({ to: "/app/overview" });
   }, [isLoading, profile, isOwner, navigate]);
 
-  const { data: users = [] } = useQuery({
-    queryKey: ["profiles_all"],
-    queryFn: async () => (await supabase.from("profiles").select("id, full_name, email, role, assignee_name, status, invited_role, created_at").order("full_name")).data ?? [],
-    enabled: isOwner,
-  });
-
-  const pending = users.filter((u: any) => u.status === "pending");
-
-  const updateProfile = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: any }) => {
-      const { error } = await supabase.from("profiles").update(patch).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["profiles_all"] }); toast.success("Сохранено"); },
-    onError: (e: any) => toast.error(e.message),
-  });
-
   const togglePerm = useMutation({
     mutationFn: async ({ role, resource, action, allowed }: { role: Role; resource: string; action: string; allowed: boolean }) => {
       const { error } = await supabase.from("role_permissions").upsert(
-        { role, resource, action, allowed }, { onConflict: "role,resource,action" }
+        { role, resource, action, allowed }, { onConflict: "role,resource,action" },
       );
       if (error) throw error;
     },
@@ -73,40 +48,9 @@ function Page() {
     return !!perms.find((p) => p.role === role && p.resource === resource && p.action === action)?.allowed;
   }
 
-  // Invites
-  const list = useServerFn(listInvites);
-  const invite = useServerFn(inviteUser);
-  const cancel = useServerFn(cancelInvite);
-  const removeUser = useServerFn(deleteUser);
-
-  const { data: invites = [] } = useQuery({
-    queryKey: ["pending_invites"],
-    queryFn: () => list(),
-    enabled: isOwner,
-  });
-
-  const [email, setEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<Role>("va");
-
-  const doInvite = useMutation({
-    mutationFn: () => invite({ data: { email, role: inviteRole } }),
-    onSuccess: () => {
-      toast.success(`Приглашение отправлено ${email}`);
-      setEmail("");
-      qc.invalidateQueries({ queryKey: ["pending_invites"] });
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-  const doCancel = useMutation({
-    mutationFn: (id: string) => cancel({ data: { id } }),
-    onSuccess: () => { toast.success("Приглашение отменено"); qc.invalidateQueries({ queryKey: ["pending_invites"] }); },
-    onError: (e: any) => toast.error(e.message),
-  });
-
   if (!isOwner) return (
     <div className="p-8 space-y-3 max-w-3xl">
       <div className="h-8 w-40 animate-pulse rounded bg-bg3" />
-      <div className="h-32 animate-pulse rounded bg-bg3" />
       <div className="h-32 animate-pulse rounded bg-bg3" />
     </div>
   );
@@ -114,92 +58,23 @@ function Page() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
       <PageHeader title="Доступы" />
+      <p className="text-xs text-text3 -mt-4">
+        Управление участниками — на странице <span className="text-foreground">Команда</span>. Здесь настраиваются роли и права.
+      </p>
 
-      {/* Preview as role */}
       <section className="rounded-lg border border-border bg-card p-3 flex flex-wrap items-center gap-2">
         <span className="text-xs uppercase tracking-wide text-text2 flex items-center gap-1.5 mr-1">
           <Eye className="h-3.5 w-3.5" /> Просмотр как:
         </span>
         {ROLES.map((r) => (
-          <button
-            key={r}
-            onClick={() => setPreviewRole(r === "owner" ? null : r)}
-            className="px-3 py-1.5 rounded-md text-xs font-medium bg-bg3 border border-border hover:border-amber/60 hover:text-amber transition-colors"
-          >
+          <button key={r} onClick={() => setPreviewRole(r === "owner" ? null : r)}
+            className="px-3 py-1.5 rounded-md text-xs font-medium bg-bg3 border border-border hover:border-amber/60 hover:text-amber transition-colors">
             {ROLE_LABELS[r]}
           </button>
         ))}
         <span className="text-[11px] text-text3 ml-auto">Esc — выйти из режима просмотра</span>
       </section>
 
-
-
-      {/* Pending approvals */}
-      {pending.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            Ожидают подтверждения
-            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber text-white text-[10px] font-semibold">
-              {pending.length}
-            </span>
-          </h2>
-          <div className="rounded-lg border border-amber/40 bg-amber/5 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-text2 border-b border-border">
-                  <th className="text-left p-3">Имя</th>
-                  <th className="text-left p-3">Email</th>
-                  <th className="text-left p-3">Дата регистрации</th>
-                  <th className="text-left p-3">Роль приглашения</th>
-                  <th className="text-right p-3">Действия</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pending.map((u: any) => (
-                  <tr key={u.id} className="border-b border-border last:border-0">
-                    <td className="p-3">{u.full_name ?? "—"}</td>
-                    <td className="p-3 text-text2">{u.email ?? "—"}</td>
-                    <td className="p-3 text-text2">{u.created_at ? new Date(u.created_at).toLocaleDateString("ru-RU") : "—"}</td>
-                    <td className="p-3">
-                      <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-bg3 text-text2">
-                        {ROLE_LABELS[(u.invited_role ?? u.role) as Role]}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right space-x-2 whitespace-nowrap">
-                      <button onClick={() => updateProfile.mutate({ id: u.id, patch: { status: "active" } })}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-teal text-primary-foreground text-xs font-medium">
-                        <Check className="h-3 w-3" /> Подтвердить
-                      </button>
-                      <button onClick={() => updateProfile.mutate({ id: u.id, patch: { status: "suspended" } })}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-bg3 border border-border text-xs text-text2">
-                        <X className="h-3 w-3" /> Отклонить
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {/* Users */}
-      <UsersSection
-        users={users}
-        currentId={profile?.id}
-        onSaveRow={async (id, patch) => {
-          const { error } = await supabase.from("profiles").update(patch).eq("id", id);
-          if (error) throw error;
-        }}
-        onDelete={async (id) => {
-          await removeUser({ data: { id } });
-          qc.invalidateQueries({ queryKey: ["pending_invites"] });
-        }}
-        onRefetch={() => qc.invalidateQueries({ queryKey: ["profiles_all"] })}
-      />
-
-
-      {/* Permission matrix */}
       <section>
         <h2 className="text-sm font-semibold mb-3">Матрица прав</h2>
         <div className="space-y-6">
@@ -220,53 +95,6 @@ function Page() {
               onToggle={(role, action, v) => togglePerm.mutate({ role, resource: g.resource, action, allowed: v })}
             />
           ))}
-        </div>
-      </section>
-
-      {/* Invites */}
-      <section>
-        <h2 className="text-sm font-semibold mb-3">Пригласить пользователя</h2>
-        <div className="rounded-lg border border-border bg-card p-4 space-y-4">
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-xs text-text2 block mb-1">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@example.com"
-                className="w-full bg-bg3 border border-border rounded px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="text-xs text-text2 block mb-1">Роль</label>
-              <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)}
-                className="bg-bg3 border border-border rounded px-3 py-2 text-sm">
-                {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-              </select>
-            </div>
-            <button onClick={() => doInvite.mutate()} disabled={!email || doInvite.isPending}
-              className="px-4 py-2 rounded-md bg-teal text-primary-foreground text-sm font-medium flex items-center gap-2">
-              <Mail className="h-4 w-4" /> Пригласить
-            </button>
-          </div>
-
-          <div>
-            <h3 className="text-xs uppercase tracking-wide text-text2 mb-2">Ожидающие приглашения</h3>
-            {invites.length === 0 ? (
-              <p className="text-xs text-text3">Нет ожидающих</p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {invites.map((inv: any) => (
-                  <li key={inv.id} className="flex items-center gap-3 py-2 text-sm">
-                    <Mail className="h-3.5 w-3.5 text-text3" />
-                    <span className="flex-1">{inv.email}</span>
-                    {inv.role && <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-bg3 text-text2">{inv.role}</span>}
-                    <span className="text-xs text-text3">{inv.invited_at ? new Date(inv.invited_at).toLocaleDateString("ru-RU") : ""}</span>
-                    <button onClick={() => doCancel.mutate(inv.id)} className="text-text3 hover:text-red">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </div>
       </section>
     </div>
@@ -299,11 +127,8 @@ function MatrixTable({ title, columns, resource, isAllowed, onToggle }: {
                 const isOwnerRow = role === "owner";
                 return (
                   <td key={c.key} className="p-2 text-center">
-                    <button
-                      disabled={isOwnerRow}
-                      onClick={() => onToggle(role, c.key, !v)}
-                      className={`relative w-9 h-5 rounded-full transition-colors ${v ? "bg-teal" : "bg-border"} ${isOwnerRow ? "opacity-60 cursor-not-allowed" : ""}`}
-                    >
+                    <button disabled={isOwnerRow} onClick={() => onToggle(role, c.key, !v)}
+                      className={`relative w-9 h-5 rounded-full transition-colors ${v ? "bg-teal" : "bg-border"} ${isOwnerRow ? "opacity-60 cursor-not-allowed" : ""}`}>
                       <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${v ? "left-[1.1rem]" : "left-0.5"}`} />
                     </button>
                   </td>
@@ -314,197 +139,5 @@ function MatrixTable({ title, columns, resource, isAllowed, onToggle }: {
         </tbody>
       </table>
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: ProfileStatus }) {
-  const map: Record<ProfileStatus, { label: string; cls: string }> = {
-    active:    { label: "Активен",  cls: "bg-teal/15 text-teal border-teal/30" },
-    pending:   { label: "Ожидает",  cls: "bg-amber/15 text-amber border-amber/30" },
-    suspended: { label: "Заблокирован", cls: "bg-red/15 text-red border-red/30" },
-  };
-  const v = map[status] ?? map.pending;
-  return (
-    <span className={`inline-block text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${v.cls}`}>
-      {v.label}
-    </span>
-  );
-}
-
-type UserRow = {
-  id: string; full_name: string | null; email: string | null;
-  role: Role; assignee_name: string | null; status: ProfileStatus;
-};
-
-function UsersSection({
-  users, currentId, onSaveRow, onDelete, onRefetch,
-}: {
-  users: any[];
-  currentId: string | undefined;
-  onSaveRow: (id: string, patch: { role?: Role; assignee_name?: string | null }) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-  onRefetch: () => void;
-}) {
-  const [drafts, setDrafts] = useState<Record<string, { role: Role; assignee_name: string }>>({});
-  const [savedFlash, setSavedFlash] = useState<Record<string, number>>({});
-  const [savingAll, setSavingAll] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<UserRow | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  function draftFor(u: UserRow) {
-    return drafts[u.id] ?? { role: u.role, assignee_name: u.assignee_name ?? "" };
-  }
-  function isDirty(u: UserRow) {
-    const d = drafts[u.id];
-    if (!d) return false;
-    return d.role !== u.role || (d.assignee_name || "") !== (u.assignee_name || "");
-  }
-  function setDraft(id: string, patch: Partial<{ role: Role; assignee_name: string }>) {
-    setDrafts((s) => ({ ...s, [id]: { ...(s[id] ?? { role: "va", assignee_name: "" }), ...patch } }));
-  }
-  function flash(id: string) {
-    setSavedFlash((s) => ({ ...s, [id]: Date.now() }));
-    setTimeout(() => setSavedFlash((s) => { const n = { ...s }; delete n[id]; return n; }), 1800);
-  }
-
-  async function saveRow(u: UserRow) {
-    const d = draftFor(u);
-    try {
-      await onSaveRow(u.id, { role: d.role, assignee_name: d.assignee_name.trim() || null });
-      setDrafts((s) => { const n = { ...s }; delete n[u.id]; return n; });
-      flash(u.id);
-      onRefetch();
-      toast.success("Сохранено");
-    } catch (e: any) { toast.error(e.message); }
-  }
-
-  const dirtyRows = users.filter((u) => isDirty(u));
-
-  async function saveAll() {
-    setSavingAll(true);
-    try {
-      for (const u of dirtyRows) {
-        const d = draftFor(u);
-        await onSaveRow(u.id, { role: d.role, assignee_name: d.assignee_name.trim() || null });
-        flash(u.id);
-      }
-      setDrafts({});
-      onRefetch();
-      toast.success(`Сохранено: ${dirtyRows.length}`);
-    } catch (e: any) { toast.error(e.message); }
-    finally { setSavingAll(false); }
-  }
-
-  return (
-    <section>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold">Пользователи</h2>
-        <button
-          onClick={saveAll}
-          disabled={dirtyRows.length === 0 || savingAll}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-teal text-primary-foreground text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Save className="h-3.5 w-3.5" />
-          {savingAll ? "Сохраняю…" : `Сохранить все изменения${dirtyRows.length ? ` (${dirtyRows.length})` : ""}`}
-        </button>
-      </div>
-      <div className="rounded-lg border border-border bg-card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-xs text-text2 border-b border-border">
-              <th className="text-left p-3">Имя</th>
-              <th className="text-left p-3">Email</th>
-              <th className="text-left p-3">Статус</th>
-              <th className="text-left p-3">Роль</th>
-              <th className="text-left p-3">Assignee</th>
-              <th className="text-right p-3">Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u: UserRow) => {
-              const isSelf = u.id === currentId;
-              const isOwnerRow = u.role === "owner";
-              const d = draftFor(u);
-              const dirty = isDirty(u);
-              const saved = !!savedFlash[u.id];
-              return (
-                <tr key={u.id} className="border-b border-border last:border-0">
-                  <td className="p-3">{u.full_name ?? "—"}</td>
-                  <td className="p-3 text-text2">{u.email ?? "—"}</td>
-                  <td className="p-3"><StatusBadge status={u.status} /></td>
-                  <td className="p-3">
-                    <select value={d.role}
-                      onChange={(e) => setDraft(u.id, { role: e.target.value as Role })}
-                      className={`bg-bg3 border rounded px-2 py-1 text-xs ${dirty ? "border-amber" : "border-border"}`}>
-                      {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                    </select>
-                  </td>
-                  <td className="p-3">
-                    <input value={d.assignee_name}
-                      onChange={(e) => setDraft(u.id, { assignee_name: e.target.value })}
-                      placeholder="Имя в задачах"
-                      className={`bg-bg3 border rounded px-2 py-1 text-xs w-40 ${dirty ? "border-amber" : "border-border"}`} />
-                  </td>
-                  <td className="p-3 text-right whitespace-nowrap">
-                    <div className="inline-flex items-center gap-1.5">
-                      {saved && <Check className="h-4 w-4 text-teal" />}
-                      <button
-                        onClick={() => saveRow(u)}
-                        disabled={!dirty}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-teal text-primary-foreground text-xs disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Сохранить"
-                      >
-                        <Save className="h-3 w-3" /> Сохранить
-                      </button>
-                      {!isSelf && (
-                        <button onClick={() => setConfirmDelete(u)}
-                          className="inline-flex items-center justify-center w-7 h-7 rounded bg-bg3 border border-border text-text3 hover:text-red hover:border-red/40"
-                          title="Удалить">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      {isSelf && <span className="text-[10px] text-text3 ml-1">— это вы —</span>}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {users.length === 0 && <tr><td colSpan={6} className="p-6"><Empty message="Нет пользователей" /></td></tr>}
-          </tbody>
-        </table>
-      </div>
-
-      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Удалить пользователя <strong>{confirmDelete?.email}</strong>? Они смогут зарегистрироваться заново с тем же email.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Отмена</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deleting}
-              onClick={async (e) => {
-                e.preventDefault();
-                if (!confirmDelete) return;
-                setDeleting(true);
-                try {
-                  await onDelete(confirmDelete.id);
-                  toast.success("Пользователь удалён. Они могут зарегистрироваться заново.");
-                  setConfirmDelete(null);
-                  onRefetch();
-                } catch (err: any) { toast.error(err.message); }
-                finally { setDeleting(false); }
-              }}
-              className="bg-red text-white hover:bg-red/90"
-            >
-              {deleting ? "Удаляю…" : "Удалить"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </section>
   );
 }

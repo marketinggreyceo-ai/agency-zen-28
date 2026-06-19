@@ -21,9 +21,14 @@ function AuthPage() {
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
-      const { data: p } = await supabase.from("profiles").select("full_name, onboarded_at").eq("id", data.user.id).maybeSingle();
-      if (!p?.onboarded_at) { setOnboarding(true); setFullName(p?.full_name ?? ""); }
-      else navigate({ to: "/app" });
+      const { data: p } = await supabase.from("profiles")
+        .select("full_name, telegram_handle, onboarded_at").eq("id", data.user.id).maybeSingle();
+      if (!p?.onboarded_at) {
+        // Pre-fill from profile (handle_new_user already pulls from matched team_member by invite_email).
+        setOnboarding(true);
+        setFullName(p?.full_name ?? "");
+        setTelegram(p?.telegram_handle ?? "");
+      } else navigate({ to: "/app" });
     });
   }, [navigate]);
 

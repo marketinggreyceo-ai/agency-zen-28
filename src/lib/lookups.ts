@@ -63,22 +63,13 @@ export function useTeamMembers(opts?: { includeArchived?: boolean }) {
 }
 
 // Convenience: assignee names (for task dropdowns).
-// Source of truth = profiles table (registered users).
+// Source of truth = team_members (includes registered and non-registered members).
 export function useAssignees(): string[] {
-  const { data = [] } = useQuery({
-    queryKey: ["profiles_assignees"],
-    queryFn: async () => {
-      const { data } = await supabase.from("profiles")
-        .select("full_name, assignee_name, status")
-        .order("full_name");
-      return (data ?? []) as { full_name: string | null; assignee_name: string | null; status: string }[];
-    },
-    staleTime: SHORT,
-  });
-  return data
-    .filter((p) => p.status !== "suspended")
-    .map((p) => p.assignee_name || p.full_name)
-    .filter((s): s is string => !!s);
+  const { data = [] } = useTeamMembers();
+  const names = data
+    .map((m) => (m.assignee_name?.trim() || m.name?.trim() || ""))
+    .filter((s) => !!s);
+  return Array.from(new Set(names));
 }
 
 // Models (active only by default)
