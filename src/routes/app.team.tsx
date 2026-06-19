@@ -276,6 +276,51 @@ function ProfileRowView({
   );
 }
 
+function EditableName({ profileId, value, fallback, onSaved }: {
+  profileId: string; value: string; fallback: string; onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const qc = useQueryClient();
+  useEffect(() => { setDraft(value); }, [value]);
+
+  async function commit() {
+    const next = draft.trim();
+    setEditing(false);
+    if (next === (value ?? "").trim()) return;
+    if (!next) { toast.error("Имя не может быть пустым"); setDraft(value); return; }
+    const { error } = await supabase.from("profiles").update({ full_name: next }).eq("id", profileId);
+    if (error) { toast.error(error.message); setDraft(value); return; }
+    toast.success("Имя обновлено ✓");
+    qc.invalidateQueries({ queryKey: ["profiles_all"] });
+    qc.invalidateQueries({ queryKey: ["assignee_profiles"] });
+    onSaved();
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+          if (e.key === "Escape") { setDraft(value); setEditing(false); }
+        }}
+        className="bg-bg3 border border-border rounded px-2 py-0.5 text-sm font-medium w-48"
+      />
+    );
+  }
+  return (
+    <button onClick={() => setEditing(true)} title="Нажми, чтобы изменить"
+      className="font-medium inline-flex items-center gap-1.5 hover:text-teal text-left">
+      <span>{value?.trim() || fallback}</span>
+      <Pencil className="h-3 w-3 text-text3 opacity-0 group-hover:opacity-100 transition" />
+    </button>
+  );
+}
+
 function DeleteProfileConfirm({ profile, onClose, onDone }: {
   profile: ProfileRow | null; onClose: () => void; onDone: () => void;
 }) {
