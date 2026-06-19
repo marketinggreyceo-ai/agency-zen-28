@@ -367,13 +367,13 @@ function SettingsTab() {
   const availableToAdd = chatterProfiles.filter((p: any) => !visibleChatterProfileIds.includes(p.id));
 
   const deleteChatter = useMutation({
-    mutationFn: async (chatterId: string) => {
-      const { error: e1 } = await supabase.from("chatter_accounts").delete().eq("chatter_id", chatterId);
+    mutationFn: async (profileId: string) => {
+      const { error: e1 } = await supabase.from("chatter_accounts").delete().eq("chatter_profile_id", profileId);
       if (e1) throw e1;
     },
-    onSuccess: (_d, chatterId) => {
+    onSuccess: (_d, profileId) => {
       toast.success("Чаттер удалён из настроек");
-      setExtraChatterIds((prev) => prev.filter((x) => x !== chatterId));
+      setExtraChatterIds((prev) => prev.filter((x) => x !== profileId));
       qc.invalidateQueries({ queryKey: ["chatter_accounts"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -395,23 +395,23 @@ function SettingsTab() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setAddPickerOpen(false)} />
                 <div className="absolute right-0 mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-50 max-h-64 overflow-auto">
-                  {chatterMembers.length === 0 ? (
+                  {chatterProfiles.length === 0 ? (
                     <div className="p-3 text-xs text-text2">
-                      Сначала добавьте участника с ролью Chatter в разделе Команда
+                      Сначала назначьте роль Chatter участнику на странице Команда
                     </div>
                   ) : availableToAdd.length === 0 ? (
                     <div className="p-3 text-xs text-text2">Все чаттеры уже добавлены</div>
                   ) : (
-                    availableToAdd.map((m: any) => (
+                    availableToAdd.map((p: any) => (
                       <button
-                        key={m.id}
+                        key={p.id}
                         onClick={() => {
-                          setExtraChatterIds((prev) => [...prev, m.id]);
+                          setExtraChatterIds((prev) => [...prev, p.id]);
                           setAddPickerOpen(false);
                         }}
                         className="w-full text-left px-3 py-2 hover:bg-bg2 text-sm border-b border-border last:border-b-0"
                       >
-                        {m.name}
+                        {p.full_name ?? "(без имени)"}
                       </button>
                     ))
                   )}
@@ -421,26 +421,29 @@ function SettingsTab() {
           </div>
         </div>
 
-        {visibleChatterIds.length === 0 ? (
+        {visibleChatterProfileIds.length === 0 ? (
           <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-text2">
-            {chatterMembers.length === 0
-              ? "Сначала добавьте участника с ролью Chatter в разделе Команда"
+            {chatterProfiles.length === 0
+              ? "Сначала назначьте роль Chatter участнику на странице Команда"
               : "Нажмите «Добавить чаттера» чтобы создать блок"}
           </div>
         ) : (
           <div className="space-y-3">
-            {visibleChatterIds.map((cid) => {
-              const member = (members as any[]).find((m) => m.id === cid);
-              if (!member) return null;
+            {visibleChatterProfileIds.map((pid: string) => {
+              const prof = chatterProfiles.find((p: any) => p.id === pid);
+              if (!prof) return null;
+              const tm = memberByProfileId.get(pid);
+              const memberLike = tm ?? { id: null, name: prof.full_name, profile_id: pid };
               return (
                 <ChatterBlock
-                  key={cid}
-                  member={member}
-                  accounts={accountsByChatter.get(cid) ?? []}
+                  key={pid}
+                  profileId={pid}
+                  member={memberLike}
+                  accounts={accountsByProfileId.get(pid) ?? []}
                   models={models}
                   onDelete={() => {
-                    if (confirm(`Удалить чаттера «${member.name}» и все его аккаунты?`)) {
-                      deleteChatter.mutate(cid);
+                    if (confirm(`Удалить чаттера «${prof.full_name}» и все его аккаунты?`)) {
+                      deleteChatter.mutate(pid);
                     }
                   }}
                 />
@@ -449,6 +452,7 @@ function SettingsTab() {
           </div>
         )}
       </section>
+
 
       <PeriodsSection />
     </div>
