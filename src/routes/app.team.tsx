@@ -6,12 +6,12 @@ import { PageHeader, Empty } from "@/components/ui-shared";
 import { useProfile, ROLE_LABELS, type Role } from "@/lib/auth";
 import { ROLES_ORDER } from "@/lib/permissions";
 import {
-  inviteTeamMember, cancelTeamInvite, revokeAccess, deleteTeamMember,
+  inviteTeamMember, cancelTeamInvite, revokeAccess, removeTeamMember,
 } from "@/lib/invites.functions";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  Mail, Trash2, Send, Plus, Copy, X, UserMinus, MoreHorizontal,
+  Mail, Trash2, Send, Plus, Copy, X, UserMinus,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -213,7 +213,6 @@ function MemberRow({
 
   const [name, setName] = useState(m.name);
   const [tg, setTg] = useState(m.telegram_handle ?? "");
-  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => { setName(m.name); setTg(m.telegram_handle ?? ""); }, [m.id, m.name, m.telegram_handle]);
 
@@ -290,27 +289,17 @@ function MemberRow({
           {isOwner && status === "active" && (
             <button onClick={onRevoke}
               className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bg3 border border-border text-xs text-text2 hover:text-red">
-              <UserMinus className="h-3 w-3" /> Удалить доступ
+              <UserMinus className="h-3 w-3" /> Доступ
             </button>
           )}
           <button onClick={onOpen}
             className="text-xs text-text2 hover:text-foreground px-2 py-1">Детали</button>
           {isOwner && (
-            <div className="relative">
-              <button onClick={() => setMenuOpen((o) => !o)}
-                className="p-1 text-text2 hover:text-foreground"><MoreHorizontal className="h-3.5 w-3.5" /></button>
-              {menuOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-md shadow-lg w-44 py-1 text-sm text-left">
-                    <button onClick={() => { setMenuOpen(false); onOpen(); }}
-                      className="w-full text-left px-3 py-1.5 hover:bg-bg3">Редактировать</button>
-                    <button onClick={() => { setMenuOpen(false); onDelete(); }}
-                      className="w-full text-left px-3 py-1.5 hover:bg-bg3 text-red">Удалить из команды</button>
-                  </div>
-                </>
-              )}
-            </div>
+            <button onClick={onDelete}
+              title="Удалить участника"
+              className="p-1.5 text-text3 hover:text-red rounded hover:bg-red/10">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           )}
         </div>
       </td>
@@ -626,14 +615,14 @@ function RevokeConfirm({ member, onClose, onDone }: { member: TeamMember | null;
 }
 
 function DeleteConfirm({ member, onClose, onDone }: { member: TeamMember | null; onClose: () => void; onDone: () => void }) {
-  const del = useServerFn(deleteTeamMember);
+  const del = useServerFn(removeTeamMember);
   return (
     <AlertDialog open={!!member} onOpenChange={(o) => !o && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Удалить из команды?</AlertDialogTitle>
+          <AlertDialogTitle>Удалить участника?</AlertDialogTitle>
           <AlertDialogDescription>
-            {member?.name} будет полностью удалён{member?.profile_id ? " вместе с аккаунтом" : ""}. Это действие нельзя отменить.
+            Это действие нельзя отменить.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

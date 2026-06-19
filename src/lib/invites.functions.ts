@@ -147,6 +147,29 @@ export const deleteTeamMember = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Remove a team_member row only. Unlinks profile_id but keeps the profile and auth user. */
+export const removeTeamMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ team_member_id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: tm } = await supabaseAdmin
+      .from("team_members").select("profile_id").eq("id", data.team_member_id).single();
+
+    if (tm?.profile_id && tm.profile_id === context.userId) {
+      throw new Error("Нельзя удалить свою запись");
+    }
+    if (tm?.profile_id) {
+      await supabaseAdmin.from("team_members")
+        .update({ profile_id: null, invited_at: null, invite_email: null })
+        .eq("id", data.team_member_id);
+    }
+    await supabaseAdmin.from("team_members").delete().eq("id", data.team_member_id);
+    return { ok: true };
+  });
+
 // ─── Legacy compatibility (kept so older imports don't break) ──────────────
 
 export const inviteUser = createServerFn({ method: "POST" })
