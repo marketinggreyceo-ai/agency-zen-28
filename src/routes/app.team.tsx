@@ -318,9 +318,11 @@ function MemberRow({
 
 function StatusBadge({ s }: { s: Status }) {
   const map = {
-    active:  { label: "Активен",       cls: "bg-teal/15 text-teal border-teal/30" },
-    pending: { label: "Ожидает",       cls: "bg-amber/15 text-amber border-amber/30" },
-    none:    { label: "Без доступа",   cls: "bg-bg3 text-text3 border-border" },
+    active:   { label: "Активен",                 cls: "bg-teal/15 text-teal border-teal/30" },
+    awaiting: { label: "Ожидает подтверждения",   cls: "bg-amber/15 text-amber border-amber/30" },
+    rejected: { label: "Отклонён",                cls: "bg-red/15 text-red border-red/30" },
+    pending:  { label: "Приглашён",               cls: "bg-amber/15 text-amber border-amber/30" },
+    none:     { label: "Без доступа",             cls: "bg-bg3 text-text3 border-border" },
   } as const;
   const v = map[s];
   return <span className={`inline-block text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${v.cls}`}>{v.label}</span>;
