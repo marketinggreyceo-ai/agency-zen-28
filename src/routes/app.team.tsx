@@ -11,7 +11,7 @@ import {
 } from "@/lib/invites.functions";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Mail, Trash2, Send, Plus, Copy, X, Check, ShieldOff } from "lucide-react";
+import { Mail, Trash2, Send, Plus, Copy, X, Check, ShieldOff, Pencil } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -222,12 +222,12 @@ function ProfileRowView({
   }
 
   return (
-    <tr className="border-b border-border last:border-0 hover:bg-bg3/40">
+    <tr className="border-b border-border last:border-0 hover:bg-bg3/40 group">
       <td className="p-3">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full bg-bg3 flex items-center justify-center text-xs font-medium shrink-0">{initials}</div>
-          <div>
-            <div className="font-medium">{displayName}</div>
+          <div className="min-w-0">
+            <EditableName profileId={p.id} value={p.full_name ?? ""} fallback={displayName} onSaved={onSaved} />
             {isSelf && <div className="text-[10px] text-text3 mt-0.5">это вы</div>}
           </div>
         </div>
@@ -273,6 +273,51 @@ function ProfileRowView({
         </div>
       </td>
     </tr>
+  );
+}
+
+function EditableName({ profileId, value, fallback, onSaved }: {
+  profileId: string; value: string; fallback: string; onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const qc = useQueryClient();
+  useEffect(() => { setDraft(value); }, [value]);
+
+  async function commit() {
+    const next = draft.trim();
+    setEditing(false);
+    if (next === (value ?? "").trim()) return;
+    if (!next) { toast.error("Имя не может быть пустым"); setDraft(value); return; }
+    const { error } = await supabase.from("profiles").update({ full_name: next }).eq("id", profileId);
+    if (error) { toast.error(error.message); setDraft(value); return; }
+    toast.success("Имя обновлено ✓");
+    qc.invalidateQueries({ queryKey: ["profiles_all"] });
+    qc.invalidateQueries({ queryKey: ["assignee_profiles"] });
+    onSaved();
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+          if (e.key === "Escape") { setDraft(value); setEditing(false); }
+        }}
+        className="bg-bg3 border border-border rounded px-2 py-0.5 text-sm font-medium w-48"
+      />
+    );
+  }
+  return (
+    <button onClick={() => setEditing(true)} title="Нажми, чтобы изменить"
+      className="font-medium inline-flex items-center gap-1.5 hover:text-teal text-left">
+      <span>{value?.trim() || fallback}</span>
+      <Pencil className="h-3 w-3 text-text3 opacity-0 group-hover:opacity-100 transition" />
+    </button>
   );
 }
 

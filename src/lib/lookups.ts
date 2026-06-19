@@ -63,27 +63,26 @@ export function useTeamMembers(opts?: { includeArchived?: boolean }) {
 }
 
 // Convenience: assignee names (for task dropdowns).
-// Source = profiles.full_name (registered) ∪ team_members.name (not yet registered).
-// Excludes email-like values; dedupes by exact name.
+// Source = profiles.full_name (ALL registered users, regardless of role) ∪ team_members.name (not yet registered).
+// Dedupes by exact name. Email-looking full_names are kept; users can fix them on the Team page.
 export function useAssignees(): string[] {
   const { data: members = [] } = useTeamMembers();
   const { data: profiles = [] } = useQuery({
     queryKey: ["assignee_profiles"],
     queryFn: async () => (
-      (await supabase.from("profiles").select("id, full_name")).data ?? []
+      (await supabase.from("profiles").select("id, full_name").not("full_name", "is", null).order("full_name")).data ?? []
     ) as { id: string; full_name: string | null }[],
     staleTime: SHORT,
   });
-  const isEmail = (s: string) => /@/.test(s);
   const names: string[] = [];
   for (const p of profiles) {
     const n = (p.full_name ?? "").trim();
-    if (n && !isEmail(n)) names.push(n);
+    if (n) names.push(n);
   }
   for (const m of members) {
     if (m.profile_id) continue; // registered → already counted via profiles
     const n = (m.assignee_name?.trim() || m.name?.trim() || "");
-    if (n && !isEmail(n)) names.push(n);
+    if (n) names.push(n);
   }
   return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "ru"));
 }

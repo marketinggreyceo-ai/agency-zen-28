@@ -6,7 +6,8 @@ import { useProfile } from "@/lib/auth";
 import { useAssignees } from "@/lib/lookups";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Plus, Target, Users, UserCircle, X, Check, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Target, Users, UserCircle, X, Check, Trash2, ListPlus } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/app/goals")({
   ssr: false, component: Page,
@@ -57,6 +58,25 @@ function Page() {
     queryKey: ["models-list-goals"],
     queryFn: async () => (await supabase.from("models").select("id, name").order("name")).data ?? [],
   });
+
+  // Map of goal-title → task assignee (for badge on goal card).
+  const weekEndForTasks = fmtISO(addDays(weekStart, 6));
+  const { data: weekTasks = [] } = useQuery({
+    queryKey: ["goal_tasks", weekISO, weekEndForTasks],
+    queryFn: async () => {
+      const { data } = await supabase.from("tasks")
+        .select("id, title, assignee, deadline")
+        .eq("task_type", "Цель недели")
+        .gte("deadline", weekISO)
+        .lte("deadline", weekEndForTasks);
+      return data ?? [];
+    },
+  });
+  const goalTaskByTitle = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of weekTasks as any[]) if (t.title) m.set(t.title, t.assignee ?? "");
+    return m;
+  }, [weekTasks]);
 
   const updateGoal = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<Goal> }) => {
@@ -113,6 +133,9 @@ function Page() {
           ) : companyGoals.map((g) => (
             <GoalCard key={g.id} goal={g} weekPassed={weekPassed} canEdit={isOwner}
               canProgress={isOwner}
+              sundayISO={weekEndForTasks}
+              linkedAssignee={goalTaskByTitle.get(g.title) ?? null}
+              onTaskCreated={() => qc.invalidateQueries({ queryKey: ["goal_tasks", weekISO, weekEndForTasks] })}
               onUpdate={(patch) => updateGoal.mutate({ id: g.id, patch })}
               onDelete={() => deleteGoal.mutate(g.id)} />
           ))}
@@ -140,6 +163,9 @@ function Page() {
                     {items.map((g) => (
                       <GoalCard key={g.id} goal={g} weekPassed={weekPassed}
                         canEdit={isOwner} canProgress={isOwner || g.assigned_to === myName}
+                        sundayISO={weekEndForTasks}
+                        linkedAssignee={goalTaskByTitle.get(g.title) ?? null}
+                        onTaskCreated={() => qc.invalidateQueries({ queryKey: ["goal_tasks", weekISO, weekEndForTasks] })}
                         onUpdate={(patch) => updateGoal.mutate({ id: g.id, patch })}
                         onDelete={() => deleteGoal.mutate(g.id)} />
                     ))}
@@ -173,6 +199,9 @@ function Page() {
                     {items.map((g) => (
                       <GoalCard key={g.id} goal={g} weekPassed={weekPassed}
                         canEdit={isOwner} canProgress={isOwner}
+                        sundayISO={weekEndForTasks}
+                        linkedAssignee={goalTaskByTitle.get(g.title) ?? null}
+                        onTaskCreated={() => qc.invalidateQueries({ queryKey: ["goal_tasks", weekISO, weekEndForTasks] })}
                         onUpdate={(patch) => updateGoal.mutate({ id: g.id, patch })}
                         onDelete={() => deleteGoal.mutate(g.id)} />
                     ))}
@@ -234,17 +263,49 @@ function StatusBadge({ status, weekPassed }: { status: string; weekPassed: boole
   return <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: s.bg, color: s.color }}>{s.label}</span>;
 }
 
-function GoalCard({ goal, weekPassed, canEdit, canProgress, onUpdate, onDelete }: {
+function GoalCard({ goal, weekPassed, canEdit, canProgress, sundayISO, linkedAssignee, onTaskCreated, onUpdate, onDelete }: {
   goal: Goal; weekPassed: boolean; canEdit: boolean; canProgress: boolean;
+  sundayISO: string; linkedAssignee: string | null;
+  onTaskCreated: () => void;
   onUpdate: (patch: Partial<Goal>) => void; onDelete: () => void;
 }) {
   const [showSlider, setShowSlider] = useState(false);
+  const assignees = useAssignees();
+  const [taskOpen, setTaskOpen] = useState(false);
+  const [taskAssignee, setTaskAssignee] = useState<string>(goal.assigned_to ?? "");
+  const [taskDeadline, setTaskDeadline] = useState<string>(sundayISO);
+  const [taskBusy, setTaskBusy] = useState(false);
+
+  async function createTask() {
+    const name = taskAssignee.trim();
+    if (!name) { toast.error("Выберите ответственного"); return; }
+    setTaskBusy(true);
+    const { error } = await (supabase as any).from("tasks").insert({
+      title: goal.title,
+      notes: goal.description ?? null,
+      assignee: name,
+      deadline: taskDeadline,
+      status: "incoming",
+      task_type: "Цель недели",
+    });
+    setTaskBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Задача создана и добавлена в Задачи ✓");
+    setTaskOpen(false);
+    onTaskCreated();
+  }
+
   return (
     <div className="rounded-md p-3" style={{ background: "#1c1c1c", border: "1px solid #2a2a2a" }}>
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium">{goal.title}</div>
           {goal.description && <div className="text-xs text-text3 mt-0.5">{goal.description}</div>}
+          {linkedAssignee && (
+            <div className="text-[10px] text-teal mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal/10 border border-teal/30">
+              → Задача: {linkedAssignee}
+            </div>
+          )}
         </div>
         <StatusBadge status={goal.status} weekPassed={weekPassed} />
       </div>
@@ -265,27 +326,53 @@ function GoalCard({ goal, weekPassed, canEdit, canProgress, onUpdate, onDelete }
             className="w-full" />
         )}
       </div>
-      {canEdit && (
-        <div className="mt-2 flex items-center gap-1.5">
-          {goal.status !== "done" && (
-            <button onClick={() => onUpdate({ status: "done", progress: 100 })}
-              className="text-[10px] px-2 py-1 rounded flex items-center gap-1" style={{ background: "rgba(29,158,117,0.15)", color: "#5DCAA5" }}>
-              <Check className="h-3 w-3" /> Done
+      <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+        {canEdit && goal.status !== "done" && (
+          <button onClick={() => onUpdate({ status: "done", progress: 100 })}
+            className="text-[10px] px-2 py-1 rounded flex items-center gap-1" style={{ background: "rgba(29,158,117,0.15)", color: "#5DCAA5" }}>
+            <Check className="h-3 w-3" /> Done
+          </button>
+        )}
+        {canEdit && goal.status !== "failed" && (
+          <button onClick={() => onUpdate({ status: "failed" })}
+            className="text-[10px] px-2 py-1 rounded flex items-center gap-1" style={{ background: "rgba(226,75,74,0.15)", color: "#E24B4A" }}>
+            <X className="h-3 w-3" /> Failed
+          </button>
+        )}
+        {canEdit && goal.status !== "active" && (
+          <button onClick={() => onUpdate({ status: "active" })}
+            className="text-[10px] px-2 py-1 rounded text-text2 bg-bg3">↺ Active</button>
+        )}
+        <Popover open={taskOpen} onOpenChange={setTaskOpen}>
+          <PopoverTrigger asChild>
+            <button className="text-[10px] px-2 py-1 rounded flex items-center gap-1 bg-bg3 border border-border text-text2 hover:text-teal">
+              <ListPlus className="h-3 w-3" /> Назначить как задачу
             </button>
-          )}
-          {goal.status !== "failed" && (
-            <button onClick={() => onUpdate({ status: "failed" })}
-              className="text-[10px] px-2 py-1 rounded flex items-center gap-1" style={{ background: "rgba(226,75,74,0.15)", color: "#E24B4A" }}>
-              <X className="h-3 w-3" /> Failed
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3 space-y-2 bg-card border border-border" align="start">
+            <div>
+              <label className="text-[10px] uppercase tracking-wide text-text3 block mb-1">Ответственный</label>
+              <select value={taskAssignee} onChange={(e) => setTaskAssignee(e.target.value)}
+                className="w-full bg-bg3 border border-border rounded px-2 py-1.5 text-xs">
+                <option value="">— выбрать —</option>
+                {assignees.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wide text-text3 block mb-1">Дедлайн</label>
+              <input type="date" value={taskDeadline} onChange={(e) => setTaskDeadline(e.target.value)}
+                className="w-full bg-bg3 border border-border rounded px-2 py-1.5 text-xs" />
+            </div>
+            <button onClick={createTask} disabled={taskBusy}
+              className="w-full px-3 py-1.5 text-xs rounded bg-teal text-primary-foreground font-medium disabled:opacity-50">
+              Создать задачу
             </button>
-          )}
-          {goal.status !== "active" && (
-            <button onClick={() => onUpdate({ status: "active" })}
-              className="text-[10px] px-2 py-1 rounded text-text2 bg-bg3">↺ Active</button>
-          )}
+          </PopoverContent>
+        </Popover>
+        {canEdit && (
           <button onClick={onDelete} className="ml-auto text-text3 hover:text-red"><Trash2 className="h-3 w-3" /></button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
