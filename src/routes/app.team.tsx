@@ -7,11 +7,12 @@ import { useProfile, ROLE_LABELS, type Role } from "@/lib/auth";
 import { ROLES_ORDER } from "@/lib/permissions";
 import {
   inviteTeamMember, cancelTeamInvite, revokeAccess, removeTeamMember,
+  approveMember, rejectMember,
 } from "@/lib/invites.functions";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  Mail, Trash2, Send, Plus, Copy, X, UserMinus,
+  Mail, Trash2, Send, Plus, Copy, X, UserMinus, Check, ShieldOff,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -35,11 +36,16 @@ type TeamMember = {
 };
 type ProfileLite = {
   id: string; email: string | null; role: Role; full_name: string | null;
+  status: "active" | "pending" | "suspended" | "rejected";
 };
 
-type Status = "active" | "pending" | "none";
-function statusOf(m: TeamMember): Status {
-  if (m.profile_id) return "active";
+type Status = "active" | "awaiting" | "rejected" | "pending" | "none";
+function statusOf(m: TeamMember, profile: ProfileLite | null): Status {
+  if (m.profile_id && profile) {
+    if (profile.status === "pending") return "awaiting";
+    if (profile.status === "rejected") return "rejected";
+    return "active";
+  }
   if (m.invited_at) return "pending";
   return "none";
 }
@@ -63,7 +69,7 @@ function Page() {
   const { data: profiles = [] } = useQuery({
     queryKey: ["profiles_lite"],
     queryFn: async () => (
-      (await supabase.from("profiles").select("id, email, role, full_name")).data ?? []
+      (await supabase.from("profiles").select("id, email, role, full_name, status")).data ?? []
     ) as ProfileLite[],
   });
   const profileById = useMemo(() => {
@@ -146,7 +152,7 @@ function Page() {
 }
 
 function PendingInvites({ members }: { members: TeamMember[] }) {
-  const pending = members.filter((m) => statusOf(m) === "pending");
+  const pending = members.filter((m) => !m.profile_id && !!m.invited_at);
   if (pending.length === 0) return null;
   return (
     <section className="rounded-lg border border-amber/40 bg-amber/5 p-4">
@@ -207,7 +213,10 @@ function MemberRow({
   onOpen: () => void; onInvite: () => void; onRevoke: () => void; onDelete: () => void;
   onSaved: () => void;
 }) {
-  const status = statusOf(m);
+  const status = statusOf(m, profile);
+  const approve = useServerFn(approveMember);
+  const reject = useServerFn(rejectMember);
+  const qc = useQueryClient();
   const email = profile?.email || m.invite_email || "—";
   const currentRole: Role = (profile?.role as Role) || (m.role_label as Role) || "va";
 
@@ -286,7 +295,24 @@ function MemberRow({
               <X className="h-3 w-3" /> Отменить
             </button>
           )}
-          {isOwner && status === "active" && (
+          {isOwner && status === "awaiting" && profile && (
+            <>
+              <button onClick={async () => {
+                try { await approve({ data: { profile_id: profile.id } }); toast.success("Подтверждён"); qc.invalidateQueries({ queryKey: ["profiles_lite"] }); qc.invalidateQueries({ queryKey: ["profiles-pending-count"] }); }
+                catch (e: any) { toast.error(e.message); }
+              }} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-teal text-primary-foreground text-xs font-medium">
+                <Check className="h-3 w-3" /> Подтвердить
+              </button>
+              <button onClick={async () => {
+                if (!confirm(`Отклонить ${m.name}?`)) return;
+                try { await reject({ data: { profile_id: profile.id } }); toast.success("Отклонено"); qc.invalidateQueries({ queryKey: ["profiles_lite"] }); qc.invalidateQueries({ queryKey: ["profiles-pending-count"] }); }
+                catch (e: any) { toast.error(e.message); }
+              }} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bg3 border border-border text-xs text-red">
+                <ShieldOff className="h-3 w-3" /> Отклонить
+              </button>
+            </>
+          )}
+          {isOwner && (status === "active" || status === "rejected") && (
             <button onClick={onRevoke}
               className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bg3 border border-border text-xs text-text2 hover:text-red">
               <UserMinus className="h-3 w-3" /> Доступ
@@ -309,9 +335,11 @@ function MemberRow({
 
 function StatusBadge({ s }: { s: Status }) {
   const map = {
-    active:  { label: "Активен",       cls: "bg-teal/15 text-teal border-teal/30" },
-    pending: { label: "Ожидает",       cls: "bg-amber/15 text-amber border-amber/30" },
-    none:    { label: "Без доступа",   cls: "bg-bg3 text-text3 border-border" },
+    active:   { label: "Активен",                 cls: "bg-teal/15 text-teal border-teal/30" },
+    awaiting: { label: "Ожидает подтверждения",   cls: "bg-amber/15 text-amber border-amber/30" },
+    rejected: { label: "Отклонён",                cls: "bg-red/15 text-red border-red/30" },
+    pending:  { label: "Приглашён",               cls: "bg-amber/15 text-amber border-amber/30" },
+    none:     { label: "Без доступа",             cls: "bg-bg3 text-text3 border-border" },
   } as const;
   const v = map[s];
   return <span className={`inline-block text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${v.cls}`}>{v.label}</span>;

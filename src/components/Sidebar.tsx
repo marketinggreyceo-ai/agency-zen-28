@@ -147,7 +147,7 @@ export function Sidebar() {
                   const Icon = it.icon;
                   const active = isActive(it.to);
                   const showBlocked = it.page === "tasks" && blockedCount > 0;
-                  const showPending = it.page === "access" && pendingUsersCount > 0;
+                  const showPending = it.page === "team" && pendingUsersCount > 0;
                   return (
                     <li key={it.to}>
                       <Link to={it.to}

@@ -54,9 +54,7 @@ function Layout() {
   }
 
   const needsOnboarding =
-    !profile.telegram_handle &&
-    typeof window !== "undefined" &&
-    !window.localStorage.getItem(`onboarded:${profile.id}`);
+    !profile.onboarded_at && !profile.full_name?.trim();
 
   if (needsOnboarding) return <Onboarding profile={profile} />;
 
@@ -113,11 +111,13 @@ function Onboarding({ profile }: { profile: any }) {
   async function save(skip = false) {
     setSaving(true);
     const cleanHandle = handle.trim().replace(/^@/, "");
-    const patch: any = { full_name: fullName.trim() || profile.email };
+    const patch: any = {
+      full_name: fullName.trim() || profile.email,
+      onboarded_at: new Date().toISOString(),
+    };
     if (!skip && cleanHandle) patch.telegram_handle = cleanHandle;
     const { error } = await supabase.from("profiles").update(patch).eq("id", profile.id);
     if (error) { toast.error(error.message); setSaving(false); return; }
-    window.localStorage.setItem(`onboarded:${profile.id}`, "1");
     await qc.invalidateQueries({ queryKey: ["profile"] });
   }
 
@@ -168,14 +168,17 @@ function Onboarding({ profile }: { profile: any }) {
   );
 }
 
-function WaitingScreen({ status, onLogout }: { status: "pending" | "suspended"; onLogout: () => void }) {
-  const suspended = status === "suspended";
-  const Icon = suspended ? ShieldOff : Clock;
-  const title = suspended ? "Доступ заблокирован" : "Ожидание подтверждения";
-  const text = suspended
-    ? "Ваш аккаунт был заблокирован. Свяжитесь с администратором."
-    : "Ваш аккаунт ожидает подтверждения. Свяжитесь с администратором.";
-  const color = suspended ? "text-red" : "text-amber";
+function WaitingScreen({ status, onLogout }: { status: "pending" | "suspended" | "rejected"; onLogout: () => void }) {
+  const Icon = status === "pending" ? Clock : ShieldOff;
+  const title =
+    status === "rejected" ? "Заявка отклонена" :
+    status === "suspended" ? "Доступ заблокирован" :
+    "Ожидание подтверждения";
+  const text =
+    status === "rejected" ? "Ваша заявка отклонена администратором." :
+    status === "suspended" ? "Ваш аккаунт был заблокирован. Свяжитесь с администратором." :
+    "Ваш аккаунт ожидает подтверждения администратором.";
+  const color = status === "pending" ? "text-amber" : "text-red";
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="max-w-md w-full bg-card border border-border rounded-lg p-8 text-center space-y-4">
