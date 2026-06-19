@@ -311,38 +311,180 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
 /* ===================== Settings ===================== */
 
 function SettingsTab() {
-  return (
-    <div className="space-y-8">
-      <ChatterAccountsSection />
-      <PeriodsSection />
-    </div>
-  );
-}
-
-function ChatterAccountsSection() {
   const qc = useQueryClient();
-  const [editing, setEditing] = useState<any | null>(null);
-  const [open, setOpen] = useState(false);
+  const [extraChatterIds, setExtraChatterIds] = useState<string[]>([]);
+  const [addPickerOpen, setAddPickerOpen] = useState(false);
 
+  const { data: members = [] } = useQuery({
+    queryKey: ["team_members_all"],
+    queryFn: async () => (await supabase.from("team_members").select("id, name, role_label, profile_id, assignee_name, telegram_handle").order("name")).data ?? [],
+  });
+  const { data: profilesLite = [] } = useQuery({
+    queryKey: ["profiles_chatters"],
+    queryFn: async () => (await supabase.from("profiles").select("id, full_name, role")).data ?? [],
+  });
   const { data: accounts = [] } = useQuery({
     queryKey: ["chatter_accounts"],
     queryFn: async () => (await supabase.from("chatter_accounts").select("*").order("created_at")).data ?? [],
-  });
-  const { data: members = [] } = useQuery({
-    queryKey: ["team_members_all"],
-    queryFn: async () => (await supabase.from("team_members").select("id, name, role").order("name")).data ?? [],
   });
   const { data: models = [] } = useQuery({
     queryKey: ["models_list_chat"],
     queryFn: async () => (await supabase.from("models").select("id, name").order("name")).data ?? [],
   });
 
-  const memberMap = new Map(members.map((m: any) => [m.id, m.name]));
-  const modelMap = new Map(models.map((m: any) => [m.id, m.name]));
+  const chatterProfileIds = useMemo(
+    () => new Set((profilesLite as any[]).filter((p) => p.role === "chatter").map((p) => p.id)),
+    [profilesLite],
+  );
+  const chatterMembers = useMemo(
+    () => (members as any[]).filter((m) =>
+      (m.role_label && String(m.role_label).toLowerCase() === "chatter") ||
+      (m.profile_id && chatterProfileIds.has(m.profile_id)),
+    ),
+    [members, chatterProfileIds],
+  );
 
-  const toggleActive = useMutation({
-    mutationFn: async ({ id, val }: { id: string; val: boolean }) => {
-      const { error } = await supabase.from("chatter_accounts").update({ is_active: val }).eq("id", id);
+  const accountsByChatter = useMemo(() => {
+    const m = new Map<string, any[]>();
+    for (const a of accounts as any[]) {
+      if (!m.has(a.chatter_id)) m.set(a.chatter_id, []);
+      m.get(a.chatter_id)!.push(a);
+    }
+    return m;
+  }, [accounts]);
+
+  // Show blocks for: chatters with accounts + explicitly added
+  const visibleChatterIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const m of chatterMembers) {
+      if (accountsByChatter.has(m.id)) ids.add(m.id);
+    }
+    for (const id of extraChatterIds) ids.add(id);
+    return Array.from(ids);
+  }, [chatterMembers, accountsByChatter, extraChatterIds]);
+
+  const availableToAdd = chatterMembers.filter((m: any) => !visibleChatterIds.includes(m.id));
+
+  const deleteChatter = useMutation({
+    mutationFn: async (chatterId: string) => {
+      const { error: e1 } = await supabase.from("chatter_accounts").delete().eq("chatter_id", chatterId);
+      if (e1) throw e1;
+    },
+    onSuccess: (_d, chatterId) => {
+      toast.success("Чаттер удалён из настроек");
+      setExtraChatterIds((prev) => prev.filter((x) => x !== chatterId));
+      qc.invalidateQueries({ queryKey: ["chatter_accounts"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-8">
+      <section className="space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-sm font-semibold">Чаттеры и аккаунты</h2>
+          <div className="relative">
+            <button
+              onClick={() => setAddPickerOpen((v) => !v)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-teal text-primary-foreground text-sm font-medium"
+            >
+              <Plus className="h-4 w-4" /> Добавить чаттера
+            </button>
+            {addPickerOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setAddPickerOpen(false)} />
+                <div className="absolute right-0 mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-50 max-h-64 overflow-auto">
+                  {chatterMembers.length === 0 ? (
+                    <div className="p-3 text-xs text-text2">
+                      Сначала добавьте участника с ролью Chatter в разделе Команда
+                    </div>
+                  ) : availableToAdd.length === 0 ? (
+                    <div className="p-3 text-xs text-text2">Все чаттеры уже добавлены</div>
+                  ) : (
+                    availableToAdd.map((m: any) => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setExtraChatterIds((prev) => [...prev, m.id]);
+                          setAddPickerOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-bg2 text-sm border-b border-border last:border-b-0"
+                      >
+                        {m.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {visibleChatterIds.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-text2">
+            {chatterMembers.length === 0
+              ? "Сначала добавьте участника с ролью Chatter в разделе Команда"
+              : "Нажмите «Добавить чаттера» чтобы создать блок"}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {visibleChatterIds.map((cid) => {
+              const member = (members as any[]).find((m) => m.id === cid);
+              if (!member) return null;
+              return (
+                <ChatterBlock
+                  key={cid}
+                  member={member}
+                  accounts={accountsByChatter.get(cid) ?? []}
+                  models={models}
+                  onDelete={() => {
+                    if (confirm(`Удалить чаттера «${member.name}» и все его аккаунты?`)) {
+                      deleteChatter.mutate(cid);
+                    }
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <PeriodsSection />
+    </div>
+  );
+}
+
+function ChatterBlock({
+  member, accounts, models, onDelete,
+}: { member: any; accounts: any[]; models: any[]; onDelete: () => void }) {
+  const qc = useQueryClient();
+  const [expanded, setExpanded] = useState(true);
+  const [editName, setEditName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(member.name ?? "");
+  const [adding, setAdding] = useState(false);
+  const [newAcc, setNewAcc] = useState({ account_name: "", model_id: "", commission_pct: 25 });
+
+  useEffect(() => { setNameDraft(member.name ?? ""); }, [member.name]);
+
+  const initials = (member.name ?? "?")
+    .split(/\s+/).map((s: string) => s[0]).join("").slice(0, 2).toUpperCase();
+
+  const saveName = useMutation({
+    mutationFn: async (name: string) => {
+      const { error } = await supabase.from("team_members").update({ name }).eq("id", member.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Имя обновлено");
+      qc.invalidateQueries({ queryKey: ["team_members_all"] });
+      setEditName(false);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const updateAccount = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: any }) => {
+      const { error } = await supabase.from("chatter_accounts").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["chatter_accounts"] }),
@@ -361,232 +503,223 @@ function ChatterAccountsSection() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Аккаунты чаттеров</h2>
-        <button
-          onClick={() => { setEditing(null); setOpen(true); }}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-teal text-primary-foreground text-sm font-medium"
-        >
-          <Plus className="h-4 w-4" /> Добавить аккаунт
-        </button>
-      </div>
-
-      <div className="rounded-lg border border-border bg-card overflow-x-auto">
-        {accounts.length === 0 ? (
-          <div className="p-6 text-center text-text2 text-sm">Нет аккаунтов</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-bg2 text-text2 text-xs uppercase">
-              <tr>
-                <th className="text-left p-3">Аккаунт</th>
-                <th className="text-left p-3">Модель</th>
-                <th className="text-left p-3">Чаттер</th>
-                <th className="text-left p-3">Комиссия %</th>
-                <th className="text-left p-3">Статус</th>
-                <th className="text-right p-3">Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((a: any) => (
-                <tr key={a.id} className="border-t border-border">
-                  <td className="p-3 font-medium">{a.account_name}</td>
-                  <td className="p-3">{modelMap.get(a.model_id) ?? "—"}</td>
-                  <td className="p-3">{memberMap.get(a.chatter_id) ?? "—"}</td>
-                  <td className="p-3">{a.commission_pct}%</td>
-                  <td className="p-3">
-                    <label className="inline-flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={a.is_active}
-                        onChange={(e) => toggleActive.mutate({ id: a.id, val: e.target.checked })}
-                      />
-                      <span className={a.is_active ? "text-teal" : "text-text2"}>
-                        {a.is_active ? "Активен" : "Выключен"}
-                      </span>
-                    </label>
-                  </td>
-                  <td className="p-3 text-right space-x-2 whitespace-nowrap">
-                    <button
-                      onClick={() => { setEditing(a); setOpen(true); }}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded border border-border text-xs"
-                    >
-                      <Pencil className="h-3 w-3" /> Изменить
-                    </button>
-                    <button
-                      onClick={() => { if (confirm(`Удалить аккаунт "${a.account_name}"?`)) removeAccount.mutate(a.id); }}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded border border-border text-xs text-rose"
-                    >
-                      <Trash2 className="h-3 w-3" /> Удалить
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {open && (
-        <AccountModal
-          initial={editing}
-          members={members}
-          models={models}
-          onClose={() => { setOpen(false); setEditing(null); }}
-          onSaved={() => {
-            setOpen(false);
-            setEditing(null);
-            qc.invalidateQueries({ queryKey: ["chatter_accounts"] });
-            qc.invalidateQueries({ queryKey: ["team_members_all"] });
-          }}
-        />
-      )}
-    </section>
-  );
-}
-
-function AccountModal({
-  initial, members, models, onClose, onSaved,
-}: {
-  initial: any | null;
-  members: any[];
-  models: any[];
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [chatterId, setChatterId] = useState<string>(initial?.chatter_id ?? "");
-  const [newChatterName, setNewChatterName] = useState("");
-  const [modelId, setModelId] = useState<string>(initial?.model_id ?? "");
-  const [accountName, setAccountName] = useState<string>(initial?.account_name ?? "");
-  const [commission, setCommission] = useState<number>(initial?.commission_pct ?? 25);
-  const [isActive, setIsActive] = useState<boolean>(initial?.is_active ?? true);
-
-  const save = useMutation({
+  const addAccount = useMutation({
     mutationFn: async () => {
-      let finalChatterId = chatterId;
-
-      if (chatterId === "__new__") {
-        const name = newChatterName.trim();
-        if (!name) throw new Error("Введите имя чаттера");
-        const { data, error } = await supabase
-          .from("team_members")
-          .insert({ name, role: "va" } as any)
-          .select("id")
-          .single();
-        if (error) throw error;
-        finalChatterId = (data as any).id;
-      }
-
-      if (!finalChatterId) throw new Error("Выберите чаттера");
-      if (!modelId) throw new Error("Выберите модель");
-      if (!accountName.trim()) throw new Error("Укажите название аккаунта");
-
-      const payload = {
-        chatter_id: finalChatterId,
-        model_id: modelId,
-        account_name: accountName.trim(),
-        commission_pct: commission,
-        is_active: isActive,
-      };
-
-      if (initial) {
-        const { error } = await supabase.from("chatter_accounts").update(payload).eq("id", initial.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("chatter_accounts").insert(payload);
-        if (error) throw error;
-      }
+      if (!newAcc.account_name.trim()) throw new Error("Укажите название аккаунта");
+      if (!newAcc.model_id) throw new Error("Выберите модель");
+      const { error } = await supabase.from("chatter_accounts").insert({
+        chatter_id: member.id,
+        account_name: newAcc.account_name.trim(),
+        model_id: newAcc.model_id,
+        commission_pct: newAcc.commission_pct,
+        is_active: true,
+      });
+      if (error) throw error;
     },
-    onSuccess: () => { toast.success("Сохранено"); onSaved(); },
+    onSuccess: () => {
+      toast.success("Аккаунт добавлен");
+      setNewAcc({ account_name: "", model_id: "", commission_pct: 25 });
+      setAdding(false);
+      qc.invalidateQueries({ queryKey: ["chatter_accounts"] });
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
+  const modelMap = new Map(models.map((m: any) => [m.id, m.name]));
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-lg w-full max-w-md p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-base font-semibold">{initial ? "Изменить аккаунт" : "Новый аккаунт"}</h3>
-
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs text-text2 mb-1">Чаттер</label>
-            <select
-              value={chatterId}
-              onChange={(e) => setChatterId(e.target.value)}
-              className="w-full px-3 py-2 rounded bg-bg2 border border-border text-sm"
-            >
-              <option value="">— выберите —</option>
-              {members.map((m: any) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-              <option value="__new__">+ Новый чаттер…</option>
-            </select>
-            {chatterId === "__new__" && (
-              <input
-                value={newChatterName}
-                onChange={(e) => setNewChatterName(e.target.value)}
-                placeholder="Имя нового чаттера"
-                className="mt-2 w-full px-3 py-2 rounded bg-bg2 border border-border text-sm"
-              />
-            )}
-          </div>
-
-          <div>
-            <label className="block text-xs text-text2 mb-1">Модель</label>
-            <select
-              value={modelId}
-              onChange={(e) => setModelId(e.target.value)}
-              className="w-full px-3 py-2 rounded bg-bg2 border border-border text-sm"
-            >
-              <option value="">— выберите —</option>
-              {models.map((m: any) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs text-text2 mb-1">Название аккаунта</label>
-            <input
-              value={accountName}
-              onChange={(e) => setAccountName(e.target.value)}
-              placeholder="Temikmiufeet"
-              className="w-full px-3 py-2 rounded bg-bg2 border border-border text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-text2 mb-1">Комиссия %</label>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              value={commission}
-              onChange={(e) => setCommission(Number(e.target.value))}
-              className="w-full px-3 py-2 rounded bg-bg2 border border-border text-sm"
-            />
-          </div>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-            Активен
-          </label>
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="flex items-center gap-3 p-3 bg-bg2">
+        <button onClick={() => setExpanded((v) => !v)} className="text-text2 hover:text-text">
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+        <div className="h-8 w-8 rounded-full bg-teal/20 text-teal flex items-center justify-center text-xs font-semibold">
+          {initials}
         </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} className="px-3 py-1.5 rounded border border-border text-sm">Отмена</button>
-          <button
-            onClick={() => save.mutate()}
-            disabled={save.isPending}
-            className="px-3 py-1.5 rounded bg-teal text-primary-foreground text-sm font-medium disabled:opacity-50"
-          >
-            Сохранить
-          </button>
-        </div>
+        {editName ? (
+          <div className="flex items-center gap-2 flex-1">
+            <input
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              className="bg-bg3 border border-border rounded px-2 py-1 text-sm flex-1 max-w-xs"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && nameDraft.trim()) saveName.mutate(nameDraft.trim());
+                if (e.key === "Escape") { setEditName(false); setNameDraft(member.name ?? ""); }
+              }}
+            />
+            <button
+              onClick={() => nameDraft.trim() && saveName.mutate(nameDraft.trim())}
+              className="text-teal text-xs"
+            ><Check className="h-4 w-4" /></button>
+            <button onClick={() => { setEditName(false); setNameDraft(member.name ?? ""); }} className="text-text2">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <>
+            <span className="font-semibold text-sm">{member.name}</span>
+            <button onClick={() => setEditName(true)} className="text-text2 hover:text-text">
+              <Pencil className="h-3 w-3" />
+            </button>
+          </>
+        )}
+        <span className="ml-2 px-2 py-0.5 rounded text-[10px] font-medium bg-teal/20 text-teal uppercase">
+          Chatter
+        </span>
+        <span className="text-xs text-text2">{accounts.length} {accounts.length === 1 ? "аккаунт" : "аккаунтов"}</span>
+        <button
+          onClick={onDelete}
+          className="ml-auto text-text2 hover:text-rose"
+          title="Удалить чаттера"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
+
+      {expanded && (
+        <div className="p-3 space-y-3">
+          {accounts.length === 0 ? (
+            <div className="text-center text-sm text-text2 py-4">Нет аккаунтов</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-text2 text-xs uppercase">
+                  <tr>
+                    <th className="text-left p-2">Аккаунт</th>
+                    <th className="text-left p-2">Модель</th>
+                    <th className="text-left p-2">Комиссия %</th>
+                    <th className="text-left p-2">Статус</th>
+                    <th className="text-right p-2">Удалить</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accounts.map((a) => (
+                    <tr key={a.id} className="border-t border-border">
+                      <td className="p-2">
+                        <input
+                          defaultValue={a.account_name}
+                          key={`name-${a.id}-${a.account_name}`}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (v && v !== a.account_name) updateAccount.mutate({ id: a.id, patch: { account_name: v } });
+                          }}
+                          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-full"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <select
+                          defaultValue={a.model_id ?? ""}
+                          key={`model-${a.id}-${a.model_id}`}
+                          onChange={(e) => updateAccount.mutate({ id: a.id, patch: { model_id: e.target.value } })}
+                          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-full"
+                        >
+                          <option value="">— модель —</option>
+                          {models.map((m: any) => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          defaultValue={a.commission_pct}
+                          key={`pct-${a.id}-${a.commission_pct}`}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value);
+                            if (!Number.isNaN(v) && v !== a.commission_pct) {
+                              updateAccount.mutate({ id: a.id, patch: { commission_pct: v } });
+                            }
+                          }}
+                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-20"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
+                          <input
+                            type="checkbox"
+                            checked={a.is_active}
+                            onChange={(e) => updateAccount.mutate({ id: a.id, patch: { is_active: e.target.checked } })}
+                          />
+                          <span className={a.is_active ? "text-teal" : "text-text2"}>
+                            {a.is_active ? "Активен" : "Неактивен"}
+                          </span>
+                        </label>
+                      </td>
+                      <td className="p-2 text-right">
+                        <button
+                          onClick={() => { if (confirm(`Удалить аккаунт "${a.account_name}"?`)) removeAccount.mutate(a.id); }}
+                          className="text-text2 hover:text-rose"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {adding ? (
+            <div className="flex flex-wrap items-center gap-2 p-2 border border-border rounded-lg bg-bg2">
+              <input
+                value={newAcc.account_name}
+                onChange={(e) => setNewAcc({ ...newAcc, account_name: e.target.value })}
+                placeholder="Название аккаунта"
+                className="bg-bg3 border border-border rounded px-2 py-1.5 text-sm flex-1 min-w-[160px]"
+                autoFocus
+              />
+              <select
+                value={newAcc.model_id}
+                onChange={(e) => setNewAcc({ ...newAcc, model_id: e.target.value })}
+                className="bg-bg3 border border-border rounded px-2 py-1.5 text-sm"
+              >
+                <option value="">— модель —</option>
+                {models.map((m: any) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={newAcc.commission_pct}
+                onChange={(e) => setNewAcc({ ...newAcc, commission_pct: Number(e.target.value) })}
+                placeholder="%"
+                className="bg-bg3 border border-border rounded px-2 py-1.5 text-sm w-20"
+              />
+              <button
+                onClick={() => addAccount.mutate()}
+                disabled={addAccount.isPending}
+                className="px-3 py-1.5 rounded bg-teal text-primary-foreground text-sm font-medium disabled:opacity-50"
+              >
+                Сохранить
+              </button>
+              <button
+                onClick={() => { setAdding(false); setNewAcc({ account_name: "", model_id: "", commission_pct: 25 }); }}
+                className="px-3 py-1.5 rounded border border-border text-sm"
+              >
+                Отмена
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAdding(true)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded border border-border text-sm hover:bg-bg2"
+            >
+              <Plus className="h-4 w-4" /> Добавить аккаунт
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
 
 /* ===================== Periods ===================== */
 
