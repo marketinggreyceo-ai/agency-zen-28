@@ -68,7 +68,7 @@ function Page() {
   const { data: profiles = [] } = useQuery({
     queryKey: ["profiles_lite"],
     queryFn: async () => (
-      (await supabase.from("profiles").select("id, email, role, full_name")).data ?? []
+      (await supabase.from("profiles").select("id, email, role, full_name, status")).data ?? []
     ) as ProfileLite[],
   });
   const profileById = useMemo(() => {
