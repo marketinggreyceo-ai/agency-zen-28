@@ -937,15 +937,6 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
         })
       )}
 
-      {addOpen && (
-        <AccountModal
-          initial={null}
-          members={members}
-          models={models}
-          onClose={() => setAddOpen(false)}
-          onSaved={() => setAddOpen(false)}
-        />
-      )}
     </div>
   );
 }
