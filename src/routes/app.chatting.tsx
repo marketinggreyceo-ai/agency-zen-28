@@ -782,7 +782,7 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
   const [year, setYear] = useState<number>(initialPeriod?.year ?? now.getFullYear());
   const [month, setMonth] = useState<number>(initialPeriod?.month ?? now.getMonth() + 1);
   const [period, setPeriod] = useState<"1-15" | "16-30">(initialPeriod?.period ?? currentPeriod());
-  const [addOpen, setAddOpen] = useState(false);
+  
 
   useEffect(() => {
     if (initialPeriod) {
