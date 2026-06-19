@@ -1051,7 +1051,7 @@ function ChatterSalesTable({
           )}
           {isOwner && isPaid && (
             <button
-              onClick={() => { if (confirm("Разблокировать период? Авто-расход в Финансах тоже будет удалён.")) reopenPeriod.mutate(); }}
+              onClick={() => { if (confirm("Разблокировать период?")) reopenPeriod.mutate(); }}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded border border-amber-500 text-amber-500 text-xs font-medium"
             >
               <Lock className="h-3 w-3" /> Разблокировать
