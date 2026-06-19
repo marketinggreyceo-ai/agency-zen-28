@@ -25,8 +25,18 @@ const RU_MONTHS_SHORT = [
   "июл", "авг", "сен", "окт", "ноя", "дек",
 ];
 
-export function periodLabel(period: string, month: number) {
-  return `${period} ${RU_MONTHS_GENITIVE[month - 1] ?? ""}`.trim();
+export function periodLabel(period: string, month: number, year?: number) {
+  const monthName = RU_MONTHS_GENITIVE[month - 1] ?? "";
+  if (period !== "1-15" && year != null) {
+    const last = new Date(year, month, 0).getDate();
+    return `16-${last} ${monthName}`.trim();
+  }
+  if (period !== "1-15") {
+    // fallback when year unknown — use non-leap default for the month
+    const last = new Date(2025, month, 0).getDate();
+    return `16-${last} ${monthName}`.trim();
+  }
+  return `${period} ${monthName}`.trim();
 }
 
 function daysInMonth(year: number, month: number) {
