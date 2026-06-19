@@ -863,43 +863,42 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
     return s;
   }, [accounts]);
 
-  // Chatter candidates: team_members with role_label "Chatter" OR linked to a profile with role "chatter"
-  const chatterProfileIds = useMemo(
-    () => new Set((profilesLite as any[]).filter((p) => p.role === "chatter").map((p) => p.id)),
+  // Chatter candidates = profiles with role='chatter' (strict)
+  const chatterProfiles = useMemo(
+    () => (profilesLite as any[]).filter((p) => p.role === "chatter"),
     [profilesLite],
   );
-  const chatterMembers = useMemo(() => {
-    return (members as any[]).filter((m) =>
-      (m.role_label && String(m.role_label).toLowerCase() === "chatter") ||
-      (m.profile_id && chatterProfileIds.has(m.profile_id)),
-    );
-  }, [members, chatterProfileIds]);
+
+  // Profile id -> team_members row (legacy chatter_id link)
+  const memberByProfileId = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const tm of members as any[]) if (tm.profile_id) m.set(tm.profile_id, tm);
+    return m;
+  }, [members]);
+
+  // Active chatter profile ids: those with at least one active account
+  const activeChatterProfileIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of accounts as any[]) if (a.is_active && a.chatter_profile_id) s.add(a.chatter_profile_id);
+    return s;
+  }, [accounts]);
 
   const [ownerSelectedChatter, setOwnerSelectedChatter] = useState<string>("");
   useEffect(() => {
     if (!isOwner) return;
-    if (ownerSelectedChatter && chatterMembers.some((m: any) => m.id === ownerSelectedChatter)) return;
-    const first = chatterMembers.find((m: any) => activeChatterIds.has(m.id)) ?? chatterMembers[0];
+    if (ownerSelectedChatter && chatterProfiles.some((p: any) => p.id === ownerSelectedChatter)) return;
+    const first = chatterProfiles.find((p: any) => activeChatterProfileIds.has(p.id)) ?? chatterProfiles[0];
     if (first) setOwnerSelectedChatter(first.id);
-  }, [isOwner, chatterMembers, activeChatterIds, ownerSelectedChatter]);
+  }, [isOwner, chatterProfiles, activeChatterProfileIds, ownerSelectedChatter]);
 
-  let visibleChatterIds: string[];
+  let visibleProfileIds: string[];
   let chatterNoMatch = false;
   if (isOwner) {
-    visibleChatterIds = ownerSelectedChatter ? [ownerSelectedChatter] : [];
+    visibleProfileIds = ownerSelectedChatter ? [ownerSelectedChatter] : [];
   } else {
-    // Match in priority order: profile_id → telegram_handle → assignee_name → name
-    const tg = (profile?.telegram_handle ?? "").toLowerCase().replace(/^@/, "");
-    const me = (members as any[]).find((m) => {
-      if (profile?.id && m.profile_id === profile.id) return true;
-      if (tg && m.telegram_handle && String(m.telegram_handle).toLowerCase().replace(/^@/, "") === tg) return true;
-      if (profile?.assignee_name && m.assignee_name && String(m.assignee_name).toLowerCase() === String(profile.assignee_name).toLowerCase()) return true;
-      if (profile?.assignee_name && m.name && String(m.name).toLowerCase() === String(profile.assignee_name).toLowerCase()) return true;
-      if (profile?.full_name && m.name && String(m.name).toLowerCase() === String(profile.full_name).toLowerCase()) return true;
-      return false;
-    });
-    visibleChatterIds = me ? [me.id] : [];
-    chatterNoMatch = !me || !activeChatterIds.has(me.id);
+    // STRICT: chatter sees their own accounts by profile_id = auth.uid()
+    visibleProfileIds = profile?.id ? [profile.id] : [];
+    chatterNoMatch = !profile?.id || !activeChatterProfileIds.has(profile.id);
   }
 
 
@@ -943,10 +942,10 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
               onChange={(e) => setOwnerSelectedChatter(e.target.value)}
               className="bg-bg3 border border-border rounded px-2 py-1.5 text-sm"
             >
-              {chatterMembers.length === 0 && <option value="">Нет чаттеров</option>}
-              {chatterMembers.map((m: any) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}{activeChatterIds.has(m.id) ? "" : " (без аккаунтов)"}
+              {chatterProfiles.length === 0 && <option value="">Нет чаттеров</option>}
+              {chatterProfiles.map((p: any) => (
+                <option key={p.id} value={p.id}>
+                  {p.full_name ?? "(без имени)"}{activeChatterProfileIds.has(p.id) ? "" : " (без аккаунтов)"}
                 </option>
               ))}
             </select>
@@ -954,24 +953,27 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
         )}
       </div>
 
-      {visibleChatterIds.length === 0 || (isOwner && !activeChatterIds.has(ownerSelectedChatter)) ? (
+      {visibleProfileIds.length === 0 || (isOwner && !activeChatterProfileIds.has(ownerSelectedChatter)) ? (
         <Empty message={
           isOwner
-            ? (chatterMembers.length === 0
-                ? "Нет чаттеров. Добавьте участника с ролью Chatter на странице Команда."
+            ? (chatterProfiles.length === 0
+                ? "Нет чаттеров. Назначьте роль Chatter участнику на странице Команда."
                 : "У этого чаттера ещё нет активных аккаунтов. Добавьте их в Настройках.")
             : (chatterNoMatch
-                ? "Обратитесь к администратору для назначения аккаунтов"
+                ? "Для вас пока нет назначенных аккаунтов. Обратитесь к администратору."
                 : "Для вас пока нет назначенных аккаунтов.")
         } />
       ) : (
-        visibleChatterIds.map((cid) => {
-          const chatter = members.find((m: any) => m.id === cid);
-          const chatterAccounts = (accounts as any[]).filter((a) => a.chatter_id === cid && a.is_active);
+        visibleProfileIds.map((pid) => {
+          const prof = chatterProfiles.find((p: any) => p.id === pid)
+            ?? (profile?.id === pid ? { id: pid, full_name: profile.full_name } : { id: pid, full_name: "Чаттер" });
+          const tm = memberByProfileId.get(pid);
+          const chatterLike = tm ?? { id: null, name: prof.full_name, profile_id: pid };
+          const chatterAccounts = (accounts as any[]).filter((a) => a.chatter_profile_id === pid && a.is_active);
           return (
             <ChatterSalesTable
-              key={cid}
-              chatter={chatter}
+              key={pid}
+              chatter={chatterLike}
               accounts={chatterAccounts}
               models={models}
               period={period}
@@ -987,6 +989,7 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
     </div>
   );
 }
+
 
 function ChatterSalesTable({
   chatter, accounts, models, period, month, year, isOwner, todayStr,
