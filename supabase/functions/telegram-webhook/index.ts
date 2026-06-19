@@ -49,26 +49,30 @@ function parseTaskMessage(text: string) {
 }
 
 function parseCustomMessage(text: string) {
-  const tag = text.match(/#кастом[^\S\r\n]*([\s\S]*)/i);
-  if (!tag) return null;
-  const body = tag[1].trim();
-  if (!body) return null;
-  // First token: if starts with @ → model token. Else → customer nickname.
-  const tokens = body.split(/\s+/);
-  let modelToken: string | null = null;
-  let nickname = "";
-  let rest = body;
-  if (tokens[0]?.startsWith("@")) {
-    modelToken = tokens[0].replace(/^@/, "");
-    nickname = (tokens[1] ?? "").replace(/^@/, "");
-    rest = tokens.slice(2).join(" ");
-  } else {
-    nickname = tokens[0]?.replace(/^@/, "") ?? "";
-    rest = tokens.slice(1).join(" ");
+  if (!/#кастом/i.test(text)) return null;
+  // First @mention anywhere in text → model token
+  const mentionMatch = text.match(/@([\p{L}\p{N}_.-]+)/u);
+  const modelToken = mentionMatch ? mentionMatch[1] : null;
+
+  // Description = full message minus #кастом tag and the @mention token, preserve line breaks
+  let description = text.replace(/#кастом/gi, "");
+  if (mentionMatch) {
+    description = description.replace(mentionMatch[0], "");
   }
-  const description = rest.trim() || body;
-  return { description, nickname, modelToken };
+  // Trim leading/trailing whitespace per line, drop redundant blank lines, but preserve breaks
+  description = description.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+
+  // Price: $ followed by digits (allow commas/dots)
+  const priceMatch = text.match(/\$\s*([0-9][0-9.,]*)/);
+  const price = priceMatch ? Number(priceMatch[1].replace(/,/g, "")) : null;
+
+  // Customer nickname: "Fan name: xxx"
+  const fanMatch = text.match(/fan\s*name\s*:\s*([^\n\r]+)/i);
+  const nickname = fanMatch ? fanMatch[1].trim() : "";
+
+  return { description: description || text.trim(), nickname, modelToken, price };
 }
+
 
 async function findModel(text: string, explicitToken?: string | null) {
   const { data: models } = await admin
