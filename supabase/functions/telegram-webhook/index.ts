@@ -49,26 +49,30 @@ function parseTaskMessage(text: string) {
 }
 
 function parseCustomMessage(text: string) {
-  const tag = text.match(/#кастом[^\S\r\n]*([\s\S]*)/i);
-  if (!tag) return null;
-  const body = tag[1].trim();
-  if (!body) return null;
-  // First token: if starts with @ → model token. Else → customer nickname.
-  const tokens = body.split(/\s+/);
-  let modelToken: string | null = null;
-  let nickname = "";
-  let rest = body;
-  if (tokens[0]?.startsWith("@")) {
-    modelToken = tokens[0].replace(/^@/, "");
-    nickname = (tokens[1] ?? "").replace(/^@/, "");
-    rest = tokens.slice(2).join(" ");
-  } else {
-    nickname = tokens[0]?.replace(/^@/, "") ?? "";
-    rest = tokens.slice(1).join(" ");
+  if (!/#кастом/i.test(text)) return null;
+  // First @mention anywhere in text → model token
+  const mentionMatch = text.match(/@([\p{L}\p{N}_.-]+)/u);
+  const modelToken = mentionMatch ? mentionMatch[1] : null;
+
+  // Description = full message minus #кастом tag and the @mention token, preserve line breaks
+  let description = text.replace(/#кастом/gi, "");
+  if (mentionMatch) {
+    description = description.replace(mentionMatch[0], "");
   }
-  const description = rest.trim() || body;
-  return { description, nickname, modelToken };
+  // Trim leading/trailing whitespace per line, drop redundant blank lines, but preserve breaks
+  description = description.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+
+  // Price: $ followed by digits (allow commas/dots)
+  const priceMatch = text.match(/\$\s*([0-9][0-9.,]*)/);
+  const price = priceMatch ? Number(priceMatch[1].replace(/,/g, "")) : null;
+
+  // Customer nickname: "Fan name: xxx"
+  const fanMatch = text.match(/fan\s*name\s*:\s*([^\n\r]+)/i);
+  const nickname = fanMatch ? fanMatch[1].trim() : "";
+
+  return { description: description || text.trim(), nickname, modelToken, price };
 }
+
 
 async function findModel(text: string, explicitToken?: string | null) {
   const { data: models } = await admin
@@ -245,21 +249,22 @@ Deno.serve(async (req) => {
     const botToken: string | null = settings?.bot_token ?? null;
 
     if (/#кастом/i.test(text)) {
-      const parsed = parseCustomMessage(text);
-      if (!parsed) throw new Error("Не удалось распознать #кастом");
+      const parsed = parseCustomMessage(text) ?? { description: text, nickname: "", modelToken: null, price: null };
 
-      const model = await findModel(text, parsed.modelToken);
+      const model = parsed.modelToken ? await findModel(text, parsed.modelToken) : await findModel(text);
       const senderName =
         [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") ||
         msg.from?.username || chatTitle;
       const chatter = await resolveChatter(msg.from?.username ?? null, senderName);
+      const customerNickname = parsed.nickname || "Не указан";
       const unmatchedNote = !model && parsed.modelToken
         ? `Модель из Telegram (не распознана): @${parsed.modelToken}`
         : null;
       const { error } = await admin.from("customs").insert({
-        customer_nickname: parsed.nickname || senderName,
+        customer_nickname: customerNickname,
         description: parsed.description,
         model_id: model?.id ?? null,
+        price: parsed.price,
         chatter,
         status: "new",
         notes: unmatchedNote,
@@ -270,11 +275,13 @@ Deno.serve(async (req) => {
 
       await writeLog({ chat_id: chatId, message_text: text, parsed_action: "custom", success: true });
       if (botToken) {
+        const preview = parsed.description.slice(0, 100);
         await sendMessage(botToken, chat.id,
-          `✅ Кастом добавлен: ${parsed.description}\n\n🎭 Модель: ${model?.name ?? (parsed.modelToken ? `не распознана (@${parsed.modelToken})` : "не указана")}\n👤 Чаттер: ${chatter}\n\n📋 Статус: Новый`);
+          `✅ Кастом добавлен\n\n🎭 Модель: ${model?.name ?? (parsed.modelToken ? `не распознана (@${parsed.modelToken})` : "не указана")}\n💰 Цена: ${parsed.price != null ? `$${parsed.price}` : "не указана"}\n👤 Клиент: ${customerNickname}\n📋 Статус: Новый\n\n${preview}${parsed.description.length > 100 ? "..." : ""}`);
       }
       return Response.json({ ok: true, type: "custom" });
     }
+
 
     if (/#задача/i.test(text)) {
       if (!settings?.auto_tasks_enabled) {
