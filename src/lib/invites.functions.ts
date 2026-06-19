@@ -34,6 +34,28 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
       .from("team_members").select("*").eq("id", data.team_member_id).single();
     if (tmErr || !tm) throw new Error("Участник не найден");
 
+    // Check if a user with this email already exists.
+    const { data: list } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    const existing = list?.users.find((x: any) => x.email?.toLowerCase() === data.email.toLowerCase());
+
+    if (existing) {
+      // Link team_member to existing profile and assign new role; no invite email.
+      await supabaseAdmin.from("profiles")
+        .update({ role: data.role, invited_role: data.role })
+        .eq("id", existing.id);
+      await supabaseAdmin.from("team_members").update({
+        profile_id: existing.id,
+        invited_at: null,
+        invite_email: null,
+      }).eq("id", data.team_member_id);
+      return {
+        id: existing.id,
+        email: existing.email,
+        action_link: null as string | null,
+        already_existed: true,
+      };
+    }
+
     // Generate the invite link (also creates the auth user in invited state).
     const redirectTo = (process.env.SITE_URL || "") + "/auth";
     const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
@@ -50,7 +72,6 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
       },
     });
     if (linkErr) {
-      // If user already exists in invited state, fall back to inviteUserByEmail
       const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin
         .inviteUserByEmail(data.email, { data: { role: data.role } });
       if (inviteErr) throw new Error(linkErr.message || inviteErr.message);
@@ -58,7 +79,7 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
         invited_at: new Date().toISOString(),
         invite_email: data.email,
       }).eq("id", data.team_member_id);
-      return { id: invited.user?.id, email: invited.user?.email, action_link: null as string | null };
+      return { id: invited.user?.id, email: invited.user?.email, action_link: null as string | null, already_existed: false };
     }
 
     await supabaseAdmin.from("team_members").update({
@@ -70,6 +91,7 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
       id: link.user?.id,
       email: data.email,
       action_link: link.properties?.action_link ?? null,
+      already_existed: false,
     };
   });
 
