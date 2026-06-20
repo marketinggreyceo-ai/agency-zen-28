@@ -335,11 +335,11 @@ function SettingsTab() {
     queryFn: async () => (await supabase.from("models").select("id, name").order("name")).data ?? [],
   });
 
-  // STRICT: chatter candidates = profiles with role='chatter' (single source of truth)
-  const chatterProfiles = useMemo(
-    () => (profilesLite as any[]).filter((p) => p.role === "chatter"),
-    [profilesLite],
-  );
+  // Chatter candidates = profiles with role='chatter' OR any profile that has accounts
+  const chatterProfiles = useMemo(() => {
+    const profilesWithAccounts = new Set((accounts as any[]).map((a: any) => a.chatter_profile_id).filter(Boolean));
+    return (profilesLite as any[]).filter((p) => p.role === "chatter" || profilesWithAccounts.has(p.id));
+  }, [profilesLite, accounts]);
 
   // For each chatter profile, find (or imply) a team_members row used as chatter_id
   const memberByProfileId = useMemo(() => {
