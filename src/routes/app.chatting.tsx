@@ -1001,7 +1001,7 @@ function ChatterSalesTable({
   const commissionPct = accounts[0]?.commission_pct ?? 25;
 
   const { data: sales = [] } = useQuery({
-    queryKey: ["chatter_daily_sales", chatter?.id, period, month, year],
+    queryKey: ["chatter_daily_sales", chatter?.profile_id ?? chatter?.id, period, month, year],
     queryFn: async () => {
       const accountIds = accounts.map((a) => a.id);
       if (accountIds.length === 0) return [];
@@ -1046,7 +1046,6 @@ function ChatterSalesTable({
     mutationFn: async ({ accountId, day, amount }: { accountId: string; day: number; amount: number }) => {
       const sale_date = dateStr(year, month, day);
       if (amount === 0) {
-        // Delete row if zero to keep clean
         const { error } = await supabase
           .from("chatter_daily_sales")
           .delete()
@@ -1055,21 +1054,24 @@ function ChatterSalesTable({
         if (error) throw error;
         return;
       }
+      const profileId = chatter?.profile_id ?? null;
+      const payload: any = {
+        chatter_account_id: accountId,
+        chatter_id: chatter?.id ?? null,
+        chatter_profile_id: profileId,
+        sale_date,
+        amount: Math.round(amount * 100) / 100,
+        month,
+        year,
+        period,
+      };
       const { error } = await supabase
         .from("chatter_daily_sales")
-        .upsert({
-          chatter_account_id: accountId,
-          chatter_id: chatter.id,
-          sale_date,
-          amount,
-          month,
-          year,
-          period,
-        }, { onConflict: "chatter_account_id,sale_date" });
+        .upsert(payload, { onConflict: "chatter_account_id,sale_date" });
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["chatter_daily_sales", chatter?.id] });
+      qc.invalidateQueries({ queryKey: ["chatter_daily_sales"] });
       qc.invalidateQueries({ queryKey: ["chatter_period", chatter?.id] });
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
