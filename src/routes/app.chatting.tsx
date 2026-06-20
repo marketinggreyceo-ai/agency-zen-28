@@ -53,6 +53,9 @@ function dateStr(year: number, month: number, day: number) {
 function currentPeriod(): "1-15" | "16-30" {
   return new Date().getDate() <= 15 ? "1-15" : "16-30";
 }
+function fmtMoney(n: number) {
+  return `$${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 function Page() {
   const { data: profile } = useProfile();
