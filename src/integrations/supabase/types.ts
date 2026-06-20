@@ -207,7 +207,8 @@ export type Database = {
       }
       chatter_periods: {
         Row: {
-          chatter_id: string
+          chatter_id: string | null
+          chatter_profile_id: string | null
           commission_amount: number
           commission_pct: number
           created_at: string
@@ -222,7 +223,8 @@ export type Database = {
           year: number
         }
         Insert: {
-          chatter_id: string
+          chatter_id?: string | null
+          chatter_profile_id?: string | null
           commission_amount?: number
           commission_pct?: number
           created_at?: string
@@ -237,7 +239,8 @@ export type Database = {
           year: number
         }
         Update: {
-          chatter_id?: string
+          chatter_id?: string | null
+          chatter_profile_id?: string | null
           commission_amount?: number
           commission_pct?: number
           created_at?: string
@@ -257,6 +260,13 @@ export type Database = {
             columns: ["chatter_id"]
             isOneToOne: false
             referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_periods_chatter_profile_id_fkey"
+            columns: ["chatter_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
