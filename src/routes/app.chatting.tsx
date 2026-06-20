@@ -268,8 +268,8 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
                     <td className="p-3 text-text2 max-w-[200px] truncate" title={accs.map((a) => a.account_name).join(", ")}>
                       {accs.length === 0 ? "—" : accs.map((a) => a.account_name).join(", ")}
                     </td>
-                    <td className="p-3 text-right">${Math.round(Number(p.total_sales)).toLocaleString()}</td>
-                    <td className="p-3 text-right text-green">${Math.round(Number(p.commission_amount)).toLocaleString()}</td>
+                    <td className="p-3 text-right">{fmtMoney(Number(p.total_sales))}</td>
+                    <td className="p-3 text-right text-green">{fmtMoney(Number(p.commission_amount))}</td>
                     <td className="p-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                         p.status === "paid" ? "bg-green/20 text-green" : "bg-amber-500/20 text-amber-500"
