@@ -919,10 +919,16 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
 
 
 
-  // Chatter candidates = profiles with role='chatter' (strict)
+  // Chatter candidates = profiles with role='chatter' OR profiles that have chatter accounts
+  const chatterProfileIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const a of accounts as any[]) if (a.chatter_profile_id) s.add(a.chatter_profile_id);
+    return s;
+  }, [accounts]);
+
   const chatterProfiles = useMemo(
-    () => (profilesLite as any[]).filter((p) => p.role === "chatter"),
-    [profilesLite],
+    () => (profilesLite as any[]).filter((p) => p.role === "chatter" || chatterProfileIds.has(p.id)),
+    [profilesLite, chatterProfileIds],
   );
 
   // Profile id -> team_members row (legacy chatter_id link)
@@ -952,9 +958,13 @@ function SalesTab({ isOwner, profile, initialPeriod }: { isOwner: boolean; profi
   if (isOwner) {
     visibleProfileIds = ownerSelectedChatter ? [ownerSelectedChatter] : [];
   } else {
-    // STRICT: chatter sees their own accounts by profile_id = auth.uid()
+    // Chatter sees their own accounts by profile_id = auth.uid()
+    // Also check if they have accounts directly (even if not in activeChatterProfileIds yet)
+    const hasDirectAccounts = profile?.id 
+      ? (accounts as any[]).some((a) => a.chatter_profile_id === profile.id && a.is_active)
+      : false;
     visibleProfileIds = profile?.id ? [profile.id] : [];
-    chatterNoMatch = !profile?.id || !activeChatterProfileIds.has(profile.id);
+    chatterNoMatch = !profile?.id || (!activeChatterProfileIds.has(profile.id) && !hasDirectAccounts);
   }
 
 
@@ -1075,19 +1085,20 @@ function ChatterSalesTable({
     enabled: accounts.length > 0,
   });
   const { data: periodRow } = useQuery({
-    queryKey: ["chatter_period", chatter?.id, period, month, year],
+    queryKey: ["chatter_period", chatter?.id, chatter?.profile_id, period, month, year],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("chatter_periods")
-        .select("*")
-        .eq("chatter_id", chatter.id)
-        .eq("period", period)
-        .eq("month", month)
-        .eq("year", year)
-        .maybeSingle();
+      let query = supabase.from("chatter_periods").select("*").eq("period", period).eq("month", month).eq("year", year);
+      if (chatter?.id) {
+        query = query.eq("chatter_id", chatter.id);
+      } else if (chatter?.profile_id) {
+        query = query.eq("chatter_profile_id", chatter.profile_id);
+      } else {
+        return null;
+      }
+      const { data } = await query.maybeSingle();
       return data;
     },
-    enabled: !!chatter?.id,
+    enabled: !!(chatter?.id || chatter?.profile_id),
   });
 
   // Build cell lookup: key = `${accountId}|${day}` -> amount
@@ -1156,13 +1167,16 @@ function ChatterSalesTable({
       // Ensure period row exists
       let pid = periodRow?.id;
       if (!pid) {
+        const insertPayload: any = {
+          period, month, year,
+          total_sales: grandTotal, commission_pct: commissionPct,
+          commission_amount: totalCommission, status: "pending",
+        };
+        if (chatter?.id) insertPayload.chatter_id = chatter.id;
+        if (chatter?.profile_id) insertPayload.chatter_profile_id = chatter.profile_id;
         const { data, error } = await supabase
           .from("chatter_periods")
-          .insert({
-            chatter_id: chatter.id, period, month, year,
-            total_sales: grandTotal, commission_pct: commissionPct,
-            commission_amount: totalCommission, status: "pending",
-          } as any)
+          .insert(insertPayload)
           .select("id")
           .single();
         if (error) throw error;
