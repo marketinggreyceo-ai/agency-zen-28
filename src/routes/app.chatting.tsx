@@ -616,98 +616,14 @@ function ChatterBlock({
                 </thead>
                 <tbody>
                   {accounts.map((a) => (
-                    <tr key={a.id} className="border-t border-border">
-                      <td className="p-2">
-                        <input
-                          defaultValue={a.account_name}
-                          key={`name-${a.id}-${a.account_name}`}
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            if (v && v !== a.account_name) updateAccount.mutate({ id: a.id, patch: { account_name: v } });
-                          }}
-                          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-full"
-                        />
-                      </td>
-                      <td className="p-2">
-                        <select
-                          defaultValue={a.model_id ?? ""}
-                          key={`model-${a.id}-${a.model_id}`}
-                          onChange={(e) => updateAccount.mutate({ id: a.id, patch: { model_id: e.target.value } })}
-                          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-full"
-                        >
-                          <option value="">— модель —</option>
-                          {models.map((m: any) => (
-                            <option key={m.id} value={m.id}>{m.name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-2">
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          defaultValue={a.commission_pct}
-                          key={`pct-${a.id}-${a.commission_pct}`}
-                          onBlur={(e) => {
-                            const v = Number(e.target.value);
-                            if (!Number.isNaN(v) && v !== a.commission_pct) {
-                              updateAccount.mutate({ id: a.id, patch: { commission_pct: v } });
-                            }
-                          }}
-                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-20"
-                        />
-                      </td>
-                      <td className="p-2">
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="time"
-                            defaultValue={(a as any).work_hours_start ?? ""}
-                            key={`whs-${a.id}-${(a as any).work_hours_start ?? ""}`}
-                            onBlur={(e) => {
-                              const v = e.target.value || null;
-                              if (v !== ((a as any).work_hours_start ?? null)) {
-                                updateAccount.mutate({ id: a.id, patch: { work_hours_start: v } as any });
-                              }
-                            }}
-                            className="bg-bg3 border border-border rounded px-1.5 py-1 text-xs w-[90px]"
-                          />
-                          <span className="text-text2 text-xs">—</span>
-                          <input
-                            type="time"
-                            defaultValue={(a as any).work_hours_end ?? ""}
-                            key={`whe-${a.id}-${(a as any).work_hours_end ?? ""}`}
-                            onBlur={(e) => {
-                              const v = e.target.value || null;
-                              if (v !== ((a as any).work_hours_end ?? null)) {
-                                updateAccount.mutate({ id: a.id, patch: { work_hours_end: v } as any });
-                              }
-                            }}
-                            className="bg-bg3 border border-border rounded px-1.5 py-1 text-xs w-[90px]"
-                          />
-                        </div>
-                      </td>
-                      <td className="p-2">
-                        <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
-                          <input
-                            type="checkbox"
-                            checked={a.is_active}
-                            onChange={(e) => updateAccount.mutate({ id: a.id, patch: { is_active: e.target.checked } })}
-                          />
-                          <span className={a.is_active ? "text-teal" : "text-text2"}>
-                            {a.is_active ? "Активен" : "Неактивен"}
-                          </span>
-                        </label>
-                      </td>
-                      <td className="p-2 text-right">
-                        <button
-                          onClick={() => { if (confirm(`Удалить аккаунт "${a.account_name}"?`)) removeAccount.mutate(a.id); }}
-                          className="text-text2 hover:text-rose"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
+                    <AccountRow
+                      key={a.id}
+                      account={a}
+                      models={models}
+                      onSave={(patch) => updateAccount.mutateAsync({ id: a.id, patch })}
+                      onToggleActive={(v) => updateAccount.mutate({ id: a.id, patch: { is_active: v } })}
+                      onDelete={() => { if (confirm(`Удалить аккаунт "${a.account_name}"?`)) removeAccount.mutate(a.id); }}
+                    />
                   ))}
                 </tbody>
               </table>
