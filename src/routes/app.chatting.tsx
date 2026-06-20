@@ -687,6 +687,148 @@ function ChatterBlock({
 }
 
 
+function AccountRow({
+  account, models, onSave, onToggleActive, onDelete,
+}: {
+  account: any;
+  models: any[];
+  onSave: (patch: any) => Promise<any>;
+  onToggleActive: (v: boolean) => void;
+  onDelete: () => void;
+}) {
+  const initial = {
+    account_name: account.account_name ?? "",
+    model_id: account.model_id ?? "",
+    commission_pct: account.commission_pct ?? 25,
+    work_hours_start: (account as any).work_hours_start ?? "",
+    work_hours_end: (account as any).work_hours_end ?? "",
+  };
+  const [draft, setDraft] = useState(initial);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft({
+      account_name: account.account_name ?? "",
+      model_id: account.model_id ?? "",
+      commission_pct: account.commission_pct ?? 25,
+      work_hours_start: (account as any).work_hours_start ?? "",
+      work_hours_end: (account as any).work_hours_end ?? "",
+    });
+  }, [account.id, account.account_name, account.model_id, account.commission_pct, (account as any).work_hours_start, (account as any).work_hours_end]);
+
+  const dirty =
+    draft.account_name.trim() !== (account.account_name ?? "") ||
+    (draft.model_id || "") !== (account.model_id ?? "") ||
+    Number(draft.commission_pct) !== Number(account.commission_pct ?? 25) ||
+    (draft.work_hours_start || "") !== ((account as any).work_hours_start ?? "") ||
+    (draft.work_hours_end || "") !== ((account as any).work_hours_end ?? "");
+
+  async function save() {
+    if (!dirty || saving) return;
+    if (!draft.account_name.trim()) { toast.error("Укажите название аккаунта"); return; }
+    setSaving(true);
+    try {
+      await onSave({
+        account_name: draft.account_name.trim(),
+        model_id: draft.model_id || null,
+        commission_pct: Number(draft.commission_pct) || 0,
+        work_hours_start: draft.work_hours_start || null,
+        work_hours_end: draft.work_hours_end || null,
+      });
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <tr className="border-t border-border">
+      <td className="p-2">
+        <input
+          value={draft.account_name}
+          onChange={(e) => setDraft({ ...draft, account_name: e.target.value })}
+          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-full"
+        />
+      </td>
+      <td className="p-2">
+        <select
+          value={draft.model_id}
+          onChange={(e) => setDraft({ ...draft, model_id: e.target.value })}
+          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-full"
+        >
+          <option value="">— модель —</option>
+          {models.map((m: any) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
+      </td>
+      <td className="p-2">
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={draft.commission_pct}
+          onChange={(e) => setDraft({ ...draft, commission_pct: Number(e.target.value) })}
+          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-20"
+        />
+      </td>
+      <td className="p-2">
+        <div className="flex items-center gap-1">
+          <input
+            type="time"
+            value={draft.work_hours_start}
+            onChange={(e) => setDraft({ ...draft, work_hours_start: e.target.value })}
+            className="bg-bg3 border border-border rounded px-1.5 py-1 text-xs w-[90px]"
+          />
+          <span className="text-text2 text-xs">—</span>
+          <input
+            type="time"
+            value={draft.work_hours_end}
+            onChange={(e) => setDraft({ ...draft, work_hours_end: e.target.value })}
+            className="bg-bg3 border border-border rounded px-1.5 py-1 text-xs w-[90px]"
+          />
+        </div>
+      </td>
+      <td className="p-2">
+        <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
+          <input
+            type="checkbox"
+            checked={account.is_active}
+            onChange={(e) => onToggleActive(e.target.checked)}
+          />
+          <span className={account.is_active ? "text-teal" : "text-text2"}>
+            {account.is_active ? "Активен" : "Неактивен"}
+          </span>
+        </label>
+      </td>
+      <td className="p-2 text-right whitespace-nowrap">
+        {dirty ? (
+          <button
+            onClick={save}
+            disabled={saving}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-teal text-primary-foreground text-xs font-medium disabled:opacity-50 mr-2"
+          >
+            <Check className="h-3 w-3" /> Сохранить
+          </button>
+        ) : savedFlash ? (
+          <span className="inline-flex items-center gap-1 text-green text-xs mr-2">
+            <Check className="h-3 w-3" /> Сохранено
+          </span>
+        ) : null}
+        <button
+          onClick={onDelete}
+          className="text-text2 hover:text-rose align-middle"
+          title="Удалить аккаунт"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 /* ===================== Periods ===================== */
 
 function PeriodsSection() {
