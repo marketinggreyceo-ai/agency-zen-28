@@ -148,7 +148,8 @@ export type Database = {
         Row: {
           amount: number
           chatter_account_id: string
-          chatter_id: string
+          chatter_id: string | null
+          chatter_profile_id: string | null
           created_at: string
           id: string
           month: number
@@ -159,7 +160,8 @@ export type Database = {
         Insert: {
           amount: number
           chatter_account_id: string
-          chatter_id: string
+          chatter_id?: string | null
+          chatter_profile_id?: string | null
           created_at?: string
           id?: string
           month: number
@@ -170,7 +172,8 @@ export type Database = {
         Update: {
           amount?: number
           chatter_account_id?: string
-          chatter_id?: string
+          chatter_id?: string | null
+          chatter_profile_id?: string | null
           created_at?: string
           id?: string
           month?: number
@@ -191,6 +194,13 @@ export type Database = {
             columns: ["chatter_id"]
             isOneToOne: false
             referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatter_daily_sales_chatter_profile_id_fkey"
+            columns: ["chatter_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

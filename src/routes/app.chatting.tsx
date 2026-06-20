@@ -53,6 +53,9 @@ function dateStr(year: number, month: number, day: number) {
 function currentPeriod(): "1-15" | "16-30" {
   return new Date().getDate() <= 15 ? "1-15" : "16-30";
 }
+function fmtMoney(n: number) {
+  return `$${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 function Page() {
   const { data: profile } = useProfile();
@@ -265,8 +268,8 @@ function HistoryTab({ isOwner, onOpenPeriod }: { isOwner: boolean; onOpenPeriod:
                     <td className="p-3 text-text2 max-w-[200px] truncate" title={accs.map((a) => a.account_name).join(", ")}>
                       {accs.length === 0 ? "—" : accs.map((a) => a.account_name).join(", ")}
                     </td>
-                    <td className="p-3 text-right">${Math.round(Number(p.total_sales)).toLocaleString()}</td>
-                    <td className="p-3 text-right text-green">${Math.round(Number(p.commission_amount)).toLocaleString()}</td>
+                    <td className="p-3 text-right">{fmtMoney(Number(p.total_sales))}</td>
+                    <td className="p-3 text-right text-green">{fmtMoney(Number(p.commission_amount))}</td>
                     <td className="p-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                         p.status === "paid" ? "bg-green/20 text-green" : "bg-amber-500/20 text-amber-500"
@@ -613,98 +616,14 @@ function ChatterBlock({
                 </thead>
                 <tbody>
                   {accounts.map((a) => (
-                    <tr key={a.id} className="border-t border-border">
-                      <td className="p-2">
-                        <input
-                          defaultValue={a.account_name}
-                          key={`name-${a.id}-${a.account_name}`}
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            if (v && v !== a.account_name) updateAccount.mutate({ id: a.id, patch: { account_name: v } });
-                          }}
-                          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-full"
-                        />
-                      </td>
-                      <td className="p-2">
-                        <select
-                          defaultValue={a.model_id ?? ""}
-                          key={`model-${a.id}-${a.model_id}`}
-                          onChange={(e) => updateAccount.mutate({ id: a.id, patch: { model_id: e.target.value } })}
-                          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-full"
-                        >
-                          <option value="">— модель —</option>
-                          {models.map((m: any) => (
-                            <option key={m.id} value={m.id}>{m.name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-2">
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          defaultValue={a.commission_pct}
-                          key={`pct-${a.id}-${a.commission_pct}`}
-                          onBlur={(e) => {
-                            const v = Number(e.target.value);
-                            if (!Number.isNaN(v) && v !== a.commission_pct) {
-                              updateAccount.mutate({ id: a.id, patch: { commission_pct: v } });
-                            }
-                          }}
-                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-20"
-                        />
-                      </td>
-                      <td className="p-2">
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="time"
-                            defaultValue={(a as any).work_hours_start ?? ""}
-                            key={`whs-${a.id}-${(a as any).work_hours_start ?? ""}`}
-                            onBlur={(e) => {
-                              const v = e.target.value || null;
-                              if (v !== ((a as any).work_hours_start ?? null)) {
-                                updateAccount.mutate({ id: a.id, patch: { work_hours_start: v } as any });
-                              }
-                            }}
-                            className="bg-bg3 border border-border rounded px-1.5 py-1 text-xs w-[90px]"
-                          />
-                          <span className="text-text2 text-xs">—</span>
-                          <input
-                            type="time"
-                            defaultValue={(a as any).work_hours_end ?? ""}
-                            key={`whe-${a.id}-${(a as any).work_hours_end ?? ""}`}
-                            onBlur={(e) => {
-                              const v = e.target.value || null;
-                              if (v !== ((a as any).work_hours_end ?? null)) {
-                                updateAccount.mutate({ id: a.id, patch: { work_hours_end: v } as any });
-                              }
-                            }}
-                            className="bg-bg3 border border-border rounded px-1.5 py-1 text-xs w-[90px]"
-                          />
-                        </div>
-                      </td>
-                      <td className="p-2">
-                        <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
-                          <input
-                            type="checkbox"
-                            checked={a.is_active}
-                            onChange={(e) => updateAccount.mutate({ id: a.id, patch: { is_active: e.target.checked } })}
-                          />
-                          <span className={a.is_active ? "text-teal" : "text-text2"}>
-                            {a.is_active ? "Активен" : "Неактивен"}
-                          </span>
-                        </label>
-                      </td>
-                      <td className="p-2 text-right">
-                        <button
-                          onClick={() => { if (confirm(`Удалить аккаунт "${a.account_name}"?`)) removeAccount.mutate(a.id); }}
-                          className="text-text2 hover:text-rose"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
+                    <AccountRow
+                      key={a.id}
+                      account={a}
+                      models={models}
+                      onSave={(patch) => updateAccount.mutateAsync({ id: a.id, patch })}
+                      onToggleActive={(v) => updateAccount.mutate({ id: a.id, patch: { is_active: v } })}
+                      onDelete={() => { if (confirm(`Удалить аккаунт "${a.account_name}"?`)) removeAccount.mutate(a.id); }}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -767,6 +686,148 @@ function ChatterBlock({
   );
 }
 
+
+function AccountRow({
+  account, models, onSave, onToggleActive, onDelete,
+}: {
+  account: any;
+  models: any[];
+  onSave: (patch: any) => Promise<any>;
+  onToggleActive: (v: boolean) => void;
+  onDelete: () => void;
+}) {
+  const initial = {
+    account_name: account.account_name ?? "",
+    model_id: account.model_id ?? "",
+    commission_pct: account.commission_pct ?? 25,
+    work_hours_start: (account as any).work_hours_start ?? "",
+    work_hours_end: (account as any).work_hours_end ?? "",
+  };
+  const [draft, setDraft] = useState(initial);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft({
+      account_name: account.account_name ?? "",
+      model_id: account.model_id ?? "",
+      commission_pct: account.commission_pct ?? 25,
+      work_hours_start: (account as any).work_hours_start ?? "",
+      work_hours_end: (account as any).work_hours_end ?? "",
+    });
+  }, [account.id, account.account_name, account.model_id, account.commission_pct, (account as any).work_hours_start, (account as any).work_hours_end]);
+
+  const dirty =
+    draft.account_name.trim() !== (account.account_name ?? "") ||
+    (draft.model_id || "") !== (account.model_id ?? "") ||
+    Number(draft.commission_pct) !== Number(account.commission_pct ?? 25) ||
+    (draft.work_hours_start || "") !== ((account as any).work_hours_start ?? "") ||
+    (draft.work_hours_end || "") !== ((account as any).work_hours_end ?? "");
+
+  async function save() {
+    if (!dirty || saving) return;
+    if (!draft.account_name.trim()) { toast.error("Укажите название аккаунта"); return; }
+    setSaving(true);
+    try {
+      await onSave({
+        account_name: draft.account_name.trim(),
+        model_id: draft.model_id || null,
+        commission_pct: Number(draft.commission_pct) || 0,
+        work_hours_start: draft.work_hours_start || null,
+        work_hours_end: draft.work_hours_end || null,
+      });
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <tr className="border-t border-border">
+      <td className="p-2">
+        <input
+          value={draft.account_name}
+          onChange={(e) => setDraft({ ...draft, account_name: e.target.value })}
+          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-full"
+        />
+      </td>
+      <td className="p-2">
+        <select
+          value={draft.model_id}
+          onChange={(e) => setDraft({ ...draft, model_id: e.target.value })}
+          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-full"
+        >
+          <option value="">— модель —</option>
+          {models.map((m: any) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
+      </td>
+      <td className="p-2">
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={draft.commission_pct}
+          onChange={(e) => setDraft({ ...draft, commission_pct: Number(e.target.value) })}
+          className="bg-bg3 border border-border rounded px-2 py-1 text-sm w-20"
+        />
+      </td>
+      <td className="p-2">
+        <div className="flex items-center gap-1">
+          <input
+            type="time"
+            value={draft.work_hours_start}
+            onChange={(e) => setDraft({ ...draft, work_hours_start: e.target.value })}
+            className="bg-bg3 border border-border rounded px-1.5 py-1 text-xs w-[90px]"
+          />
+          <span className="text-text2 text-xs">—</span>
+          <input
+            type="time"
+            value={draft.work_hours_end}
+            onChange={(e) => setDraft({ ...draft, work_hours_end: e.target.value })}
+            className="bg-bg3 border border-border rounded px-1.5 py-1 text-xs w-[90px]"
+          />
+        </div>
+      </td>
+      <td className="p-2">
+        <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
+          <input
+            type="checkbox"
+            checked={account.is_active}
+            onChange={(e) => onToggleActive(e.target.checked)}
+          />
+          <span className={account.is_active ? "text-teal" : "text-text2"}>
+            {account.is_active ? "Активен" : "Неактивен"}
+          </span>
+        </label>
+      </td>
+      <td className="p-2 text-right whitespace-nowrap">
+        {dirty ? (
+          <button
+            onClick={save}
+            disabled={saving}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-teal text-primary-foreground text-xs font-medium disabled:opacity-50 mr-2"
+          >
+            <Check className="h-3 w-3" /> Сохранить
+          </button>
+        ) : savedFlash ? (
+          <span className="inline-flex items-center gap-1 text-green text-xs mr-2">
+            <Check className="h-3 w-3" /> Сохранено
+          </span>
+        ) : null}
+        <button
+          onClick={onDelete}
+          className="text-text2 hover:text-rose align-middle"
+          title="Удалить аккаунт"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </td>
+    </tr>
+  );
+}
 
 /* ===================== Periods ===================== */
 
@@ -998,7 +1059,7 @@ function ChatterSalesTable({
   const commissionPct = accounts[0]?.commission_pct ?? 25;
 
   const { data: sales = [] } = useQuery({
-    queryKey: ["chatter_daily_sales", chatter?.id, period, month, year],
+    queryKey: ["chatter_daily_sales", chatter?.profile_id ?? chatter?.id, period, month, year],
     queryFn: async () => {
       const accountIds = accounts.map((a) => a.id);
       if (accountIds.length === 0) return [];
@@ -1043,7 +1104,6 @@ function ChatterSalesTable({
     mutationFn: async ({ accountId, day, amount }: { accountId: string; day: number; amount: number }) => {
       const sale_date = dateStr(year, month, day);
       if (amount === 0) {
-        // Delete row if zero to keep clean
         const { error } = await supabase
           .from("chatter_daily_sales")
           .delete()
@@ -1052,21 +1112,24 @@ function ChatterSalesTable({
         if (error) throw error;
         return;
       }
+      const profileId = chatter?.profile_id ?? null;
+      const payload: any = {
+        chatter_account_id: accountId,
+        chatter_id: chatter?.id ?? null,
+        chatter_profile_id: profileId,
+        sale_date,
+        amount: Math.round(amount * 100) / 100,
+        month,
+        year,
+        period,
+      };
       const { error } = await supabase
         .from("chatter_daily_sales")
-        .upsert({
-          chatter_account_id: accountId,
-          chatter_id: chatter.id,
-          sale_date,
-          amount,
-          month,
-          year,
-          period,
-        }, { onConflict: "chatter_account_id,sale_date" });
+        .upsert(payload, { onConflict: "chatter_account_id,sale_date" });
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["chatter_daily_sales", chatter?.id] });
+      qc.invalidateQueries({ queryKey: ["chatter_daily_sales"] });
       qc.invalidateQueries({ queryKey: ["chatter_period", chatter?.id] });
       qc.invalidateQueries({ queryKey: ["chatter_periods"] });
       qc.invalidateQueries({ queryKey: ["chatter_periods_paid"] });
@@ -1199,27 +1262,30 @@ function ChatterSalesTable({
                         <input
                           type="number"
                           min={0}
-                          defaultValue={val || ""}
-                          placeholder="0"
-                          disabled={isPaid || (!isOwner && false)}
+                          step={0.01}
+                          defaultValue={val ? val.toFixed(2) : ""}
+                          placeholder="0.00"
+                          disabled={isPaid}
                           data-cellgrid={chatter.id}
                           data-row={rowIdx}
                           data-col={colIdx}
                           onFocus={(e) => e.target.select()}
                           onKeyDown={(e) => onCellKeyDown(e, rowIdx, colIdx)}
                           onBlur={(e) => {
-                            const v = Number(e.target.value) || 0;
+                            const raw = e.target.value.replace(",", ".");
+                            const v = raw === "" ? 0 : Math.round(Number(raw) * 100) / 100;
+                            if (!Number.isFinite(v)) return;
                             if (v !== val) upsert.mutate({ accountId: a.id, day, amount: v });
                           }}
                           key={`${a.id}-${day}-${val}`}
-                          className="w-20 bg-bg3 border border-border rounded px-1.5 py-1 text-right text-xs disabled:opacity-60"
+                          className="w-24 bg-bg3 border border-border rounded px-1.5 py-1 text-right text-xs disabled:opacity-60"
                         />
                       </td>
                     );
                   })}
-                  <td className="p-2 text-right font-medium">${rowTotal.toLocaleString()}</td>
-                  <td className="p-2 text-right text-green">${Math.round(rowComm).toLocaleString()}</td>
-                  <td className="p-2 text-right text-green">${Math.round(rowComm).toLocaleString()}</td>
+                  <td className="p-2 text-right font-medium">{fmtMoney(rowTotal)}</td>
+                  <td className="p-2 text-right text-green">{fmtMoney(rowComm)}</td>
+                  <td className="p-2 text-right text-green">{fmtMoney(rowComm)}</td>
                 </tr>
               );
             })}
@@ -1228,11 +1294,11 @@ function ChatterSalesTable({
             <tr className="border-t-2 border-border font-semibold bg-bg2">
               <td className="p-2 sticky left-0 bg-bg2 z-10">Итого</td>
               {colTotals.map((t, i) => (
-                <td key={i} className="p-2 text-right">${t.toLocaleString()}</td>
+                <td key={i} className="p-2 text-right">{fmtMoney(t)}</td>
               ))}
-              <td className="p-2 text-right">${grandTotal.toLocaleString()}</td>
-              <td className="p-2 text-right text-green">${Math.round(totalCommission).toLocaleString()}</td>
-              <td className="p-2 text-right text-green">${Math.round(totalCommission).toLocaleString()}</td>
+              <td className="p-2 text-right">{fmtMoney(grandTotal)}</td>
+              <td className="p-2 text-right text-green">{fmtMoney(totalCommission)}</td>
+              <td className="p-2 text-right text-green">{fmtMoney(totalCommission)}</td>
             </tr>
           </tfoot>
         </table>
@@ -1242,11 +1308,11 @@ function ChatterSalesTable({
       <div className="rounded-lg border border-border bg-bg2 p-3 flex flex-wrap items-center gap-4 text-sm">
         <div>
           <span className="text-text2">Итого продаж: </span>
-          <b>${grandTotal.toLocaleString()}</b>
+          <b>{fmtMoney(grandTotal)}</b>
         </div>
         <div>
           <span className="text-text2">Комиссия чаттера: </span>
-          <b className="text-green">${Math.round(totalCommission).toLocaleString()}</b>
+          <b className="text-green">{fmtMoney(totalCommission)}</b>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-text2">Статус:</span>
@@ -1282,8 +1348,8 @@ function ChatterSalesTable({
 
       {!isOwner && (
         <div className="md:hidden sticky bottom-2 z-20 rounded-lg border border-border bg-card p-3 shadow-lg text-sm flex justify-between">
-          <span>Мои продажи: <b>${grandTotal.toLocaleString()}</b></span>
-          <span>Комиссия: <b className="text-green">${Math.round(totalCommission).toLocaleString()}</b></span>
+          <span>Мои продажи: <b>{fmtMoney(grandTotal)}</b></span>
+          <span>Комиссия: <b className="text-green">{fmtMoney(totalCommission)}</b></span>
         </div>
       )}
 
@@ -1297,7 +1363,7 @@ function ChatterSalesTable({
             <div className="space-y-1 text-sm">
               <div><span className="text-text2">Чаттер:</span> <b>{chatter?.name}</b></div>
               <div><span className="text-text2">Период:</span> <b>{periodLabel(period, month, year)} {year}</b></div>
-              <div><span className="text-text2">Сумма:</span> <b className="text-green">${Math.round(totalCommission).toLocaleString()}</b></div>
+              <div><span className="text-text2">Сумма:</span> <b className="text-green">{fmtMoney(totalCommission)}</b></div>
             </div>
             <p className="text-xs text-text2">
               Период будет отмечен как оплаченный и заблокирован от изменений. Расход в Финансы добавьте вручную.
