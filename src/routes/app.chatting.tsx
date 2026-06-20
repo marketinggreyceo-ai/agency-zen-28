@@ -1204,27 +1204,30 @@ function ChatterSalesTable({
                         <input
                           type="number"
                           min={0}
-                          defaultValue={val || ""}
-                          placeholder="0"
-                          disabled={isPaid || (!isOwner && false)}
+                          step={0.01}
+                          defaultValue={val ? val.toFixed(2) : ""}
+                          placeholder="0.00"
+                          disabled={isPaid}
                           data-cellgrid={chatter.id}
                           data-row={rowIdx}
                           data-col={colIdx}
                           onFocus={(e) => e.target.select()}
                           onKeyDown={(e) => onCellKeyDown(e, rowIdx, colIdx)}
                           onBlur={(e) => {
-                            const v = Number(e.target.value) || 0;
+                            const raw = e.target.value.replace(",", ".");
+                            const v = raw === "" ? 0 : Math.round(Number(raw) * 100) / 100;
+                            if (!Number.isFinite(v)) return;
                             if (v !== val) upsert.mutate({ accountId: a.id, day, amount: v });
                           }}
                           key={`${a.id}-${day}-${val}`}
-                          className="w-20 bg-bg3 border border-border rounded px-1.5 py-1 text-right text-xs disabled:opacity-60"
+                          className="w-24 bg-bg3 border border-border rounded px-1.5 py-1 text-right text-xs disabled:opacity-60"
                         />
                       </td>
                     );
                   })}
-                  <td className="p-2 text-right font-medium">${rowTotal.toLocaleString()}</td>
-                  <td className="p-2 text-right text-green">${Math.round(rowComm).toLocaleString()}</td>
-                  <td className="p-2 text-right text-green">${Math.round(rowComm).toLocaleString()}</td>
+                  <td className="p-2 text-right font-medium">{fmtMoney(rowTotal)}</td>
+                  <td className="p-2 text-right text-green">{fmtMoney(rowComm)}</td>
+                  <td className="p-2 text-right text-green">{fmtMoney(rowComm)}</td>
                 </tr>
               );
             })}
@@ -1233,11 +1236,11 @@ function ChatterSalesTable({
             <tr className="border-t-2 border-border font-semibold bg-bg2">
               <td className="p-2 sticky left-0 bg-bg2 z-10">Итого</td>
               {colTotals.map((t, i) => (
-                <td key={i} className="p-2 text-right">${t.toLocaleString()}</td>
+                <td key={i} className="p-2 text-right">{fmtMoney(t)}</td>
               ))}
-              <td className="p-2 text-right">${grandTotal.toLocaleString()}</td>
-              <td className="p-2 text-right text-green">${Math.round(totalCommission).toLocaleString()}</td>
-              <td className="p-2 text-right text-green">${Math.round(totalCommission).toLocaleString()}</td>
+              <td className="p-2 text-right">{fmtMoney(grandTotal)}</td>
+              <td className="p-2 text-right text-green">{fmtMoney(totalCommission)}</td>
+              <td className="p-2 text-right text-green">{fmtMoney(totalCommission)}</td>
             </tr>
           </tfoot>
         </table>
