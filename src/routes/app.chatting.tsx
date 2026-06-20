@@ -1250,11 +1250,11 @@ function ChatterSalesTable({
       <div className="rounded-lg border border-border bg-bg2 p-3 flex flex-wrap items-center gap-4 text-sm">
         <div>
           <span className="text-text2">Итого продаж: </span>
-          <b>${grandTotal.toLocaleString()}</b>
+          <b>${fmtMoney(grandTotal)}</b>
         </div>
         <div>
           <span className="text-text2">Комиссия чаттера: </span>
-          <b className="text-green">${Math.round(totalCommission).toLocaleString()}</b>
+          <b className="text-green">${fmtMoney(totalCommission)}</b>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-text2">Статус:</span>
@@ -1290,8 +1290,8 @@ function ChatterSalesTable({
 
       {!isOwner && (
         <div className="md:hidden sticky bottom-2 z-20 rounded-lg border border-border bg-card p-3 shadow-lg text-sm flex justify-between">
-          <span>Мои продажи: <b>${grandTotal.toLocaleString()}</b></span>
-          <span>Комиссия: <b className="text-green">${Math.round(totalCommission).toLocaleString()}</b></span>
+          <span>Мои продажи: <b>${fmtMoney(grandTotal)}</b></span>
+          <span>Комиссия: <b className="text-green">${fmtMoney(totalCommission)}</b></span>
         </div>
       )}
 
@@ -1305,7 +1305,7 @@ function ChatterSalesTable({
             <div className="space-y-1 text-sm">
               <div><span className="text-text2">Чаттер:</span> <b>{chatter?.name}</b></div>
               <div><span className="text-text2">Период:</span> <b>{periodLabel(period, month, year)} {year}</b></div>
-              <div><span className="text-text2">Сумма:</span> <b className="text-green">${Math.round(totalCommission).toLocaleString()}</b></div>
+              <div><span className="text-text2">Сумма:</span> <b className="text-green">${fmtMoney(totalCommission)}</b></div>
             </div>
             <p className="text-xs text-text2">
               Период будет отмечен как оплаченный и заблокирован от изменений. Расход в Финансы добавьте вручную.
