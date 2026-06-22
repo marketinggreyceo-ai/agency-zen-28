@@ -33,19 +33,14 @@ function parseTaskMessage(text: string) {
   const tagMatch = text.match(/#задача\b/i);
   if (!tagMatch) return null;
 
-  // Search for @mention ANYWHERE in the full message (handles multiline format)
-  // Format: #задача \n @mention \n task text
   const mentionRe = /@([\p{L}\p{N}_.-]+)/gu;
   const allMentions = [...text.matchAll(mentionRe)];
   const mention = allMentions.length > 0 ? allMentions[0][1] : null;
 
-  // Title = everything after #задача, remove the @mention line, join remaining lines
   let after = text.slice((tagMatch.index ?? 0) + tagMatch[0].length);
   if (mention) {
-    // Remove the @mention from text
     after = after.replace(new RegExp(`@${mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i"), "");
   }
-  // Clean up: join lines, collapse whitespace
   let title = after
     .split(/\n/)
     .map(l => l.trim())
@@ -131,39 +126,36 @@ async function resolveAssignee(mention: string | null) {
   if (!mention) return "Я";
   const key = normalize(mention);
 
-  // 1) profiles — match telegram_handle (and telegram_username if present), no status filter
   const { data: profiles } = await admin
     .from("profiles")
-    .select("full_name, assignee_name, telegram_handle");
-  const profMatch = (profiles ?? []).find((p: any) =>
-    normalize(p.telegram_handle) === key || normalize((p as any).telegram_username) === key
-  );
-  if (profMatch) return profMatch.full_name || profMatch.assignee_name || `@${mention}`;
+    .select("full_name, assignee_name, telegram_handle, telegram_username");
 
-  // 2) team_members.telegram_handle exact
+  const profMatch = (profiles ?? []).find((p: any) =>
+    normalize(p.telegram_handle) === key || normalize(p.telegram_username) === key
+  );
+  if (profMatch) return profMatch.assignee_name || profMatch.full_name || mention;
+
   const { data: members } = await admin
     .from("team_members")
     .select("name, assignee_name, telegram_handle")
     .eq("is_archived", false);
-  const tgExact = (members ?? []).find((m: any) => normalize(m.telegram_handle) === key);
-  if (tgExact) return tgExact.assignee_name || tgExact.name || `@${mention}`;
 
-  // 3) team_members.assignee_name partial (case-insensitive)
+  const tgExact = (members ?? []).find((m: any) => normalize(m.telegram_handle) === key);
+  if (tgExact) return tgExact.assignee_name || tgExact.name || mention;
+
   const asgPartial = (members ?? []).find((m: any) => {
     const n = normalize(m.assignee_name);
     return n && (n.includes(key) || key.includes(n));
   });
-  if (asgPartial) return asgPartial.assignee_name || asgPartial.name || `@${mention}`;
+  if (asgPartial) return asgPartial.assignee_name || asgPartial.name || mention;
 
-  // 4) team_members.name partial (case-insensitive)
   const namePartial = (members ?? []).find((m: any) => {
     const n = normalize(m.name);
     return n && (n.includes(key) || key.includes(n));
   });
-  if (namePartial) return namePartial.assignee_name || namePartial.name || `@${mention}`;
+  if (namePartial) return namePartial.assignee_name || namePartial.name || mention;
 
-  // 5) Fallback — save raw mention as-is, never fail
-  return `@${mention}`;
+  return mention;
 }
 
 async function resolveChatter(senderUsername: string | null, fallback: string) {
