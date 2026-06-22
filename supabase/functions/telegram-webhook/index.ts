@@ -32,19 +32,28 @@ function normalizeSearch(value: string | null | undefined) {
 function parseTaskMessage(text: string) {
   const tagMatch = text.match(/#задача\b/i);
   if (!tagMatch) return null;
-  const after = text.slice((tagMatch.index ?? 0) + tagMatch[0].length);
-  const mentionRe = /@([\p{L}\p{N}_.-]+)/u;
-  const mentionMatch = after.match(mentionRe);
-  let mention: string | null = null;
-  let title: string;
-  if (mentionMatch) {
-    mention = mentionMatch[1];
-    const afterMention = after.slice((mentionMatch.index ?? 0) + mentionMatch[0].length);
-    title = afterMention.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
-  } else {
-    title = after.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+
+  // Search for @mention ANYWHERE in the full message (handles multiline format)
+  // Format: #задача \n @mention \n task text
+  const mentionRe = /@([\p{L}\p{N}_.-]+)/gu;
+  const allMentions = [...text.matchAll(mentionRe)];
+  const mention = allMentions.length > 0 ? allMentions[0][1] : null;
+
+  // Title = everything after #задача, remove the @mention line, join remaining lines
+  let after = text.slice((tagMatch.index ?? 0) + tagMatch[0].length);
+  if (mention) {
+    // Remove the @mention from text
+    after = after.replace(new RegExp(`@${mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i"), "");
   }
-  if (!title) title = text.replace(/[\r\n]+/g, " ").trim().slice(0, 100) || "Задача из Telegram";
+  // Clean up: join lines, collapse whitespace
+  let title = after
+    .split(/\n/)
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
+    .join(" ")
+    .trim();
+
+  if (!title) title = "Задача из Telegram";
   return { title, mention };
 }
 
@@ -122,13 +131,12 @@ async function resolveAssignee(mention: string | null) {
   if (!mention) return "Я";
   const key = normalize(mention);
 
-  // 1) profiles.telegram_handle (a.k.a. telegram_username) — strip @, case-insensitive
+  // 1) profiles — check telegram_username OR telegram_handle, no status filter
   const { data: profiles } = await admin
     .from("profiles")
-    .select("full_name, assignee_name, telegram_handle")
-    .eq("status", "active");
+    .select("full_name, assignee_name, telegram_handle, telegram_username");
   const profMatch = (profiles ?? []).find((p: any) =>
-    normalize(p.telegram_handle) === key
+    normalize(p.telegram_handle) === key || normalize(p.telegram_username) === key
   );
   if (profMatch) return profMatch.assignee_name || profMatch.full_name || `@${mention}`;
 
