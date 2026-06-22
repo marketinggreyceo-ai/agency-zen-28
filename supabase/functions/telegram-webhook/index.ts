@@ -131,14 +131,14 @@ async function resolveAssignee(mention: string | null) {
   if (!mention) return "Я";
   const key = normalize(mention);
 
-  // 1) profiles — check telegram_username OR telegram_handle, no status filter
+  // 1) profiles — match telegram_handle (and telegram_username if present), no status filter
   const { data: profiles } = await admin
     .from("profiles")
-    .select("full_name, assignee_name, telegram_handle, telegram_username");
+    .select("full_name, assignee_name, telegram_handle");
   const profMatch = (profiles ?? []).find((p: any) =>
-    normalize(p.telegram_handle) === key || normalize(p.telegram_username) === key
+    normalize(p.telegram_handle) === key || normalize((p as any).telegram_username) === key
   );
-  if (profMatch) return profMatch.assignee_name || profMatch.full_name || `@${mention}`;
+  if (profMatch) return profMatch.full_name || profMatch.assignee_name || `@${mention}`;
 
   // 2) team_members.telegram_handle exact
   const { data: members } = await admin
