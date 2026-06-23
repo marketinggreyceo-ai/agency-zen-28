@@ -296,12 +296,21 @@ Deno.serve(async (req) => {
         resolveAssignee(parsed.mention),
         findModel(text),
       ]);
+      // Build Telegram message link
+      const numericChatId = String(chatId).replace(/^-100/, "");
+      const tgMessageLink = msg.message_id
+        ? (chat.username
+          ? `https://t.me/${chat.username}/${msg.message_id}`
+          : `https://t.me/c/${numericChatId}/${msg.message_id}`)
+        : null;
+
       const { data: task, error: taskErr } = await admin.from("tasks").insert({
         title: parsed.title,
         assignee,
         model_id: model?.id ?? null,
         status: "incoming",
         telegram_message_id: String(msg.message_id ?? ""),
+        notes: tgMessageLink ? `📎 Сообщение в Telegram: ${tgMessageLink}` : null,
       }).select("id").single();
       if (taskErr) throw taskErr;
 
