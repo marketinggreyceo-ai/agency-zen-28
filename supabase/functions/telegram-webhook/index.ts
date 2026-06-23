@@ -12,6 +12,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
 
 const APP_URL = Deno.env.get("APP_URL") || "https://greymedia.company/app";
 
+// Normalize: strip @, lowercase, trim
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim().replace(/^@/, "").toLocaleLowerCase("ru-RU");
 }
@@ -29,55 +30,77 @@ function normalizeSearch(value: string | null | undefined) {
     .replace(/[^a-z0-9а-яё]+/gi, "");
 }
 
-function parseTaskMessage(text: string) {
-  const tagMatch = text.match(/#задача\b/i);
-  if (!tagMatch) return null;
+// Extract @mention username from Telegram message
+// Handles both: plain text @username AND Telegram entity mentions
+function extractMention(msg: any): string | null {
+  const text: string = msg?.text ?? msg?.caption ?? "";
+  const entities: any[] = msg?.entities ?? msg?.caption_entities ?? [];
 
-  const mentionRe = /@([\p{L}\p{N}_.-]+)/gu;
-  const allMentions = [...text.matchAll(mentionRe)];
-  const mention = allMentions.length > 0 ? allMentions[0][1] : null;
-
-  let after = text.slice((tagMatch.index ?? 0) + tagMatch[0].length);
-  if (mention) {
-    after = after.replace(new RegExp(`@${mention.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i"), "");
+  // Method 1: Extract from Telegram entities (most reliable)
+  // Entity types: "mention" = @username, "text_mention" = user without username
+  for (const entity of entities) {
+    if (entity.type === "mention") {
+      // Extract the @username text from the message using offset/length
+      const mentionText = text.slice(entity.offset, entity.offset + entity.length);
+      const username = mentionText.replace(/^@/, "");
+      if (username) return username;
+    }
+    if (entity.type === "text_mention" && entity.user?.username) {
+      return entity.user.username;
+    }
   }
-  let title = after
-    .split(/\n/)
-    .map(l => l.trim())
-    .filter(l => l.length > 0)
+
+  // Method 2: Regex fallback for plain text @mentions
+  const match = text.match(/@([\p{L}\p{N}_]+)/u);
+  if (match) return match[1];
+
+  return null;
+}
+
+// Parse #задача message - extract mention and title
+function parseTaskMessage(msg: any): { title: string; mention: string | null } | null {
+  const text: string = msg?.text ?? msg?.caption ?? "";
+  if (!/#задача/i.test(text)) return null;
+
+  // Get mention from entities (reliable) or regex
+  const mention = extractMention(msg);
+
+  // Build title: take all text, remove #задача tag and @mention, clean up
+  let title = text
+    .replace(/#задача\b/gi, "")
+    .replace(mention ? new RegExp(`@${mention}`, "gi") : /(?!x)x/, "") // remove @mention if found
+    .split("\n")
+    .map((l: string) => l.trim())
+    .filter((l: string) => l.length > 0 && !l.match(/^@[\p{L}\p{N}_]+$/u)) // remove lines that are only @mention
     .join(" ")
     .trim();
 
   if (!title) title = "Задача из Telegram";
+
   return { title, mention };
 }
 
+// Parse #кастом message
 function parseCustomMessage(text: string) {
   if (!/#кастом/i.test(text)) return null;
-  // First @mention anywhere in text → model token
+
   const mentionMatch = text.match(/@([\p{L}\p{N}_.-]+)/u);
   const modelToken = mentionMatch ? mentionMatch[1] : null;
 
-  // Description = full message minus #кастом tag and the @mention token, preserve line breaks
   let description = text.replace(/#кастом/gi, "");
-  if (mentionMatch) {
-    description = description.replace(mentionMatch[0], "");
-  }
-  // Trim leading/trailing whitespace per line, drop redundant blank lines, but preserve breaks
+  if (mentionMatch) description = description.replace(mentionMatch[0], "");
   description = description.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 
-  // Price: $ followed by digits (allow commas/dots)
   const priceMatch = text.match(/\$\s*([0-9][0-9.,]*)/);
   const price = priceMatch ? Number(priceMatch[1].replace(/,/g, "")) : null;
 
-  // Customer nickname: "Fan name: xxx"
   const fanMatch = text.match(/fan\s*name\s*:\s*([^\n\r]+)/i);
   const nickname = fanMatch ? fanMatch[1].trim() : "";
 
   return { description: description || text.trim(), nickname, modelToken, price };
 }
 
-
+// Find model by name in DB
 async function findModel(text: string, explicitToken?: string | null) {
   const { data: models } = await admin
     .from("models")
@@ -89,7 +112,6 @@ async function findModel(text: string, explicitToken?: string | null) {
     return [m.name, m.english_name].filter(Boolean).map((s) => String(s).trim()) as string[];
   }
 
-  // 1) Explicit @Token → exact then partial match on name or english_name
   if (explicitToken) {
     const key = normalize(explicitToken);
     const keyN = normalizeSearch(explicitToken);
@@ -106,7 +128,6 @@ async function findModel(text: string, explicitToken?: string | null) {
     if (partial) return partial;
   }
 
-  // 2) Scan full text for any model name (English or Russian)
   const haystack = text.toLocaleLowerCase("ru-RU");
   const normalizedHaystack = normalizeSearch(text);
   return list
@@ -122,19 +143,23 @@ async function findModel(text: string, explicitToken?: string | null) {
     })) ?? null;
 }
 
-async function resolveAssignee(mention: string | null) {
+// Resolve @mention to assignee name
+// Checks: profiles.telegram_handle, team_members.telegram_handle, partial name match
+async function resolveAssignee(mention: string | null): Promise<string> {
   if (!mention) return "Я";
   const key = normalize(mention);
 
+  // 1) Check profiles table by telegram_handle (exact match, no status filter)
   const { data: profiles } = await admin
     .from("profiles")
-    .select("full_name, assignee_name, telegram_handle");
+    .select("full_name, telegram_handle");
 
   const profMatch = (profiles ?? []).find((p: any) =>
     normalize(p.telegram_handle) === key
   );
-  if (profMatch) return profMatch.assignee_name || profMatch.full_name || mention;
+  if (profMatch?.full_name) return profMatch.full_name;
 
+  // 2) Check team_members by telegram_handle (exact)
   const { data: members } = await admin
     .from("team_members")
     .select("name, assignee_name, telegram_handle")
@@ -143,19 +168,22 @@ async function resolveAssignee(mention: string | null) {
   const tgExact = (members ?? []).find((m: any) => normalize(m.telegram_handle) === key);
   if (tgExact) return tgExact.assignee_name || tgExact.name || mention;
 
+  // 3) Partial match on assignee_name
   const asgPartial = (members ?? []).find((m: any) => {
     const n = normalize(m.assignee_name);
     return n && (n.includes(key) || key.includes(n));
   });
   if (asgPartial) return asgPartial.assignee_name || asgPartial.name || mention;
 
+  // 4) Partial match on name
   const namePartial = (members ?? []).find((m: any) => {
     const n = normalize(m.name);
     return n && (n.includes(key) || key.includes(n));
   });
   if (namePartial) return namePartial.assignee_name || namePartial.name || mention;
 
-  return mention;
+  // 5) Return raw mention as fallback
+  return `@${mention}`;
 }
 
 async function resolveChatter(senderUsername: string | null, fallback: string) {
@@ -163,10 +191,9 @@ async function resolveChatter(senderUsername: string | null, fallback: string) {
   const key = normalize(senderUsername);
   const { data: profiles } = await admin
     .from("profiles")
-    .select("full_name, assignee_name, telegram_handle")
-    .eq("status", "active");
+    .select("full_name, telegram_handle");
   const p = (profiles ?? []).find((x: any) => normalize(x.telegram_handle) === key);
-  if (p) return p.assignee_name || p.full_name || fallback;
+  if (p?.full_name) return p.full_name;
   const { data: members } = await admin
     .from("team_members")
     .select("name, assignee_name, telegram_handle")
@@ -219,10 +246,12 @@ Deno.serve(async (req) => {
   const text: string = msg?.text ?? msg?.caption ?? "";
   const chat = msg?.chat;
   const chatId = chat?.id ? String(chat.id) : null;
-  console.log("[telegram-webhook] incoming", { chatId, text, update_id: update.update_id });
-  const action = /#кастом/i.test(text) ? "custom" : /#задача/i.test(text) ? "task" : "ignored";
-  console.log("[telegram-webhook] parsed action", action);
 
+  console.log("[telegram-webhook] incoming", { chatId, text: text.slice(0, 100), update_id: update.update_id });
+  console.log("[telegram-webhook] entities", JSON.stringify(msg?.entities ?? []));
+
+  const action = /#кастом/i.test(text) ? "custom" : /#задача/i.test(text) ? "task" : "ignored";
+  console.log("[telegram-webhook] action", action);
 
   try {
     if (!chat) {
@@ -248,9 +277,9 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const botToken: string | null = settings?.bot_token ?? null;
 
+    // Handle #кастом
     if (/#кастом/i.test(text)) {
       const parsed = parseCustomMessage(text) ?? { description: text, nickname: "", modelToken: null, price: null };
-
       const model = parsed.modelToken ? await findModel(text, parsed.modelToken) : await findModel(text);
       const senderName =
         [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") ||
@@ -282,21 +311,24 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, type: "custom" });
     }
 
-
+    // Handle #задача
     if (/#задача/i.test(text)) {
       if (!settings?.auto_tasks_enabled) {
         await writeLog({ chat_id: chatId, message_text: text, parsed_action: "task_skipped", success: true, error_message: "auto_tasks_disabled" });
         return Response.json({ ok: true, skipped: "auto_tasks_disabled" });
       }
 
-      const parsed = parseTaskMessage(text) ?? { title: "Задача из Telegram", mention: null };
-
+      const parsed = parseTaskMessage(msg) ?? { title: "Задача из Telegram", mention: null };
+      console.log("[telegram-webhook] parsed task", JSON.stringify(parsed));
 
       const [assignee, model] = await Promise.all([
         resolveAssignee(parsed.mention),
         findModel(text),
       ]);
-      // Build Telegram message link
+
+      console.log("[telegram-webhook] assignee resolved", { mention: parsed.mention, assignee });
+
+      // Build clickable Telegram message link
       const numericChatId = String(chatId).replace(/^-100/, "");
       const tgMessageLink = msg.message_id
         ? (chat.username
@@ -325,25 +357,21 @@ Deno.serve(async (req) => {
 
       if (botToken) {
         await sendMessage(botToken, chat.id,
-          `✅ Задача добавлена: ${parsed.title}\n\n👤 Исполнитель: ${assignee}\n\n📋 Статус: Входящие\n\n🔗 Открыть: ${APP_URL}/tasks`);
+          `✅ Задача создана: ${parsed.title}\n\n👤 Исполнитель: ${assignee}\n\n📋 Статус: Входящие\n\n🔗 Открыть: ${APP_URL}/tasks`);
       }
       return Response.json({ ok: true, type: "task", task_id: task?.id });
     }
 
     await writeLog({ chat_id: chatId, message_text: text, parsed_action: "ignored", success: true });
     return Response.json({ ok: true });
+
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[telegram-webhook] error", message);
-
-    await writeLog({ chat_id: chatId, message_text: text, parsed_action: /#кастом/i.test(text) ? "custom" : /#задача/i.test(text) ? "task" : "error", success: false, error_message: message });
-    const { data: settings } = await admin
-      .from("telegram_settings")
-      .select("bot_token")
-      .limit(1)
-      .maybeSingle();
-    if (settings?.bot_token && chat?.id && /#задача/i.test(text)) {
-      await sendMessage(settings.bot_token, chat.id, `❌ Ошибка при создании задачи: ${message}`);
+    await writeLog({ chat_id: chatId, message_text: text, parsed_action: "error", success: false, error_message: message });
+    const { data: s } = await admin.from("telegram_settings").select("bot_token").limit(1).maybeSingle();
+    if (s?.bot_token && chat?.id && /#задача/i.test(text)) {
+      await sendMessage(s.bot_token, chat.id, `❌ Ошибка: ${message}`);
     }
     return Response.json({ ok: true, error: message });
   }
