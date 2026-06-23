@@ -128,10 +128,10 @@ async function resolveAssignee(mention: string | null) {
 
   const { data: profiles } = await admin
     .from("profiles")
-    .select("full_name, assignee_name, telegram_handle, telegram_username");
+    .select("full_name, assignee_name, telegram_handle");
 
   const profMatch = (profiles ?? []).find((p: any) =>
-    normalize(p.telegram_handle) === key || normalize(p.telegram_username) === key
+    normalize(p.telegram_handle) === key
   );
   if (profMatch) return profMatch.assignee_name || profMatch.full_name || mention;
 
@@ -310,7 +310,7 @@ Deno.serve(async (req) => {
         model_id: model?.id ?? null,
         status: "incoming",
         telegram_message_id: String(msg.message_id ?? ""),
-        notes: tgMessageLink ? `📎 Сообщение в Telegram: ${tgMessageLink}` : null,
+        notes: tgMessageLink ?? null,
       }).select("id").single();
       if (taskErr) throw taskErr;
 
