@@ -12,6 +12,7 @@ import {
   buildWeeklyReport, sendWeeklyReportNow,
   setTelegramWebhook, deleteTelegramWebhook, getTelegramWebhookInfo, testTelegramWebhook,
 } from "@/lib/telegram.functions";
+import { SendDigestButton } from "@/routes/app.customs";
 
 export const Route = createFileRoute("/app/telegram")({ ssr: false, component: Page });
 
