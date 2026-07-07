@@ -100,18 +100,10 @@ function Page() {
 
   const totals = useMemo(() => {
     const received = monthPayments.reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-    let chattingCost = 0;
-    for (const m of models) {
-      if (!m.chatting_enabled) continue;
-      const sum = monthPayments
-        .filter((p: any) => p.model_id === m.id)
-        .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-      chattingCost += sum * (m.chatting_cut ?? 25) / 100;
-    }
     const expTotal = expenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
-    const profit = received - chattingCost - expTotal;
-    return { received, chattingCost, expTotal, profit };
-  }, [models, monthPayments, expenses]);
+    const profit = received - expTotal;
+    return { received, expTotal, profit };
+  }, [monthPayments, expenses]);
 
   const chattingPaidThisMonth = useMemo(
     () => chatterPeriodsPaid
@@ -237,7 +229,6 @@ function Page() {
           <Section title="Итоговый расчёт">
             <div className="max-w-md mx-auto rounded-lg border border-border bg-bg2 p-5 space-y-2 text-sm">
               <Row label="Получено от моделей:" value={`${currency}${Math.round(totals.received).toLocaleString()}`} />
-              <Row label="− Чаттинг:" value={`−${currency}${Math.round(totals.chattingCost).toLocaleString()}`} color="#BA7517" />
               <Row label="− Расходы:" value={`−${currency}${Math.round(totals.expTotal).toLocaleString()}`} color="#E24B4A" />
               {chattingPaidThisMonth > 0 && (
                 <Row label="Чаттинг выплачено:" value={`${currency}${Math.round(chattingPaidThisMonth).toLocaleString()}`} color="#F59E0B" />
@@ -337,7 +328,6 @@ function ModelIncomeRow({ model, payments, month, year, currency, editable }: {
   const received = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
   const ourPct = model.agency_cut ?? 0;
   const grossRef = ourPct > 0 ? received / (ourPct / 100) : 0;
-  const chattingCost = model.chatting_enabled ? received * (model.chatting_cut ?? 25) / 100 : 0;
 
   const addPayout = useMutation({
     mutationFn: async () => {
@@ -457,14 +447,6 @@ function ModelIncomeRow({ model, payments, month, year, currency, editable }: {
               <span className="text-text2">Брутто модели (справочно):</span>
               <span className="sm:block">{currency}{Math.round(grossRef).toLocaleString()}</span>
             </div>
-            {model.chatting_enabled && (
-              <div className="flex justify-between sm:block">
-                <span className="text-text2">Чаттинг ({model.chatting_cut ?? 25}%):</span>
-                <span className="sm:block text-amber-600">
-                  −{currency}{Math.round(chattingCost).toLocaleString()}
-                </span>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -478,7 +460,7 @@ function ModelIncomeRow({ model, payments, month, year, currency, editable }: {
 
 function CloseMonthModal({ month, year, totals, chattingPaid, partnerName, partnerPct, currency, onCancel, onConfirm, pending }: {
   month: number; year: number;
-  totals: { received: number; chattingCost: number; expTotal: number; profit: number };
+  totals: { received: number; expTotal: number; profit: number };
   chattingPaid: number;
   partnerName: string; partnerPct: number; currency: string;
   onCancel: () => void; onConfirm: (comment: string) => void; pending: boolean;
@@ -495,7 +477,6 @@ function CloseMonthModal({ month, year, totals, chattingPaid, partnerName, partn
         <div className="rounded-md border border-border bg-bg2 p-3 space-y-1.5 text-sm mb-3">
           <Row label="Получено:" value={`${currency}${Math.round(totals.received).toLocaleString()}`} />
           <Row label="Расходы:" value={`${currency}${Math.round(totals.expTotal).toLocaleString()}`} color="#E24B4A" />
-          <Row label="Чаттинг:" value={`${currency}${Math.round(totals.chattingCost).toLocaleString()}`} color="#BA7517" />
           {chattingPaid > 0 && (
             <Row label="Чаттинг выплачено:" value={`${currency}${Math.round(chattingPaid).toLocaleString()}`} color="#F59E0B" />
           )}
@@ -719,15 +700,9 @@ function HistoryTab({
       const exps = expensesAll.filter((e: any) => e.year === y && e.month === m);
       const cps = chatterPaid.filter((c: any) => c.year === y && c.month === m);
       const received = ps.reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-      let autoChat = 0;
-      for (const mdl of models) {
-        if (!mdl.chatting_enabled) continue;
-        const sum = ps.filter((p: any) => p.model_id === mdl.id).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-        autoChat += sum * (mdl.chatting_cut ?? 25) / 100;
-      }
       const expensesTotal = exps.reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
       const chatting = cps.reduce((s: number, c: any) => s + Number(c.commission_amount || 0), 0);
-      const profit = received - expensesTotal - autoChat;
+      const profit = received - expensesTotal;
       const ownerShare = profit * ownerPct / 100;
       const closed = closedMonths.some((c: any) => c.year === y && c.month === m);
       out.push({ year: y, month: m, received, expenses: expensesTotal, chatting, profit, ownerShare, closed });
