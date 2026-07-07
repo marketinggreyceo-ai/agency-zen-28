@@ -48,7 +48,7 @@ function Page() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["sops"] }); toast.success("Удалено"); },
   });
 
-  const isOwner = profile?.role === "owner";
+  const isOwner = profile?.role === "owner" || profile?.role === "production";
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">

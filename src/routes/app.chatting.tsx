@@ -59,7 +59,7 @@ function fmtMoney(n: number) {
 
 function Page() {
   const { data: profile } = useProfile();
-  const isOwner = profile?.role === "owner";
+  const isOwner = profile?.role === "owner" || profile?.role === "production";
   const isChatter = profile?.role === "chatter";
   const [tab, setTab] = useState<"sales" | "history" | "settings">(isOwner ? "settings" : "sales");
   const [selectedPeriod, setSelectedPeriod] = useState<any | null>(null);

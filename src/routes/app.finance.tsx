@@ -42,7 +42,7 @@ type FinSettings = {
 function Page() {
   const qc = useQueryClient();
   const { data: profile } = useProfile();
-  const isOwner = profile?.role === "owner";
+  const isOwner = profile?.role === "owner" || profile?.role === "production";
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());

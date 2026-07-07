@@ -44,7 +44,7 @@ function setConfirmCancelInvite(m: TeamMember | null) { _CancelState.setter?.(m)
 function Page() {
   const qc = useQueryClient();
   const { data: profile } = useProfile();
-  const isOwner = profile?.role === "owner";
+  const isOwner = profile?.role === "owner" || profile?.role === "production";
 
   const { data: members = [] } = useQuery({
     queryKey: ["team_members_full"],

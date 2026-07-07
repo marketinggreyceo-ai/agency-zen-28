@@ -1258,6 +1258,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       is_owner: { Args: never; Returns: boolean }
+      is_strict_owner: { Args: never; Returns: boolean }
       owner_exists: { Args: never; Returns: boolean }
     }
     Enums: {

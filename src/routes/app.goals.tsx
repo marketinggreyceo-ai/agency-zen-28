@@ -38,7 +38,7 @@ type Goal = {
 function Page() {
   const { data: profile } = useProfile();
   const qc = useQueryClient();
-  const isOwner = profile?.role === "owner";
+  const isOwner = profile?.role === "owner" || profile?.role === "production";
   const myName = profile?.assignee_name ?? "";
   const WORKERS = useAssignees().filter((a) => a !== "Я");
   const [weekStart, setWeekStart] = useState<Date>(getMonday(new Date()));

@@ -46,8 +46,8 @@ function StatusBadge({ status, changedAt }: { status: string | null; changedAt?:
 function Page() {
   const { data: profile } = useProfile();
   const qc = useQueryClient();
-  const isOwner = profile?.role === "owner";
-  const canManageAccounts = profile?.role === "owner" || profile?.role === "creative";
+  const isOwner = profile?.role === "owner" || profile?.role === "production";
+  const canManageAccounts = profile?.role === "owner" || profile?.role === "creative" || profile?.role === "production";
   const isVa = profile?.role === "va";
   const myAssignee = profile?.assignee_name ?? "";
   const myName = profile?.full_name ?? profile?.assignee_name ?? "unknown";
