@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function assertOwner(supabase: any, userId: string) {
   const { data } = await supabase.from("profiles").select("role").eq("id", userId).single();
-  if (data?.role !== "owner") throw new Error("Только владелец");
+  if (data?.role !== "owner" && data?.role !== "production") throw new Error("Только владелец");
 }
 
 async function loadSettingsRow(admin: any) {
