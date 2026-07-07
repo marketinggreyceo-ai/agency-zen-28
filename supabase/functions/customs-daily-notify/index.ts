@@ -52,6 +52,33 @@ async function sendMessage(token: string, chatId: string | number, text: string)
   return res.ok;
 }
 
+async function sendPhotos(token: string, chatId: string | number, fileIds: string[]) {
+  try {
+    if (fileIds.length === 0) return true;
+    if (fileIds.length === 1) {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, photo: fileIds[0] }),
+      });
+      return res.ok;
+    }
+    // sendMediaGroup: batch up to 10
+    let ok = true;
+    for (let i = 0; i < fileIds.length; i += 10) {
+      const batch = fileIds.slice(i, i + 10);
+      const media = batch.map((id) => ({ type: "photo", media: id }));
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, media }),
+      });
+      if (!res.ok) ok = false;
+    }
+    return ok;
+  } catch (_) { return false; }
+}
+
 async function authorize(req: Request, body: any): Promise<{ ok: true } | { ok: false; status: number; msg: string }> {
   const { data: settings } = await admin.from("telegram_settings").select("cron_secret").limit(1).maybeSingle();
   const secret = settings?.cron_secret ?? null;
@@ -97,7 +124,7 @@ async function runDigest(): Promise<{ notified: number; skipped_no_customs: numb
     if (!m.telegram_chat_id) { skipped_not_connected++; continue; }
     const { data: customs } = await admin
       .from("customs")
-      .select("customer_nickname, description, notes, status, created_at")
+      .select("customer_nickname, description, fan_description, duration, costume, photo_file_ids, notes, status, created_at")
       .eq("model_id", m.id)
       .not("status", "in", "(done,sent)")
       .order("created_at", { ascending: true });
@@ -110,7 +137,10 @@ async function runDigest(): Promise<{ notified: number; skipped_no_customs: numb
     items.forEach((c: any, i: number) => {
       const statusRu = STATUS_RU[c.status] ?? c.status;
       lines.push(`${i + 1}. 👤 ${c.customer_nickname || "—"} · ${statusRu} · ${daysAgo(c.created_at)}`);
+      if (c.duration) lines.push(`   ⏱ ${c.duration}`);
+      if (c.costume) lines.push(`   👗 ${c.costume}`);
       if (c.description) lines.push(`   ${c.description}`);
+      if (c.fan_description) lines.push(`   💬 ${c.fan_description}`);
       if (c.notes) lines.push(`   📝 ${c.notes}`);
       lines.push("");
     });
@@ -118,6 +148,13 @@ async function runDigest(): Promise<{ notified: number; skipped_no_customs: numb
     const text = lines.join("\n");
 
     const ok = await sendMessage(botToken, m.telegram_chat_id, text);
+    // Send photos for each custom that has them
+    for (const c of items as any[]) {
+      const ids = Array.isArray(c.photo_file_ids) ? c.photo_file_ids as string[] : [];
+      if (ids.length > 0) {
+        await sendPhotos(botToken, m.telegram_chat_id, ids);
+      }
+    }
     await writeLog({
       chat_id: m.telegram_chat_id,
       message_text: `daily digest → ${m.name} (${items.length})`,

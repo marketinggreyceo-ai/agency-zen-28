@@ -1,6 +1,5 @@
 // Telegram webhook receiver — runs on Supabase Edge Functions (Deno)
 // Public endpoint, verify_jwt = false. Telegram POSTs updates here.
-// Parses #задача → tasks, #кастом → customs, upserts chat into telegram_chats.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -12,7 +11,6 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
 
 const APP_URL = Deno.env.get("APP_URL") || "https://greymedia.company/app";
 
-// Normalize: strip @, lowercase, trim
 function normalize(value: string | null | undefined) {
   return (value ?? "").trim().replace(/^@/, "").toLocaleLowerCase("ru-RU");
 }
@@ -30,87 +28,143 @@ function normalizeSearch(value: string | null | undefined) {
     .replace(/[^a-z0-9а-яё]+/gi, "");
 }
 
-// Extract @mention username from Telegram message
-// Handles both: plain text @username AND Telegram entity mentions
 function extractMention(msg: any): string | null {
   const text: string = msg?.text ?? msg?.caption ?? "";
   const entities: any[] = msg?.entities ?? msg?.caption_entities ?? [];
-
-  // Method 1: Extract from Telegram entities (most reliable)
-  // Entity types: "mention" = @username, "text_mention" = user without username
   for (const entity of entities) {
     if (entity.type === "mention") {
-      // Extract the @username text from the message using offset/length
       const mentionText = text.slice(entity.offset, entity.offset + entity.length);
       const username = mentionText.replace(/^@/, "");
       if (username) return username;
     }
-    if (entity.type === "text_mention" && entity.user?.username) {
-      return entity.user.username;
-    }
+    if (entity.type === "text_mention" && entity.user?.username) return entity.user.username;
   }
-
-  // Method 2: Regex fallback for plain text @mentions
   const match = text.match(/@([\p{L}\p{N}_]+)/u);
   if (match) return match[1];
-
   return null;
 }
 
-// Parse #задача message - extract mention and title
 function parseTaskMessage(msg: any): { title: string; mention: string | null } | null {
   const text: string = msg?.text ?? msg?.caption ?? "";
   if (!/#задача/i.test(text)) return null;
-
-  // Get mention from entities (reliable) or regex
   const mention = extractMention(msg);
-
-  // Build title: take all text, remove #задача tag and @mention, clean up
   let title = text
     .replace(/#задача\b/gi, "")
-    .replace(mention ? new RegExp(`@${mention}`, "gi") : /(?!x)x/, "") // remove @mention if found
+    .replace(mention ? new RegExp(`@${mention}`, "gi") : /(?!x)x/, "")
     .split("\n")
     .map((l: string) => l.trim())
-    .filter((l: string) => l.length > 0 && !l.match(/^@[\p{L}\p{N}_]+$/u)) // remove lines that are only @mention
+    .filter((l: string) => l.length > 0 && !l.match(/^@[\p{L}\p{N}_]+$/u))
     .join(" ")
     .trim();
-
   if (!title) title = "Задача из Telegram";
-
   return { title, mention };
 }
 
-// Parse #кастом message
-function parseCustomMessage(text: string) {
-  if (!/#кастом/i.test(text)) return null;
+// Labeled-line parser for #кастом messages.
+// Supports Russian and English labels on the same line, and multi-line values
+// for the fan description (until next label or end).
+type CustomFields = {
+  customer_nickname: string;
+  price: number | null;
+  duration: string | null;
+  description: string | null;
+  fan_description: string | null;
+  costume: string | null;
+  modelToken: string | null;
+};
 
+const LABELS: Array<{ key: keyof CustomFields; re: RegExp; multiline?: boolean }> = [
+  { key: "customer_nickname", re: /^\s*(?:фан|fan(?:\s*name)?)\s*[:\-]\s*(.+)$/i },
+  { key: "price",             re: /^\s*(?:цена|agreed\s*price|price)\s*[:\-]\s*(.+)$/i },
+  { key: "duration",          re: /^\s*(?:длительность|duration|длина)\s*[:\-]\s*(.+)$/i },
+  { key: "description",       re: /^\s*(?:описание|description)\s*[:\-]\s*(.+)$/i, multiline: true },
+  { key: "fan_description",   re: /^\s*(?:от\s*фана|description\s*by\s*fan|fan\s*description)\s*[:\-]\s*(.*)$/i, multiline: true },
+  { key: "costume",           re: /^\s*(?:костюм|costume|outfit)\s*[:\-]\s*(.+)$/i },
+];
+
+function parseCustomMessage(text: string): CustomFields {
   const mentionMatch = text.match(/@([\p{L}\p{N}_.-]+)/u);
   const modelToken = mentionMatch ? mentionMatch[1] : null;
 
-  let description = text.replace(/#кастом/gi, "");
-  if (mentionMatch) description = description.replace(mentionMatch[0], "");
-  description = description.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  const out: CustomFields = {
+    customer_nickname: "",
+    price: null,
+    duration: null,
+    description: null,
+    fan_description: null,
+    costume: null,
+    modelToken,
+  };
 
-  const priceMatch = text.match(/\$\s*([0-9][0-9.,]*)/);
-  const price = priceMatch ? Number(priceMatch[1].replace(/,/g, "")) : null;
+  const lines = text.split(/\r?\n/);
+  let currentMultiKey: keyof CustomFields | null = null;
+  const buffers: Partial<Record<keyof CustomFields, string[]>> = {};
 
-  const fanMatch = text.match(/fan\s*name\s*:\s*([^\n\r]+)/i);
-  const nickname = fanMatch ? fanMatch[1].trim() : "";
+  for (const raw of lines) {
+    const line = raw ?? "";
+    let matched = false;
+    for (const lab of LABELS) {
+      const m = line.match(lab.re);
+      if (m) {
+        const val = (m[1] ?? "").trim();
+        buffers[lab.key] = val ? [val] : [];
+        currentMultiKey = lab.multiline ? lab.key : null;
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+    if (currentMultiKey) {
+      const trimmed = line.trim();
+      if (!trimmed) { currentMultiKey = null; continue; }
+      (buffers[currentMultiKey] ||= []).push(trimmed);
+    }
+  }
 
-  return { description: description || text.trim(), nickname, modelToken, price };
+  const get = (k: keyof CustomFields) => (buffers[k]?.join("\n").trim() || null);
+  out.customer_nickname = get("customer_nickname") ?? "";
+  out.duration = get("duration");
+  out.description = get("description");
+  out.fan_description = get("fan_description");
+  out.costume = get("costume");
+  const priceRaw = get("price");
+  if (priceRaw) {
+    const clean = priceRaw.replace(/\$/g, "").replace(/\s/g, "").replace(/,/g, ".");
+    const n = Number(clean.match(/-?\d+(\.\d+)?/)?.[0]);
+    out.price = Number.isFinite(n) ? n : null;
+  } else {
+    const priceMatch = text.match(/\$\s*([0-9][0-9.,]*)/);
+    if (priceMatch) {
+      const n = Number(priceMatch[1].replace(/,/g, ""));
+      out.price = Number.isFinite(n) ? n : null;
+    }
+  }
+
+  // Fallbacks (keep prior behavior when labels are absent)
+  if (!out.description) {
+    let desc = text.replace(/#кастом/gi, "");
+    if (mentionMatch) desc = desc.replace(mentionMatch[0], "");
+    // Strip out any labeled lines so we don't dump the whole message
+    desc = desc.split(/\r?\n/).filter((l) => !LABELS.some((lab) => lab.re.test(l))).join("\n");
+    desc = desc.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    if (desc) out.description = desc;
+  }
+  if (!out.customer_nickname) {
+    const fanMatch = text.match(/fan\s*name\s*:\s*([^\n\r]+)/i);
+    if (fanMatch) out.customer_nickname = fanMatch[1].trim();
+  }
+
+  return out;
 }
 
-// Find model by name in DB
 async function findModel(text: string, explicitToken?: string | null) {
   const { data: models } = await admin
     .from("models")
     .select("id, name, english_name")
     .eq("is_archived", false);
   const list = (models ?? []) as Array<{ id: string; name: string; english_name: string | null }>;
-
-  function nameVariants(m: { name: string; english_name: string | null }) {
-    return [m.name, m.english_name].filter(Boolean).map((s) => String(s).trim()) as string[];
-  }
+  const nameVariants = (m: { name: string; english_name: string | null }) =>
+    [m.name, m.english_name].filter(Boolean).map((s) => String(s).trim()) as string[];
 
   if (explicitToken) {
     const key = normalize(explicitToken);
@@ -143,61 +197,37 @@ async function findModel(text: string, explicitToken?: string | null) {
     })) ?? null;
 }
 
-// Resolve @mention to assignee name
-// Checks: profiles.telegram_handle, team_members.telegram_handle, partial name match
 async function resolveAssignee(mention: string | null): Promise<string> {
   if (!mention) return "Я";
   const key = normalize(mention);
-
-  // 1) Check profiles table by telegram_handle (exact match, no status filter)
-  const { data: profiles } = await admin
-    .from("profiles")
-    .select("full_name, telegram_handle");
-
-  const profMatch = (profiles ?? []).find((p: any) =>
-    normalize(p.telegram_handle) === key
-  );
+  const { data: profiles } = await admin.from("profiles").select("full_name, telegram_handle");
+  const profMatch = (profiles ?? []).find((p: any) => normalize(p.telegram_handle) === key);
   if (profMatch?.full_name) return profMatch.full_name;
-
-  // 2) Check team_members by telegram_handle (exact)
-  const { data: members } = await admin
-    .from("team_members")
-    .select("name, assignee_name, telegram_handle")
-    .eq("is_archived", false);
-
+  const { data: members } = await admin.from("team_members")
+    .select("name, assignee_name, telegram_handle").eq("is_archived", false);
   const tgExact = (members ?? []).find((m: any) => normalize(m.telegram_handle) === key);
   if (tgExact) return tgExact.assignee_name || tgExact.name || mention;
-
-  // 3) Partial match on assignee_name
   const asgPartial = (members ?? []).find((m: any) => {
     const n = normalize(m.assignee_name);
     return n && (n.includes(key) || key.includes(n));
   });
   if (asgPartial) return asgPartial.assignee_name || asgPartial.name || mention;
-
-  // 4) Partial match on name
   const namePartial = (members ?? []).find((m: any) => {
     const n = normalize(m.name);
     return n && (n.includes(key) || key.includes(n));
   });
   if (namePartial) return namePartial.assignee_name || namePartial.name || mention;
-
-  // 5) Return raw mention as fallback
   return `@${mention}`;
 }
 
 async function resolveChatter(senderUsername: string | null, fallback: string) {
   if (!senderUsername) return fallback;
   const key = normalize(senderUsername);
-  const { data: profiles } = await admin
-    .from("profiles")
-    .select("full_name, telegram_handle");
+  const { data: profiles } = await admin.from("profiles").select("full_name, telegram_handle");
   const p = (profiles ?? []).find((x: any) => normalize(x.telegram_handle) === key);
   if (p?.full_name) return p.full_name;
-  const { data: members } = await admin
-    .from("team_members")
-    .select("name, assignee_name, telegram_handle")
-    .eq("is_archived", false);
+  const { data: members } = await admin.from("team_members")
+    .select("name, assignee_name, telegram_handle").eq("is_archived", false);
   const m = (members ?? []).find((x: any) => normalize(x.telegram_handle) === key);
   return m?.assignee_name || m?.name || fallback;
 }
@@ -228,6 +258,15 @@ async function sendMessage(token: string, chatId: string | number, text: string)
   } catch (_) { /* ignore */ }
 }
 
+// Pick largest photo size's file_id
+function extractPhotoFileId(msg: any): string | null {
+  const photos = msg?.photo;
+  if (!Array.isArray(photos) || photos.length === 0) return null;
+  const biggest = photos.reduce((a: any, b: any) =>
+    ((a?.file_size ?? a?.width ?? 0) >= (b?.file_size ?? b?.width ?? 0) ? a : b));
+  return biggest?.file_id ?? null;
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ ok: true, info: "telegram webhook alive" }), {
@@ -246,12 +285,10 @@ Deno.serve(async (req) => {
   const text: string = msg?.text ?? msg?.caption ?? "";
   const chat = msg?.chat;
   const chatId = chat?.id ? String(chat.id) : null;
+  const mediaGroupId: string | null = msg?.media_group_id ? String(msg.media_group_id) : null;
+  const photoFileId = extractPhotoFileId(msg);
 
-  console.log("[telegram-webhook] incoming", { chatId, text: text.slice(0, 100), update_id: update.update_id });
-  console.log("[telegram-webhook] entities", JSON.stringify(msg?.entities ?? []));
-
-  const action = /#кастом/i.test(text) ? "custom" : /#задача/i.test(text) ? "task" : "ignored";
-  console.log("[telegram-webhook] action", action);
+  console.log("[telegram-webhook] incoming", { chatId, text: text.slice(0, 100), update_id: update.update_id, mediaGroupId, hasPhoto: !!photoFileId });
 
   try {
     if (!chat) {
@@ -262,8 +299,7 @@ Deno.serve(async (req) => {
     const chatTitle =
       chat.title ||
       [chat.first_name, chat.last_name].filter(Boolean).join(" ") ||
-      chat.username ||
-      String(chat.id);
+      chat.username || String(chat.id);
 
     await admin.from("telegram_chats").upsert(
       { chat_id: chatId, title: chatTitle, type: chat.type },
@@ -277,7 +313,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const botToken: string | null = settings?.bot_token ?? null;
 
-    // Handle /start model_<uuid> deep-link in private chats
+    // /start model_<uuid> deep-link
     const startMatch = text.match(/^\/start(?:@\w+)?\s+model_([0-9a-f-]{36})\b/i);
     if (startMatch && chat.type === "private") {
       const modelId = startMatch[1];
@@ -295,28 +331,89 @@ Deno.serve(async (req) => {
       }
       const { error: updErr } = await admin.from("models").update({ telegram_chat_id: chatId }).eq("id", modelId);
       if (updErr) throw updErr;
-      if (botToken) {
-        await sendMessage(botToken, chat.id, `Привет, ${model.name}! Теперь я буду присылать тебе твои кастомы каждый день 🎬`);
-      }
+      if (botToken) await sendMessage(botToken, chat.id, `Привет, ${model.name}! Теперь я буду присылать тебе твои кастомы каждый день 🎬`);
       await writeLog({ chat_id: chatId, message_text: text, parsed_action: "start_model_connected", success: true });
       return Response.json({ ok: true, connected: model.name });
     }
 
-    // Handle #кастом
+    // Album continuation: photo message in same media_group_id as a recent custom
+    if (mediaGroupId && photoFileId && !/#кастом/i.test(text)) {
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const { data: existing } = await admin
+        .from("customs")
+        .select("id, photo_file_ids")
+        .eq("media_group_id", mediaGroupId)
+        .gte("created_at", twoMinAgo)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        const current = Array.isArray((existing as any).photo_file_ids) ? (existing as any).photo_file_ids as string[] : [];
+        if (!current.includes(photoFileId)) {
+          const next = [...current, photoFileId];
+          await admin.from("customs").update({ photo_file_ids: next }).eq("id", (existing as any).id);
+        }
+        await writeLog({ chat_id: chatId, message_text: text, parsed_action: "custom_photo_append", success: true });
+        return Response.json({ ok: true, appended_to: (existing as any).id });
+      }
+    }
+
+    // #кастом
     if (/#кастом/i.test(text)) {
-      const parsed = parseCustomMessage(text) ?? { description: text, nickname: "", modelToken: null, price: null };
+      const parsed = parseCustomMessage(text);
       const model = parsed.modelToken ? await findModel(text, parsed.modelToken) : await findModel(text);
       const senderName =
         [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") ||
         msg.from?.username || chatTitle;
       const chatter = await resolveChatter(msg.from?.username ?? null, senderName);
-      const customerNickname = parsed.nickname || "Не указан";
+      const customerNickname = parsed.customer_nickname || "Не указан";
       const unmatchedNote = !model && parsed.modelToken
         ? `Модель из Telegram (не распознана): @${parsed.modelToken}`
         : null;
-      const { error } = await admin.from("customs").insert({
+
+      // If this #кастом caption belongs to an album that already has a row, merge into it.
+      if (mediaGroupId) {
+        const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+        const { data: existing } = await admin
+          .from("customs")
+          .select("id, photo_file_ids, customer_nickname, description")
+          .eq("media_group_id", mediaGroupId)
+          .gte("created_at", twoMinAgo)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (existing) {
+          const current = Array.isArray((existing as any).photo_file_ids) ? (existing as any).photo_file_ids as string[] : [];
+          const next = photoFileId && !current.includes(photoFileId) ? [...current, photoFileId] : current;
+          const patch: any = {
+            customer_nickname: customerNickname,
+            description: parsed.description,
+            fan_description: parsed.fan_description,
+            duration: parsed.duration,
+            costume: parsed.costume,
+            price: parsed.price,
+            model_id: model?.id ?? null,
+            chatter,
+            notes: unmatchedNote,
+            photo_file_ids: next,
+          };
+          await admin.from("customs").update(patch).eq("id", (existing as any).id);
+          if (botToken) {
+            await sendMessage(botToken, chat.id,
+              `✅ Кастом обновлён\n\n🎭 Модель: ${model?.name ?? "не указана"}\n👤 Клиент: ${customerNickname}\n📷 Фото: ${next.length}`);
+          }
+          await writeLog({ chat_id: chatId, message_text: text, parsed_action: "custom_updated_album", success: true });
+          return Response.json({ ok: true, type: "custom", merged: true });
+        }
+      }
+
+      const photoIds = photoFileId ? [photoFileId] : [];
+      const { data: inserted, error } = await admin.from("customs").insert({
         customer_nickname: customerNickname,
         description: parsed.description,
+        fan_description: parsed.fan_description,
+        duration: parsed.duration,
+        costume: parsed.costume,
         model_id: model?.id ?? null,
         price: parsed.price,
         chatter,
@@ -324,19 +421,21 @@ Deno.serve(async (req) => {
         notes: unmatchedNote,
         telegram_message_id: String(msg.message_id ?? ""),
         telegram_chat_id: chatId,
-      });
+        media_group_id: mediaGroupId,
+        photo_file_ids: photoIds,
+      }).select("id").single();
       if (error) throw error;
 
       await writeLog({ chat_id: chatId, message_text: text, parsed_action: "custom", success: true });
       if (botToken) {
-        const preview = parsed.description.slice(0, 100);
+        const preview = (parsed.description ?? "").slice(0, 100);
         await sendMessage(botToken, chat.id,
-          `✅ Кастом добавлен\n\n🎭 Модель: ${model?.name ?? (parsed.modelToken ? `не распознана (@${parsed.modelToken})` : "не указана")}\n💰 Цена: ${parsed.price != null ? `$${parsed.price}` : "не указана"}\n👤 Клиент: ${customerNickname}\n📋 Статус: Новый\n\n${preview}${parsed.description.length > 100 ? "..." : ""}`);
+          `✅ Кастом добавлен\n\n🎭 Модель: ${model?.name ?? (parsed.modelToken ? `не распознана (@${parsed.modelToken})` : "не указана")}\n💰 Цена: ${parsed.price != null ? `$${parsed.price}` : "не указана"}\n👤 Клиент: ${customerNickname}\n${parsed.duration ? `⏱ Длительность: ${parsed.duration}\n` : ""}${parsed.costume ? `👗 Костюм: ${parsed.costume}\n` : ""}📋 Статус: Новый${preview ? `\n\n${preview}${(parsed.description ?? "").length > 100 ? "..." : ""}` : ""}`);
       }
-      return Response.json({ ok: true, type: "custom" });
+      return Response.json({ ok: true, type: "custom", id: inserted?.id });
     }
 
-    // Handle #задача
+    // #задача
     if (/#задача/i.test(text)) {
       if (!settings?.auto_tasks_enabled) {
         await writeLog({ chat_id: chatId, message_text: text, parsed_action: "task_skipped", success: true, error_message: "auto_tasks_disabled" });
@@ -344,16 +443,11 @@ Deno.serve(async (req) => {
       }
 
       const parsed = parseTaskMessage(msg) ?? { title: "Задача из Telegram", mention: null };
-      console.log("[telegram-webhook] parsed task", JSON.stringify(parsed));
-
       const [assignee, model] = await Promise.all([
         resolveAssignee(parsed.mention),
         findModel(text),
       ]);
 
-      console.log("[telegram-webhook] assignee resolved", { mention: parsed.mention, assignee });
-
-      // Build clickable Telegram message link
       const numericChatId = String(chatId).replace(/^-100/, "");
       const tgMessageLink = msg.message_id
         ? (chat.username
