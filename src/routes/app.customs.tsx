@@ -317,3 +317,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+
+export function SendDigestButton() {
+  const [busy, setBusy] = useState(false);
+  async function send() {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customs-daily-notify", { body: {} });
+      if (error) throw error;
+      const d = data as any;
+      toast.success(`Отправлено: ${d?.notified ?? 0} · без кастомов: ${d?.skipped_no_customs ?? 0} · не подключено: ${d?.skipped_not_connected ?? 0}`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Не удалось отправить");
+    } finally { setBusy(false); }
+  }
+  return (
+    <button onClick={send} disabled={busy}
+      className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm inline-flex items-center gap-1 hover:bg-bg2 disabled:opacity-50">
+      📨 {busy ? "Отправка…" : "Разослать кастомы сейчас"}
+    </button>
+  );
+}
