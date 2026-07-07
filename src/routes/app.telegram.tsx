@@ -24,7 +24,7 @@ function Page() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: profile, isLoading } = useProfile();
-  const isOwner = profile?.role === "owner";
+  const isOwner = profile?.role === "owner" || profile?.role === "production";
 
   useEffect(() => {
     if (!isLoading && profile && !isOwner) navigate({ to: "/app" });
