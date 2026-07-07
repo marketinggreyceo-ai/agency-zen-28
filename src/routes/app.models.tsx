@@ -335,6 +335,27 @@ function Page() {
   );
 }
 
+function TelegramRow({ model }: { model: any }) {
+  const link = `https://t.me/GA_AgencyBot?start=model_${model.id}`;
+  const connected = !!model.telegram_chat_id;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs bg-bg2 border border-border rounded p-2">
+      <span className="text-text3 uppercase tracking-wide">Telegram</span>
+      {connected ? (
+        <span className="text-[color:var(--green)] font-medium">✓ подключён</span>
+      ) : (
+        <>
+          <code className="bg-bg3 px-2 py-1 rounded font-mono truncate max-w-[360px]">{link}</code>
+          <button onClick={() => { navigator.clipboard.writeText(link); toast.success("Ссылка скопирована"); }}
+            className="px-2 py-1 rounded bg-bg3 border border-border hover:bg-bg2 inline-flex items-center gap-1">
+            <Copy className="h-3 w-3" /> Копировать
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 
 
 function AccountModal({ account, modelId, defaultPlatform, teamMembers, onClose }: {
