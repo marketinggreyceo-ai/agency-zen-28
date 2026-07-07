@@ -79,10 +79,10 @@ export function SkeletonPage({ rows = 6 }: { rows?: number }) {
 }
 
 const ACCOUNT_STATUS_COLORS: Record<string, string> = {
-  active: "#1D9E75",
-  appeal: "#BA7517",
+  active: "#C8A566",
+  appeal: "#C98F3D",
   deactivated: "#555555",
-  banned: "#E24B4A",
+  banned: "#E15B5B",
 };
 const ACCOUNT_STATUS_LABELS: Record<string, string> = {
   active: "Active",

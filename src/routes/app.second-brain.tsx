@@ -13,8 +13,8 @@ export const Route = createFileRoute("/app/second-brain")({
 
 const BLOCK_COLORS: Record<string, string> = {
   teal: "#1FB8B0",
-  red: "#E24B4A",
-  amber: "#BA7517",
+  red: "#E15B5B",
+  amber: "#C98F3D",
   purple: "#8B5CF6",
   coral: "#F97066",
   gray: "#6B7280",

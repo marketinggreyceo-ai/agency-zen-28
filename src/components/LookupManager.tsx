@@ -9,8 +9,8 @@ import { Plus, Archive, ArchiveRestore, Trash2, Save } from "lucide-react";
 type Field = "color" | "icon_name" | "none";
 
 const COLOR_PALETTE = [
-  "#5DCAA5", "#1D9E75", "#5B8DEF", "#9D6FD4", "#BA7517",
-  "#E24B4A", "#D85A30", "#888888", "#555555", "#7F77DD",
+  "#C8A566", "#C8A566", "#5B8DEF", "#9D6FD4", "#C98F3D",
+  "#E15B5B", "#D8683F", "#888888", "#555555", "#8F87D8",
 ];
 
 export function LookupManager({

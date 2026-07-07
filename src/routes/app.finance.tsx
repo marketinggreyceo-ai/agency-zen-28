@@ -15,7 +15,7 @@ export const Route = createFileRoute("/app/finance")({
   component: Page,
 });
 
-const PALETTE = ["#1FB8B0", "#E24B4A", "#BA7517", "#8B5CF6", "#F97066", "#6B7280", "#5DCAA5", "#7F77DD"];
+const PALETTE = ["#1FB8B0", "#E15B5B", "#C98F3D", "#8B5CF6", "#F97066", "#6B7280", "#C8A566", "#8F87D8"];
 
 const RU_MONTH_NAMES = [
   "январь", "февраль", "март", "апрель", "май", "июнь",
@@ -229,13 +229,13 @@ function Page() {
           <Section title="Итоговый расчёт">
             <div className="max-w-md mx-auto rounded-lg border border-border bg-bg2 p-5 space-y-2 text-sm">
               <Row label="Получено от моделей:" value={`${currency}${Math.round(totals.received).toLocaleString()}`} />
-              <Row label="− Расходы:" value={`−${currency}${Math.round(totals.expTotal).toLocaleString()}`} color="#E24B4A" />
+              <Row label="− Расходы:" value={`−${currency}${Math.round(totals.expTotal).toLocaleString()}`} color="#E15B5B" />
               {chattingPaidThisMonth > 0 && (
                 <Row label="Чаттинг выплачено:" value={`${currency}${Math.round(chattingPaidThisMonth).toLocaleString()}`} color="#F59E0B" />
               )}
               <div className="border-t border-border my-2" />
               <Row label="Чистая прибыль:" value={`${currency}${Math.round(totals.profit).toLocaleString()}`}
-                bold color={totals.profit >= 0 ? "#1FB8B0" : "#E24B4A"} />
+                bold color={totals.profit >= 0 ? "#1FB8B0" : "#E15B5B"} />
               <div className="border-t border-border my-2" />
               <Row label={`${partnerName} (${partnerPct}%):`}
                 value={`${currency}${Math.round(totals.profit * partnerPct / 100).toLocaleString()}`} />
@@ -476,7 +476,7 @@ function CloseMonthModal({ month, year, totals, chattingPaid, partnerName, partn
         </div>
         <div className="rounded-md border border-border bg-bg2 p-3 space-y-1.5 text-sm mb-3">
           <Row label="Получено:" value={`${currency}${Math.round(totals.received).toLocaleString()}`} />
-          <Row label="Расходы:" value={`${currency}${Math.round(totals.expTotal).toLocaleString()}`} color="#E24B4A" />
+          <Row label="Расходы:" value={`${currency}${Math.round(totals.expTotal).toLocaleString()}`} color="#E15B5B" />
           {chattingPaid > 0 && (
             <Row label="Чаттинг выплачено:" value={`${currency}${Math.round(chattingPaid).toLocaleString()}`} color="#F59E0B" />
           )}
