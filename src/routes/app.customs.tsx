@@ -16,6 +16,8 @@ type Custom = {
   chatter: string | null; platform: string | null; notes: string | null;
   created_at: string; updated_at: string;
   telegram_message_id: string | null; telegram_chat_id: string | null;
+  duration: string | null; costume: string | null; fan_description: string | null;
+  photo_file_ids: string[] | null; media_group_id: string | null;
 };
 
 const STATUSES: { key: string; label: string; tint: string; border: string; opacity?: number }[] = [
