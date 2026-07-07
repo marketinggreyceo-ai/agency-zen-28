@@ -14,10 +14,10 @@ export const Route = createFileRoute("/app/overview")({
 const RU_MONTHS_SHORT = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
 
 const ACCOUNT_STATUS_META: Record<string, { label: string; color: string }> = {
-  active:      { label: "Active",      color: "#1D9E75" },
-  appeal:      { label: "Appeal",      color: "#BA7517" },
+  active:      { label: "Active",      color: "#34B98A" },
+  appeal:      { label: "Appeal",      color: "#C98F3D" },
   deactivated: { label: "Deactivated", color: "#555555" },
-  banned:      { label: "Banned",      color: "#E24B4A" },
+  banned:      { label: "Banned",      color: "#E15B5B" },
 };
 
 function prevYM(year: number, month: number): [number, number] {
@@ -184,7 +184,7 @@ function Page() {
     setFocus(arr); localStorage.setItem("focus_week", JSON.stringify(arr));
   }
 
-  const tooltipStyle = { background: "#1e1e1e", border: "1px solid #333", borderRadius: 8, fontSize: 12 };
+  const tooltipStyle = { background: "#1A181C", border: "1px solid #333", borderRadius: 8, fontSize: 12 };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -215,7 +215,7 @@ function Page() {
                 <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="Прошлый месяц" fill="#555" radius={[3,3,0,0]} maxBarSize={26} />
-                <Bar dataKey="Этот месяц" fill="#1D9E75" radius={[3,3,0,0]} maxBarSize={26} />
+                <Bar dataKey="Этот месяц" fill="#C8A566" radius={[3,3,0,0]} maxBarSize={26} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -229,7 +229,7 @@ function Page() {
               <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
               <Bar dataKey="Прибыль" radius={[3,3,0,0]} maxBarSize={34}>
                 {profitTrend.map((row, i) => (
-                  <Cell key={i} fill={row.Прибыль >= 0 ? "#1D9E75" : "#E24B4A"} />
+                  <Cell key={i} fill={row.Прибыль >= 0 ? "#C8A566" : "#E15B5B"} />
                 ))}
               </Bar>
             </BarChart>
@@ -270,12 +270,12 @@ function Page() {
             <span className="flex items-center gap-2">
               Аккаунты
               {bannedTotal > 0 && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(226,75,74,0.15)", color: "#E24B4A" }}>
+                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(226,75,74,0.15)", color: "#E15B5B" }}>
                   {bannedTotal} banned
                 </span>
               )}
               {appealTotal > 0 && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(186,117,23,0.15)", color: "#BA7517" }}>
+                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(186,117,23,0.15)", color: "#C98F3D" }}>
                   {appealTotal} appeal
                 </span>
               )}
@@ -371,7 +371,7 @@ function Page() {
                   <div className="h-1.5 bg-bg3 rounded overflow-hidden">
                     <div className="h-full" style={{
                       width: `${g.progress}%`,
-                      background: g.status === "failed" ? "#E24B4A" : "#5DCAA5",
+                      background: g.status === "failed" ? "#E15B5B" : "#C8A566",
                     }} />
                   </div>
                 </li>
@@ -405,7 +405,7 @@ function Page() {
                 </div>
                 {overdue.length > 0 && (
                   <div className="text-xs px-2 py-1.5 rounded"
-                    style={{ background: "rgba(186,117,23,0.15)", color: "#BA7517" }}>
+                    style={{ background: "rgba(186,117,23,0.15)", color: "#C98F3D" }}>
                     ⚠ {overdue.length} кастомов в работе 6+ дней
                   </div>
                 )}

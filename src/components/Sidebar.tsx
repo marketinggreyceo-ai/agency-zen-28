@@ -47,7 +47,7 @@ const MOBILE_TABS: { to?: string; label: string; icon: any; page?: string; menu?
   { label: "Меню",      icon: Menu,     menu: true },
 ];
 
-const ACTIVE_COLOR = "#5DCAA5";
+const ACTIVE_COLOR = "#C8A566";
 
 export function Sidebar() {
   const { data: profile } = useProfile();

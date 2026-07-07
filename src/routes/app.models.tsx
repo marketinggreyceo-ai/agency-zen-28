@@ -19,10 +19,10 @@ export const Route = createFileRoute("/app/models")({
 
 const ACCOUNT_PLATFORMS = ["Instagram","X","Reddit","Facebook","Fansly","OnlyFans"];
 const ACCOUNT_STATUSES = [
-  { value: "active", label: "Active", color: "#1D9E75" },
-  { value: "appeal", label: "Appeal", color: "#BA7517" },
+  { value: "active", label: "Active", color: "#34B98A" },
+  { value: "appeal", label: "Appeal", color: "#C98F3D" },
   { value: "deactivated", label: "Deactivated", color: "#555555" },
-  { value: "banned", label: "Banned", color: "#E24B4A" },
+  { value: "banned", label: "Banned", color: "#E15B5B" },
 ];
 
 function statusMeta(s: string | null) {

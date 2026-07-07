@@ -20,8 +20,8 @@ type Custom = {
 
 const STATUSES: { key: string; label: string; tint: string; border: string; opacity?: number }[] = [
   { key: "new",    label: "Новый",     tint: "#1c1c1c", border: "var(--border)" },
-  { key: "inprog", label: "В работе",  tint: "#16242a", border: "#5DCAA5" },
-  { key: "done",   label: "Готово",    tint: "#15251d", border: "#1D9E75" },
+  { key: "inprog", label: "В работе",  tint: "#16242a", border: "#C8A566" },
+  { key: "done",   label: "Готово",    tint: "#15251d", border: "#C8A566" },
   { key: "sent",   label: "Отправлен", tint: "#1c1c1c", border: "var(--border)", opacity: 0.6 },
 ];
 const STATUS_LABEL: Record<string,string> = Object.fromEntries(STATUSES.map(s => [s.key, s.label]));
@@ -32,8 +32,8 @@ function daysSince(iso: string) {
 }
 function dayBadgeColor(d: number) {
   if (d <= 2) return { bg: "#2a2a2a", fg: "#aaa" };
-  if (d <= 5) return { bg: "rgba(186,117,23,0.18)", fg: "#BA7517" };
-  return { bg: "rgba(226,75,74,0.18)", fg: "#E24B4A" };
+  if (d <= 5) return { bg: "rgba(186,117,23,0.18)", fg: "#C98F3D" };
+  return { bg: "rgba(226,75,74,0.18)", fg: "#E15B5B" };
 }
 
 function colorFromString(s: string) {

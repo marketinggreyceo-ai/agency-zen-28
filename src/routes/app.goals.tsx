@@ -252,12 +252,12 @@ function AddBtn({ children, onClick }: any) {
 
 function StatusBadge({ status, weekPassed }: { status: string; weekPassed: boolean }) {
   if (status === "active" && weekPassed) {
-    return <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(186,117,23,0.15)", color: "#BA7517" }}>Не выполнена</span>;
+    return <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(186,117,23,0.15)", color: "#C98F3D" }}>Не выполнена</span>;
   }
   const styles: Record<string, { bg: string; color: string; label: string }> = {
     active: { bg: "#252525", color: "#888", label: "Активна" },
-    done: { bg: "rgba(29,158,117,0.15)", color: "#5DCAA5", label: "Выполнена" },
-    failed: { bg: "rgba(226,75,74,0.15)", color: "#E24B4A", label: "Провалена" },
+    done: { bg: "rgba(29,158,117,0.15)", color: "#C8A566", label: "Выполнена" },
+    failed: { bg: "rgba(226,75,74,0.15)", color: "#E15B5B", label: "Провалена" },
   };
   const s = styles[status] ?? styles.active;
   return <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: s.bg, color: s.color }}>{s.label}</span>;
@@ -315,7 +315,7 @@ function GoalCard({ goal, weekPassed, canEdit, canProgress, sundayISO, linkedAss
           onClick={() => canProgress && setShowSlider((v) => !v)}
           className="w-full text-left">
           <div className="h-1.5 bg-bg3 rounded overflow-hidden">
-            <div className="h-full transition-all" style={{ width: `${goal.progress}%`, background: "#5DCAA5" }} />
+            <div className="h-full transition-all" style={{ width: `${goal.progress}%`, background: "#C8A566" }} />
           </div>
           <div className="text-[10px] text-text3 mt-0.5">{goal.progress}%</div>
         </button>
@@ -329,13 +329,13 @@ function GoalCard({ goal, weekPassed, canEdit, canProgress, sundayISO, linkedAss
       <div className="mt-2 flex items-center gap-1.5 flex-wrap">
         {canEdit && goal.status !== "done" && (
           <button onClick={() => onUpdate({ status: "done", progress: 100 })}
-            className="text-[10px] px-2 py-1 rounded flex items-center gap-1" style={{ background: "rgba(29,158,117,0.15)", color: "#5DCAA5" }}>
+            className="text-[10px] px-2 py-1 rounded flex items-center gap-1" style={{ background: "rgba(29,158,117,0.15)", color: "#C8A566" }}>
             <Check className="h-3 w-3" /> Done
           </button>
         )}
         {canEdit && goal.status !== "failed" && (
           <button onClick={() => onUpdate({ status: "failed" })}
-            className="text-[10px] px-2 py-1 rounded flex items-center gap-1" style={{ background: "rgba(226,75,74,0.15)", color: "#E24B4A" }}>
+            className="text-[10px] px-2 py-1 rounded flex items-center gap-1" style={{ background: "rgba(226,75,74,0.15)", color: "#E15B5B" }}>
             <X className="h-3 w-3" /> Failed
           </button>
         )}

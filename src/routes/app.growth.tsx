@@ -9,7 +9,7 @@ export const Route = createFileRoute("/app/growth")({
   ssr: false, component: Page,
 });
 
-const COLORS = ["#5DCAA5","#7F77DD","#D85A30","#BA7517","#E24B4A","#888"];
+const COLORS = ["#C8A566","#8F87D8","#D8683F","#C98F3D","#E15B5B","#888"];
 
 function Page() {
   const now = new Date();
@@ -105,7 +105,7 @@ function Page() {
             <LineChart data={chartData}>
               <XAxis dataKey="name" stroke="#888" fontSize={11} />
               <YAxis stroke="#888" fontSize={11} />
-              <Tooltip contentStyle={{ background: "#1e1e1e", border: "1px solid #333" }} />
+              <Tooltip contentStyle={{ background: "#1A181C", border: "1px solid #333" }} />
               <Legend />
               {models.map((m: any, i: number) => !hidden.has(m.name) && (
                 <Line key={m.id} type="monotone" dataKey={m.name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
