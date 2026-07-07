@@ -111,12 +111,15 @@ function Page() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <PageHeader title="Кастомы" action={
-        canEdit && (
-          <button onClick={() => setAddOpen(true)}
-            className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm inline-flex items-center gap-1 hover:bg-bg2">
-            <Plus className="h-4 w-4" /> Новый кастом
-          </button>
-        )
+        <div className="flex items-center gap-2">
+          {(role === "owner" || role === "production") && <SendDigestButton />}
+          {canEdit && (
+            <button onClick={() => setAddOpen(true)}
+              className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm inline-flex items-center gap-1 hover:bg-bg2">
+              <Plus className="h-4 w-4" /> Новый кастом
+            </button>
+          )}
+        </div>
       } />
 
       {/* Filters */}
