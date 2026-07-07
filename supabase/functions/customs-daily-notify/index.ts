@@ -124,7 +124,7 @@ async function runDigest(): Promise<{ notified: number; skipped_no_customs: numb
     if (!m.telegram_chat_id) { skipped_not_connected++; continue; }
     const { data: customs } = await admin
       .from("customs")
-      .select("customer_nickname, description, notes, status, created_at")
+      .select("customer_nickname, description, fan_description, duration, costume, photo_file_ids, notes, status, created_at")
       .eq("model_id", m.id)
       .not("status", "in", "(done,sent)")
       .order("created_at", { ascending: true });
@@ -137,7 +137,10 @@ async function runDigest(): Promise<{ notified: number; skipped_no_customs: numb
     items.forEach((c: any, i: number) => {
       const statusRu = STATUS_RU[c.status] ?? c.status;
       lines.push(`${i + 1}. 👤 ${c.customer_nickname || "—"} · ${statusRu} · ${daysAgo(c.created_at)}`);
+      if (c.duration) lines.push(`   ⏱ ${c.duration}`);
+      if (c.costume) lines.push(`   👗 ${c.costume}`);
       if (c.description) lines.push(`   ${c.description}`);
+      if (c.fan_description) lines.push(`   💬 ${c.fan_description}`);
       if (c.notes) lines.push(`   📝 ${c.notes}`);
       lines.push("");
     });
@@ -145,6 +148,13 @@ async function runDigest(): Promise<{ notified: number; skipped_no_customs: numb
     const text = lines.join("\n");
 
     const ok = await sendMessage(botToken, m.telegram_chat_id, text);
+    // Send photos for each custom that has them
+    for (const c of items as any[]) {
+      const ids = Array.isArray(c.photo_file_ids) ? c.photo_file_ids as string[] : [];
+      if (ids.length > 0) {
+        await sendPhotos(botToken, m.telegram_chat_id, ids);
+      }
+    }
     await writeLog({
       chat_id: m.telegram_chat_id,
       message_text: `daily digest → ${m.name} (${items.length})`,
