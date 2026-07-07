@@ -25,6 +25,10 @@ export function useCan() {
   function can(resource: string, action: string): boolean {
     if (!role) return false;
     if (role === "owner") return true;
+    if (role === "production") {
+      if (resource === "page" && action === "access") return false;
+      return true;
+    }
     const row = perms.find((p) => p.role === role && p.resource === resource && p.action === action);
     return !!row?.allowed;
   }
