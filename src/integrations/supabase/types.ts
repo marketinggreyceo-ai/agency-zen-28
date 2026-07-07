@@ -334,12 +334,17 @@ export type Database = {
       customs: {
         Row: {
           chatter: string | null
+          costume: string | null
           created_at: string
           customer_nickname: string
           description: string | null
+          duration: string | null
+          fan_description: string | null
           id: string
+          media_group_id: string | null
           model_id: string | null
           notes: string | null
+          photo_file_ids: Json
           platform: string | null
           price: number | null
           status: string
@@ -349,12 +354,17 @@ export type Database = {
         }
         Insert: {
           chatter?: string | null
+          costume?: string | null
           created_at?: string
           customer_nickname: string
           description?: string | null
+          duration?: string | null
+          fan_description?: string | null
           id?: string
+          media_group_id?: string | null
           model_id?: string | null
           notes?: string | null
+          photo_file_ids?: Json
           platform?: string | null
           price?: number | null
           status?: string
@@ -364,12 +374,17 @@ export type Database = {
         }
         Update: {
           chatter?: string | null
+          costume?: string | null
           created_at?: string
           customer_nickname?: string
           description?: string | null
+          duration?: string | null
+          fan_description?: string | null
           id?: string
+          media_group_id?: string | null
           model_id?: string | null
           notes?: string | null
+          photo_file_ids?: Json
           platform?: string | null
           price?: number | null
           status?: string
