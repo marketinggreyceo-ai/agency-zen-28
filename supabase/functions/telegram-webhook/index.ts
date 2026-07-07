@@ -277,6 +277,31 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const botToken: string | null = settings?.bot_token ?? null;
 
+    // Handle /start model_<uuid> deep-link in private chats
+    const startMatch = text.match(/^\/start(?:@\w+)?\s+model_([0-9a-f-]{36})\b/i);
+    if (startMatch && chat.type === "private") {
+      const modelId = startMatch[1];
+      const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRe.test(modelId)) {
+        if (botToken) await sendMessage(botToken, chat.id, "❌ Некорректная ссылка. Попроси свою команду прислать новую.");
+        await writeLog({ chat_id: chatId, message_text: text, parsed_action: "start_model_invalid", success: false, error_message: "bad_uuid" });
+        return Response.json({ ok: true });
+      }
+      const { data: model } = await admin.from("models").select("id, name").eq("id", modelId).maybeSingle();
+      if (!model) {
+        if (botToken) await sendMessage(botToken, chat.id, "❌ Модель не найдена. Попроси свою команду прислать новую ссылку.");
+        await writeLog({ chat_id: chatId, message_text: text, parsed_action: "start_model_unknown", success: false, error_message: "no_model" });
+        return Response.json({ ok: true });
+      }
+      const { error: updErr } = await admin.from("models").update({ telegram_chat_id: chatId }).eq("id", modelId);
+      if (updErr) throw updErr;
+      if (botToken) {
+        await sendMessage(botToken, chat.id, `Привет, ${model.name}! Теперь я буду присылать тебе твои кастомы каждый день 🎬`);
+      }
+      await writeLog({ chat_id: chatId, message_text: text, parsed_action: "start_model_connected", success: true });
+      return Response.json({ ok: true, connected: model.name });
+    }
+
     // Handle #кастом
     if (/#кастом/i.test(text)) {
       const parsed = parseCustomMessage(text) ?? { description: text, nickname: "", modelToken: null, price: null };

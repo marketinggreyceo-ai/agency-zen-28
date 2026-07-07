@@ -111,12 +111,15 @@ function Page() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <PageHeader title="Кастомы" action={
-        canEdit && (
-          <button onClick={() => setAddOpen(true)}
-            className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm inline-flex items-center gap-1 hover:bg-bg2">
-            <Plus className="h-4 w-4" /> Новый кастом
-          </button>
-        )
+        <div className="flex items-center gap-2">
+          {(role === "owner" || role === "production") && <SendDigestButton />}
+          {canEdit && (
+            <button onClick={() => setAddOpen(true)}
+              className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm inline-flex items-center gap-1 hover:bg-bg2">
+              <Plus className="h-4 w-4" /> Новый кастом
+            </button>
+          )}
+        </div>
       } />
 
       {/* Filters */}
@@ -312,5 +315,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-[11px] uppercase tracking-wide text-text3">{label}</span>
       <div className="mt-1">{children}</div>
     </label>
+  );
+}
+
+export function SendDigestButton() {
+  const [busy, setBusy] = useState(false);
+  async function send() {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customs-daily-notify", { body: {} });
+      if (error) throw error;
+      const d = data as any;
+      toast.success(`Отправлено: ${d?.notified ?? 0} · без кастомов: ${d?.skipped_no_customs ?? 0} · не подключено: ${d?.skipped_not_connected ?? 0}`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Не удалось отправить");
+    } finally { setBusy(false); }
+  }
+  return (
+    <button onClick={send} disabled={busy}
+      className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm inline-flex items-center gap-1 hover:bg-bg2 disabled:opacity-50">
+      📨 {busy ? "Отправка…" : "Разослать кастомы сейчас"}
+    </button>
   );
 }

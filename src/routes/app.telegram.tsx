@@ -12,6 +12,7 @@ import {
   buildWeeklyReport, sendWeeklyReportNow,
   setTelegramWebhook, deleteTelegramWebhook, getTelegramWebhookInfo, testTelegramWebhook,
 } from "@/lib/telegram.functions";
+import { SendDigestButton } from "@/routes/app.customs";
 
 export const Route = createFileRoute("/app/telegram")({ ssr: false, component: Page });
 
@@ -121,7 +122,7 @@ function Page() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl">
-      <PageHeader title="Telegram" />
+      <PageHeader title="Telegram" action={<SendDigestButton />} />
 
       {/* Section 1: bot connection */}
       <section className="border border-border bg-bg2 rounded-md p-4 space-y-3">

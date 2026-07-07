@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useProfile } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Plus, Edit, Trash2, X, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Edit, Trash2, X, ExternalLink, Copy } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -184,6 +184,8 @@ function Page() {
               </button>
               {open && (
                 <div className="border-t border-border p-4 space-y-3">
+                  <TelegramRow model={m} />
+
                   {(() => {
                     const presentPlatforms = ACCOUNT_PLATFORMS.filter((p) => modelAccs.some((a: any) => a.platform === p));
                     const tabs = presentPlatforms.length ? presentPlatforms : ACCOUNT_PLATFORMS;
@@ -329,6 +331,27 @@ function Page() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+function TelegramRow({ model }: { model: any }) {
+  const link = `https://t.me/GA_AgencyBot?start=model_${model.id}`;
+  const connected = !!model.telegram_chat_id;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs bg-bg2 border border-border rounded p-2">
+      <span className="text-text3 uppercase tracking-wide">Telegram</span>
+      {connected ? (
+        <span className="text-[color:var(--green)] font-medium">✓ подключён</span>
+      ) : (
+        <>
+          <code className="bg-bg3 px-2 py-1 rounded font-mono truncate max-w-[360px]">{link}</code>
+          <button onClick={() => { navigator.clipboard.writeText(link); toast.success("Ссылка скопирована"); }}
+            className="px-2 py-1 rounded bg-bg3 border border-border hover:bg-bg2 inline-flex items-center gap-1">
+            <Copy className="h-3 w-3" /> Копировать
+          </button>
+        </>
+      )}
     </div>
   );
 }

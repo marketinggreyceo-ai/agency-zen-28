@@ -601,6 +601,7 @@ export type Database = {
           priority: string | null
           status: string | null
           tags: string[]
+          telegram_chat_id: string | null
           weak_points: string | null
         }
         Insert: {
@@ -620,6 +621,7 @@ export type Database = {
           priority?: string | null
           status?: string | null
           tags?: string[]
+          telegram_chat_id?: string | null
           weak_points?: string | null
         }
         Update: {
@@ -639,6 +641,7 @@ export type Database = {
           priority?: string | null
           status?: string | null
           tags?: string[]
+          telegram_chat_id?: string | null
           weak_points?: string | null
         }
         Relationships: []
@@ -1100,6 +1103,7 @@ export type Database = {
           auto_tasks_enabled: boolean
           bot_token: string | null
           created_at: string
+          cron_secret: string | null
           id: string
           updated_at: string
           weekly_report_chat_id: string | null
@@ -1111,6 +1115,7 @@ export type Database = {
           auto_tasks_enabled?: boolean
           bot_token?: string | null
           created_at?: string
+          cron_secret?: string | null
           id?: string
           updated_at?: string
           weekly_report_chat_id?: string | null
@@ -1122,6 +1127,7 @@ export type Database = {
           auto_tasks_enabled?: boolean
           bot_token?: string | null
           created_at?: string
+          cron_secret?: string | null
           id?: string
           updated_at?: string
           weekly_report_chat_id?: string | null
