@@ -184,6 +184,8 @@ function Page() {
               </button>
               {open && (
                 <div className="border-t border-border p-4 space-y-3">
+                  <TelegramRow model={m} />
+
                   {(() => {
                     const presentPlatforms = ACCOUNT_PLATFORMS.filter((p) => modelAccs.some((a: any) => a.platform === p));
                     const tabs = presentPlatforms.length ? presentPlatforms : ACCOUNT_PLATFORMS;
