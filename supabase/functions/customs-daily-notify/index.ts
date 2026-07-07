@@ -11,6 +11,12 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 const STATUS_RU: Record<string, string> = { new: "новый", inprog: "в работе" };
 
 function daysAgo(iso: string) {
@@ -126,9 +132,12 @@ async function runDigest(): Promise<{ notified: number; skipped_no_customs: numb
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ ok: true, info: "customs-daily-notify alive" }), {
-      headers: { "content-type": "application/json" },
+      headers: { ...corsHeaders, "content-type": "application/json" },
     });
   }
   let body: any = {};
@@ -138,20 +147,22 @@ Deno.serve(async (req) => {
   if (!auth.ok) {
     return new Response(JSON.stringify({ error: auth.msg }), {
       status: auth.status,
-      headers: { "content-type": "application/json" },
+      headers: { ...corsHeaders, "content-type": "application/json" },
     });
   }
 
   try {
     const result = await runDigest();
-    return Response.json({ ok: true, ...result });
+    return new Response(JSON.stringify({ ok: true, ...result }), {
+      headers: { ...corsHeaders, "content-type": "application/json" },
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[customs-daily-notify]", msg);
     await writeLog({ parsed_action: "customs_digest_error", success: false, error_message: msg });
     return new Response(JSON.stringify({ ok: false, error: msg }), {
       status: 500,
-      headers: { "content-type": "application/json" },
+      headers: { ...corsHeaders, "content-type": "application/json" },
     });
   }
 });
