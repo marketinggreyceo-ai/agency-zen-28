@@ -220,6 +220,13 @@ function CardItem({ c, modelName, onClick }: { c: Custom; modelName: string; onC
       <div className="flex items-center gap-2 mt-2 flex-wrap">
         {c.chatter && <span className="text-[10px] text-text3">{c.chatter}</span>}
         {c.price != null && <span className="text-[10px] font-semibold" style={{ color: "var(--green)" }}>${Number(c.price).toFixed(0)}</span>}
+        {c.duration && <span className="text-[10px] text-text2">⏱ {c.duration}</span>}
+        {c.costume && <span className="text-[10px] text-text2">👗 {c.costume}</span>}
+        {Array.isArray(c.photo_file_ids) && c.photo_file_ids.length > 0 && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "rgba(200,165,102,0.18)", color: "#C8A566" }}>
+            📎 {c.photo_file_ids.length} фото
+          </span>
+        )}
         {showDays && (
           <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
             style={{ background: dc.bg, color: dc.fg }}>{days}д</span>
