@@ -14,7 +14,7 @@ export const Route = createFileRoute("/app/overview")({
 const RU_MONTHS_SHORT = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
 
 const ACCOUNT_STATUS_META: Record<string, { label: string; color: string }> = {
-  active:      { label: "Active",      color: "#C8A566" },
+  active:      { label: "Active",      color: "#34B98A" },
   appeal:      { label: "Appeal",      color: "#C98F3D" },
   deactivated: { label: "Deactivated", color: "#555555" },
   banned:      { label: "Banned",      color: "#E15B5B" },
