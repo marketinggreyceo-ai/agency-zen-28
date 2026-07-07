@@ -268,7 +268,19 @@ function EditModal({ title, initial, models, statusOnly, onClose, onSave, onDele
             <textarea rows={3} value={f.description ?? ""} onChange={(e) => set("description", e.target.value)}
               className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
           </Field>
+          <Field label="От фана">
+            <textarea rows={2} value={f.fan_description ?? ""} onChange={(e) => set("fan_description", e.target.value)}
+              className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+          </Field>
           <div className="grid grid-cols-2 gap-2">
+            <Field label="Длительность">
+              <input value={f.duration ?? ""} onChange={(e) => set("duration", e.target.value)}
+                className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+            </Field>
+            <Field label="Костюм">
+              <input value={f.costume ?? ""} onChange={(e) => set("costume", e.target.value)}
+                className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
+            </Field>
             <Field label="Цена">
               <input type="number" value={f.price ?? ""} onChange={(e) => set("price", e.target.value === "" ? null : Number(e.target.value))}
                 className="w-full px-2 py-1.5 rounded bg-bg3 border border-border text-sm" />
@@ -284,6 +296,9 @@ function EditModal({ title, initial, models, statusOnly, onClose, onSave, onDele
               </select>
             </Field>
           </div>
+          {Array.isArray(f.photo_file_ids) && f.photo_file_ids.length > 0 && (
+            <div className="text-xs text-text2">📎 {f.photo_file_ids.length} фото прикреплено из Telegram</div>
+          )}
         </fieldset>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Статус">
