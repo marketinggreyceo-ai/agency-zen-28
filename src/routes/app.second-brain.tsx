@@ -24,7 +24,7 @@ const COLOR_KEYS = Object.keys(BLOCK_COLORS);
 function Page() {
   const qc = useQueryClient();
   const { data: profile } = useProfile();
-  const isOwner = profile?.role === "owner";
+  const isOwner = profile?.role === "owner" || profile?.role === "production";
   const now = new Date();
   const month = now.getMonth() + 1, year = now.getFullYear();
 
