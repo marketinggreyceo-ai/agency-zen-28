@@ -52,6 +52,33 @@ async function sendMessage(token: string, chatId: string | number, text: string)
   return res.ok;
 }
 
+async function sendPhotos(token: string, chatId: string | number, fileIds: string[]) {
+  try {
+    if (fileIds.length === 0) return true;
+    if (fileIds.length === 1) {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, photo: fileIds[0] }),
+      });
+      return res.ok;
+    }
+    // sendMediaGroup: batch up to 10
+    let ok = true;
+    for (let i = 0; i < fileIds.length; i += 10) {
+      const batch = fileIds.slice(i, i + 10);
+      const media = batch.map((id) => ({ type: "photo", media: id }));
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMediaGroup`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, media }),
+      });
+      if (!res.ok) ok = false;
+    }
+    return ok;
+  } catch (_) { return false; }
+}
+
 async function authorize(req: Request, body: any): Promise<{ ok: true } | { ok: false; status: number; msg: string }> {
   const { data: settings } = await admin.from("telegram_settings").select("cron_secret").limit(1).maybeSingle();
   const secret = settings?.cron_secret ?? null;
