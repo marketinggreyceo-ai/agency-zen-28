@@ -47,6 +47,57 @@ export type Database = {
         }
         Relationships: []
       }
+      account_transfers: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          from_account_id: string
+          id: string
+          notes: string | null
+          started_at: string
+          status: string
+          to_account_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          from_account_id: string
+          id?: string
+          notes?: string | null
+          started_at?: string
+          status?: string
+          to_account_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          from_account_id?: string
+          id?: string
+          notes?: string | null
+          started_at?: string
+          status?: string
+          to_account_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_transfers_from_account_id_fkey"
+            columns: ["from_account_id"]
+            isOneToOne: false
+            referencedRelation: "model_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_transfers_to_account_id_fkey"
+            columns: ["to_account_id"]
+            isOneToOne: false
+            referencedRelation: "model_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           agency_name: string
