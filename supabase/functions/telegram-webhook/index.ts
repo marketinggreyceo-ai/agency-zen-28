@@ -374,10 +374,27 @@ function parseSalesMessage(text: string, defaultYear: number): ParsedSales {
 async function resolveChatterFromTelegram(username: string | null): Promise<{ chatter_id: string | null; profile_id: string | null; name: string | null }> {
   if (!username) return { chatter_id: null, profile_id: null, name: null };
   const key = normalize(username);
+
+  // 1) team_members.telegram_handle
   const { data: members } = await admin.from("team_members")
     .select("id, name, assignee_name, profile_id, telegram_handle").eq("is_archived", false);
   const m = (members ?? []).find((x: any) => normalize(x.telegram_handle) === key);
   if (m) return { chatter_id: (m as any).id, profile_id: (m as any).profile_id ?? null, name: (m as any).assignee_name || (m as any).name || null };
+
+  // 2) profiles.telegram_handle (Команда page stores handles here)
+  const { data: profs } = await admin.from("profiles")
+    .select("id, full_name, telegram_handle, status")
+    .eq("status", "active");
+  const pr = (profs ?? []).find((x: any) => normalize(x.telegram_handle) === key);
+  if (pr) {
+    // link back to team_members if a row references this profile
+    const linked = (members ?? []).find((x: any) => (x as any).profile_id === (pr as any).id);
+    return {
+      chatter_id: linked ? (linked as any).id : null,
+      profile_id: (pr as any).id,
+      name: (pr as any).full_name ?? (linked as any)?.name ?? null,
+    };
+  }
   return { chatter_id: null, profile_id: null, name: null };
 }
 
@@ -388,7 +405,7 @@ async function handleSalesMessage(msg: any, chatId: string | null, botToken: str
 
   const sender = msg.from?.username ?? null;
   const chatterInfo = await resolveChatterFromTelegram(sender);
-  if (!chatterInfo.chatter_id) {
+  if (!chatterInfo.chatter_id && !chatterInfo.profile_id) {
     if (botToken && chatId) await sendMessage(botToken, chatId, `⚠️ Не нашёл чаттера по @${sender ?? "—"}. Проверь telegram_handle в команде.`);
     await writeLog({ chat_id: chatId, message_text: text, parsed_action: "sales_no_chatter", success: false, error_message: "no_chatter" });
     return;
