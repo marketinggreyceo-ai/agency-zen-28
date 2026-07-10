@@ -1,0 +1,1 @@
+ALTER TABLE public.chatter_daily_sales ADD COLUMN IF NOT EXISTS notes text;
