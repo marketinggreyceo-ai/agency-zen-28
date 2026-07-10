@@ -267,6 +267,222 @@ function extractPhotoFileId(msg: any): string | null {
   return biggest?.file_id ?? null;
 }
 
+// ============== #продажи parsing ==============
+function bratislavaParts(d: Date) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Bratislava",
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  return { y: get("year"), m: get("month"), day: get("day"), hour: get("hour") };
+}
+
+function pad2(n: number) { return String(n).padStart(2, "0"); }
+
+function fallbackSaleDate(now: Date): { iso: string; label: string } {
+  const b = bratislavaParts(now);
+  let y = b.y, m = b.m, day = b.day;
+  if (b.hour < 8) {
+    const d = new Date(Date.UTC(y, m - 1, day));
+    d.setUTCDate(d.getUTCDate() - 1);
+    y = d.getUTCFullYear(); m = d.getUTCMonth() + 1; day = d.getUTCDate();
+  }
+  return { iso: `${y}-${pad2(m)}-${pad2(day)}`, label: `${pad2(day)}.${pad2(m)}` };
+}
+
+function stripDecor(s: string): string {
+  return s
+    .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{So}\p{Sk}]/gu, "")
+    .replace(/[«»""''`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseAmount(raw: string): number | null {
+  const clean = raw.replace(/\$/g, "").replace(/\s/g, "").replace(/,/g, ".");
+  const m = clean.match(/-?\d+(\.\d+)?/);
+  if (!m) return null;
+  const n = Number(m[0]);
+  return Number.isFinite(n) ? n : null;
+}
+
+type SalesBlock = {
+  rawName: string;
+  name: string;
+  headerAmount: number | null;
+  buyers: Array<{ line: string; amount: number | null }>;
+};
+
+type ParsedSales = {
+  dateLabel: string | null;   // "DD.MM" if explicit
+  dateIso: string | null;     // "YYYY-MM-DD" if explicit
+  blocks: SalesBlock[];
+};
+
+function parseSalesMessage(text: string, defaultYear: number): ParsedSales {
+  const out: ParsedSales = { dateLabel: null, dateIso: null, blocks: [] };
+  const lines = text.split(/\r?\n/);
+  let current: SalesBlock | null = null;
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { continue; }
+    // separator lines
+    if (/^[—\-–_=]{2,}$/.test(line)) continue;
+    // skip the tag itself
+    if (/^#продажи\b/i.test(line)) continue;
+    // date line
+    const dateMatch = line.match(/^\s*(?:дата|date)\s*[:\-]\s*(\d{1,2})[.\/](\d{1,2})(?:[.\/](\d{2,4}))?\s*$/i);
+    if (dateMatch) {
+      const dd = Number(dateMatch[1]);
+      const mm = Number(dateMatch[2]);
+      let yy = dateMatch[3] ? Number(dateMatch[3]) : defaultYear;
+      if (yy < 100) yy += 2000;
+      out.dateLabel = `${pad2(dd)}.${pad2(mm)}`;
+      out.dateIso = `${yy}-${pad2(mm)}-${pad2(dd)}`;
+      continue;
+    }
+    // total line — ignore
+    if (/^\s*[^\wа-яё]*\s*(?:общий\s+заработок|итого|total)\b/i.test(line)) continue;
+
+    // buyer line (starts with • or · or *)
+    const buyerMatch = line.match(/^\s*[•·∙◦●▪■\*]\s*(.+?)\s*[—\-–]\s*(.+?)\s*$/);
+    if (buyerMatch && current) {
+      current.buyers.push({ line: line, amount: parseAmount(buyerMatch[2]) });
+      continue;
+    }
+
+    // header line "{name} — {amount}"
+    const headMatch = line.match(/^(?!\s*[•·∙◦●▪■\*])(.+?)\s*[—\-–]\s*(\$?\s*[\d][\d.,\s]*)\s*$/);
+    if (headMatch) {
+      const name = stripDecor(headMatch[1]);
+      if (!name) continue;
+      current = {
+        rawName: headMatch[1].trim(),
+        name,
+        headerAmount: parseAmount(headMatch[2]),
+        buyers: [],
+      };
+      out.blocks.push(current);
+      continue;
+    }
+    // otherwise ignore
+  }
+  return out;
+}
+
+async function resolveChatterFromTelegram(username: string | null): Promise<{ chatter_id: string | null; profile_id: string | null; name: string | null }> {
+  if (!username) return { chatter_id: null, profile_id: null, name: null };
+  const key = normalize(username);
+  const { data: members } = await admin.from("team_members")
+    .select("id, name, assignee_name, profile_id, telegram_handle").eq("is_archived", false);
+  const m = (members ?? []).find((x: any) => normalize(x.telegram_handle) === key);
+  if (m) return { chatter_id: (m as any).id, profile_id: (m as any).profile_id ?? null, name: (m as any).assignee_name || (m as any).name || null };
+  return { chatter_id: null, profile_id: null, name: null };
+}
+
+async function handleSalesMessage(msg: any, chatId: string | null, botToken: string | null, text: string) {
+  const now = new Date();
+  const bNow = bratislavaParts(now);
+  const parsed = parseSalesMessage(text, bNow.y);
+
+  const sender = msg.from?.username ?? null;
+  const chatterInfo = await resolveChatterFromTelegram(sender);
+  if (!chatterInfo.chatter_id) {
+    if (botToken && chatId) await sendMessage(botToken, chatId, `⚠️ Не нашёл чаттера по @${sender ?? "—"}. Проверь telegram_handle в команде.`);
+    await writeLog({ chat_id: chatId, message_text: text, parsed_action: "sales_no_chatter", success: false, error_message: "no_chatter" });
+    return;
+  }
+
+  // Determine sale_date
+  let saleDateIso: string;
+  let saleDateLabel: string;
+  let missingDateNote = "";
+  if (parsed.dateIso) {
+    saleDateIso = parsed.dateIso;
+    saleDateLabel = parsed.dateLabel!;
+  } else {
+    const fb = fallbackSaleDate(now);
+    saleDateIso = fb.iso;
+    saleDateLabel = fb.label;
+    missingDateNote = `\n📅 Строки Дата не было, записал за ${saleDateLabel}`;
+  }
+  const y = Number(saleDateIso.slice(0, 4));
+  const mo = Number(saleDateIso.slice(5, 7));
+  const day = Number(saleDateIso.slice(8, 10));
+  const period: "1-15" | "16-30" = day <= 15 ? "1-15" : "16-30";
+
+  // Load accounts for this chatter
+  const { data: accountsForChatter } = await admin
+    .from("chatter_accounts")
+    .select("id, account_name")
+    .eq("chatter_id", chatterInfo.chatter_id);
+  const accounts = (accountsForChatter ?? []) as Array<{ id: string; account_name: string }>;
+  const findAccount = (name: string) => {
+    const key = name.trim().toLocaleLowerCase();
+    return accounts.find((a) => a.account_name.trim().toLocaleLowerCase() === key) ?? null;
+  };
+
+  const written: Array<{ name: string; amount: number }> = [];
+  const warnings: string[] = [];
+  let grand = 0;
+
+  for (const block of parsed.blocks) {
+    const acct = findAccount(block.name);
+    if (!acct) {
+      warnings.push(`⚠️ Не нашёл аккаунт ${block.name} — эти продажи НЕ записаны`);
+      continue;
+    }
+    const buyerSum = block.buyers.reduce((s, b) => s + (b.amount ?? 0), 0);
+    const hasBuyers = block.buyers.length > 0 && block.buyers.some((b) => b.amount != null);
+    let amount = hasBuyers ? Math.round(buyerSum * 100) / 100 : (block.headerAmount ?? 0);
+    if (hasBuyers && block.headerAmount != null && Math.abs(buyerSum - block.headerAmount) > 0.01) {
+      warnings.push(`⚠️ В ${block.name}: сумма позиций $${buyerSum.toFixed(2)} не сходится с заголовком $${block.headerAmount.toFixed(2)}, записал $${buyerSum.toFixed(2)}`);
+    }
+    if (!(amount > 0)) continue;
+    const notes = block.buyers.length ? block.buyers.map((b) => b.line).join("\n") : null;
+
+    // Upsert on chatter_account_id + sale_date
+    const { data: existing } = await admin
+      .from("chatter_daily_sales")
+      .select("id")
+      .eq("chatter_account_id", acct.id)
+      .eq("sale_date", saleDateIso)
+      .maybeSingle();
+    if (existing) {
+      const { error } = await admin.from("chatter_daily_sales")
+        .update({ amount, notes, chatter_id: chatterInfo.chatter_id, chatter_profile_id: chatterInfo.profile_id, month: mo, year: y, period })
+        .eq("id", (existing as any).id);
+      if (error) { warnings.push(`⚠️ Ошибка записи ${block.name}: ${error.message}`); continue; }
+    } else {
+      const { error } = await admin.from("chatter_daily_sales").insert({
+        chatter_account_id: acct.id,
+        chatter_id: chatterInfo.chatter_id,
+        chatter_profile_id: chatterInfo.profile_id,
+        sale_date: saleDateIso,
+        amount,
+        month: mo, year: y, period,
+        notes,
+      });
+      if (error) { warnings.push(`⚠️ Ошибка записи ${block.name}: ${error.message}`); continue; }
+    }
+    written.push({ name: acct.account_name, amount });
+    grand += amount;
+  }
+
+  const fmtAmt = (n: number) => `$${n.toFixed(2)}`;
+  let reply: string;
+  if (written.length === 0 && warnings.length === 0) {
+    reply = `⚠️ Не нашёл ни одного блока продаж в сообщении.${missingDateNote}`;
+  } else {
+    const parts = written.map((w) => `${w.name} — ${fmtAmt(w.amount)}`).join(", ");
+    reply = `✅ Записал продажи за ${saleDateLabel}: ${parts}. Итого: ${fmtAmt(grand)}${missingDateNote}`;
+    if (warnings.length) reply += "\n\n" + warnings.join("\n");
+  }
+  if (botToken && chatId) await sendMessage(botToken, chatId, reply);
+  await writeLog({ chat_id: chatId, message_text: text, parsed_action: "sales", success: true });
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ ok: true, info: "telegram webhook alive" }), {
@@ -356,6 +572,12 @@ Deno.serve(async (req) => {
         await writeLog({ chat_id: chatId, message_text: text, parsed_action: "custom_photo_append", success: true });
         return Response.json({ ok: true, appended_to: (existing as any).id });
       }
+    }
+
+    // #продажи
+    if (/#продажи/i.test(text)) {
+      await handleSalesMessage(msg, chatId, botToken, text);
+      return Response.json({ ok: true, type: "sales" });
     }
 
     // #кастом

@@ -204,6 +204,7 @@ export type Database = {
           created_at: string
           id: string
           month: number
+          notes: string | null
           period: string
           sale_date: string
           year: number
@@ -216,6 +217,7 @@ export type Database = {
           created_at?: string
           id?: string
           month: number
+          notes?: string | null
           period: string
           sale_date: string
           year: number
@@ -228,6 +230,7 @@ export type Database = {
           created_at?: string
           id?: string
           month?: number
+          notes?: string | null
           period?: string
           sale_date?: string
           year?: number
