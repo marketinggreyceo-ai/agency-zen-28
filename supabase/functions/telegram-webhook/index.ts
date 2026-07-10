@@ -574,6 +574,12 @@ Deno.serve(async (req) => {
       }
     }
 
+    // #продажи
+    if (/#продажи/i.test(text)) {
+      await handleSalesMessage(msg, chatId, botToken, text);
+      return Response.json({ ok: true, type: "sales" });
+    }
+
     // #кастом
     if (/#кастом/i.test(text)) {
       const parsed = parseCustomMessage(text);
