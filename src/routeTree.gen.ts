@@ -15,6 +15,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as SopsCategoryRouteImport } from './routes/sops.$category'
+import { Route as AppVoiceGenRouteImport } from './routes/app.voice-gen'
 import { Route as AppTelegramRouteImport } from './routes/app.telegram'
 import { Route as AppTeamRouteImport } from './routes/app.team'
 import { Route as AppTasksRouteImport } from './routes/app.tasks'
@@ -60,6 +61,11 @@ const SopsCategoryRoute = SopsCategoryRouteImport.update({
   id: '/sops/$category',
   path: '/sops/$category',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppVoiceGenRoute = AppVoiceGenRouteImport.update({
+  id: '/voice-gen',
+  path: '/voice-gen',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppTelegramRoute = AppTelegramRouteImport.update({
   id: '/telegram',
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/app/tasks': typeof AppTasksRoute
   '/app/team': typeof AppTeamRoute
   '/app/telegram': typeof AppTelegramRoute
+  '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -178,6 +185,7 @@ export interface FileRoutesByTo {
   '/app/tasks': typeof AppTasksRoute
   '/app/team': typeof AppTeamRoute
   '/app/telegram': typeof AppTelegramRoute
+  '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app': typeof AppIndexRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   '/app/tasks': typeof AppTasksRoute
   '/app/team': typeof AppTeamRoute
   '/app/telegram': typeof AppTelegramRoute
+  '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -227,6 +236,7 @@ export interface FileRouteTypes {
     | '/app/tasks'
     | '/app/team'
     | '/app/telegram'
+    | '/app/voice-gen'
     | '/sops/$category'
     | '/app/'
     | '/api/public/telegram/webhook'
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/app/tasks'
     | '/app/team'
     | '/app/telegram'
+    | '/app/voice-gen'
     | '/sops/$category'
     | '/app'
     | '/api/public/telegram/webhook'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/app/tasks'
     | '/app/team'
     | '/app/telegram'
+    | '/app/voice-gen'
     | '/sops/$category'
     | '/app/'
     | '/api/public/telegram/webhook'
@@ -331,6 +343,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sops/$category'
       preLoaderRoute: typeof SopsCategoryRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/app/voice-gen': {
+      id: '/app/voice-gen'
+      path: '/voice-gen'
+      fullPath: '/app/voice-gen'
+      preLoaderRoute: typeof AppVoiceGenRouteImport
+      parentRoute: typeof AppRoute
     }
     '/app/telegram': {
       id: '/app/telegram'
@@ -454,6 +473,7 @@ interface AppRouteChildren {
   AppTasksRoute: typeof AppTasksRoute
   AppTeamRoute: typeof AppTeamRoute
   AppTelegramRoute: typeof AppTelegramRoute
+  AppVoiceGenRoute: typeof AppVoiceGenRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -471,6 +491,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTasksRoute: AppTasksRoute,
   AppTeamRoute: AppTeamRoute,
   AppTelegramRoute: AppTelegramRoute,
+  AppVoiceGenRoute: AppVoiceGenRoute,
   AppIndexRoute: AppIndexRoute,
 }
 

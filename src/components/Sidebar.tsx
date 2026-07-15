@@ -8,7 +8,7 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { MobileMenuDrawer } from "@/components/MobileMenu";
 import {
   LayoutDashboard, Brain, DollarSign, ListTodo, TrendingUp,
-  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu, Send, Video, MessageCircle,
+  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu, Send, Video, MessageCircle, Mic,
 } from "lucide-react";
 
 type Item = { to: string; label: string; icon: any; page: string };
@@ -25,6 +25,7 @@ const GROUPS: Group[] = [
     { to: "/app/chatting",     label: "Чаттинг",      icon: MessageCircle,   page: "chatting" },
     { to: "/app/goals",        label: "Цели недели",  icon: Target,          page: "goals" },
     { to: "/app/growth",       label: "Рост",         icon: TrendingUp,      page: "growth" },
+    { to: "/app/voice-gen",    label: "Голосові повідомлення", icon: Mic,    page: "voice-gen" },
   ]},
   { id: "management", label: "Управление", items: [
     { to: "/app/finance",      label: "Финансы",      icon: DollarSign,      page: "finance" },

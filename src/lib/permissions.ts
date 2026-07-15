@@ -43,6 +43,7 @@ export const PAGE_KEYS = [
   { key: "customs",       label: "Кастомы" },
   { key: "chatting",      label: "Чаттинг" },
   { key: "growth",        label: "Рост" },
+  { key: "voice-gen",     label: "Голосові повідомлення" },
   { key: "team",          label: "Команда" },
   { key: "sops",          label: "SOPs" },
   { key: "models",        label: "Модели" },
