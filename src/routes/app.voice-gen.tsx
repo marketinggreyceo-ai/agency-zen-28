@@ -110,6 +110,9 @@ function Page() {
   const [loadingVoices, setLoadingVoices] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [speed, setSpeed] = useState(1.0);
+  const [stability, setStability] = useState(0.5);
+  const [similarity, setSimilarity] = useState(0.75);
   const lastUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -167,7 +170,14 @@ function Page() {
           apikey: SUPABASE_ANON_KEY,
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ text: text.trim(), voice_id: voiceId, model_id: modelId }),
+        body: JSON.stringify({
+          text: text.trim(),
+          voice_id: voiceId,
+          model_id: modelId,
+          speed,
+          stability,
+          similarity_boost: similarity,
+        }),
       });
       if (!res.ok) {
         let msg = "Ошибка генерации";
@@ -336,6 +346,28 @@ function Page() {
           </div>
         </div>
 
+        <div className="space-y-4 pt-1">
+          <SliderRow
+            label="Скорость"
+            min={0} max={2} step={0.05}
+            value={speed} onChange={setSpeed}
+            leftLabel="Медленнее" rightLabel="Быстрее"
+          />
+          <SliderRow
+            label="Стабильность"
+            min={0} max={1} step={0.01}
+            value={stability} onChange={setStability}
+            leftLabel="Более вариативно" rightLabel="Более стабильно"
+          />
+          <SliderRow
+            label="Сходство"
+            min={0} max={1} step={0.01}
+            value={similarity} onChange={setSimilarity}
+            leftLabel="Низкое" rightLabel="Высокое"
+          />
+        </div>
+
+
         <button
           onClick={generate}
           disabled={!canGenerate}
@@ -420,3 +452,38 @@ function Page() {
     </div>
   );
 }
+
+function SliderRow({
+  label, min, max, step, value, onChange, leftLabel, rightLabel,
+}: {
+  label: string;
+  min: number; max: number; step: number;
+  value: number;
+  onChange: (v: number) => void;
+  leftLabel: string;
+  rightLabel: string;
+}) {
+  const decimals = step < 0.1 ? 2 : 1;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-xs uppercase tracking-wide text-text2">{label}</label>
+        <span className="text-xs font-mono text-text px-2 py-0.5 rounded bg-bg3 border border-border">
+          {value.toFixed(decimals)}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min} max={max} step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full h-1.5 rounded-full bg-bg3 appearance-none cursor-pointer accent-[#C8A566]"
+      />
+      <div className="flex justify-between mt-1 text-[10px] text-text3">
+        <span>{leftLabel}</span>
+        <span>{rightLabel}</span>
+      </div>
+    </div>
+  );
+}
+
