@@ -37,6 +37,8 @@ function Page() {
   const userId = profile?.id;
   const qc = useQueryClient();
 
+  const isAdmin = profile?.role === "owner" || profile?.role === "production";
+
   const permQuery = useQuery({
     enabled: !!userId,
     queryKey: ["voice_permissions", userId],
@@ -65,9 +67,10 @@ function Page() {
     },
   });
 
-  const canUse = !!permQuery.data?.can_generate_voice;
-  const dailyLimit = permQuery.data?.daily_limit ?? 0;
-  const charLimit = permQuery.data?.char_limit ?? 500;
+  const canUse = isAdmin || !!permQuery.data?.can_generate_voice;
+  const dailyLimit = isAdmin ? 9999 : (permQuery.data?.daily_limit ?? 0);
+  const charLimit = isAdmin ? 5000 : (permQuery.data?.char_limit ?? 500);
+
   const usedToday = todayQuery.data ?? 0;
   const remaining = Math.max(0, dailyLimit - usedToday);
 
@@ -173,7 +176,7 @@ function Page() {
   if (permQuery.isLoading) {
     return (
       <div className="max-w-2xl mx-auto">
-        <PageHeader title="Голосові повідомлення" />
+        <PageHeader title="Голосовые сообщения" />
         <div className="rounded-lg border border-border bg-card p-8 text-center text-text2 text-sm">
           <Loader2 className="h-5 w-5 animate-spin inline mr-2" /> Загрузка…
         </div>
@@ -184,11 +187,11 @@ function Page() {
   if (!canUse) {
     return (
       <div className="max-w-2xl mx-auto">
-        <PageHeader title="Голосові повідомлення" />
+        <PageHeader title="Голосовые сообщения" />
         <div className="rounded-lg border border-border bg-card p-8 text-center space-y-3">
           <Lock className="h-8 w-8 mx-auto text-text3" />
           <p className="text-sm text-text2">
-            You don't have access to voice generation. Contact your admin.
+            У вас нет доступа к генерации голосовых сообщений. Обратитесь к администратору.
           </p>
         </div>
       </div>
@@ -198,10 +201,10 @@ function Page() {
   return (
     <div className="max-w-2xl mx-auto">
       <PageHeader
-        title="Голосові повідомлення"
+        title="Голосовые сообщения"
         action={
           <span className="text-xs text-text2 px-2 py-1 rounded bg-bg3 border border-border">
-            {remaining}/{dailyLimit} generations remaining today
+            {isAdmin ? "Без ограничений" : `Осталось сегодня: ${remaining}/${dailyLimit}`}
           </span>
         }
       />
