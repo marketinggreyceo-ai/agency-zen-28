@@ -346,6 +346,28 @@ function Page() {
           </div>
         </div>
 
+        <div className="space-y-4 pt-1">
+          <SliderRow
+            label="Скорость"
+            min={0} max={2} step={0.05}
+            value={speed} onChange={setSpeed}
+            leftLabel="Медленнее" rightLabel="Быстрее"
+          />
+          <SliderRow
+            label="Стабильность"
+            min={0} max={1} step={0.01}
+            value={stability} onChange={setStability}
+            leftLabel="Более вариативно" rightLabel="Более стабильно"
+          />
+          <SliderRow
+            label="Сходство"
+            min={0} max={1} step={0.01}
+            value={similarity} onChange={setSimilarity}
+            leftLabel="Низкое" rightLabel="Высокое"
+          />
+        </div>
+
+
         <button
           onClick={generate}
           disabled={!canGenerate}
