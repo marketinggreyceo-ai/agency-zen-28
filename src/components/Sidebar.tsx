@@ -35,7 +35,7 @@ const GROUPS: Group[] = [
   { id: "system", label: "Система", items: [
     { to: "/app/sops",         label: "SOPs",         icon: FileText,        page: "sops" },
     { to: "/app/access",       label: "Доступы",      icon: Shield,          page: "access" },
-    { to: "/app/voice-access", label: "Voice Access", icon: Mic,             page: "access" },
+    { to: "/app/voice-access", label: "Доступ к голосу", icon: Mic,             page: "access" },
     { to: "/app/telegram",     label: "Telegram",     icon: Send,            page: "telegram" },
   ]},
 ];
