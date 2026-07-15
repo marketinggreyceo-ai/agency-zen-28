@@ -155,7 +155,7 @@ function Page() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <PageHeader title="Voice Access Management" />
+      <PageHeader title="Управление доступом к голосу" />
 
       {/* Voice Usage */}
       <section className="rounded-lg border border-border bg-card p-5 space-y-5">
