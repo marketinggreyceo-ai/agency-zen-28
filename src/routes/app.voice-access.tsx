@@ -19,7 +19,7 @@ type Perm = {
   daily_limit: number;
   char_limit: number;
 };
-type UsageRow = { user_id: string; created_at: string };
+type UsageRow = { user_id: string; created_at: string; text_length: number | null };
 
 function isAdminRole(role: string | undefined) {
   return role === "owner" || role === "production";
@@ -66,7 +66,7 @@ function Page() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("voice_generation_log")
-        .select("user_id, created_at");
+        .select("user_id, created_at, text_length");
       if (error) throw error;
       return (data ?? []) as UsageRow[];
     },
@@ -117,12 +117,112 @@ function Page() {
   if (!admin) return <Navigate to="/app" />;
 
   const users = usersQ.data ?? [];
+  const userNameById = new Map(users.map((u) => [u.id, u.full_name || u.email || "—"]));
+
+  const rows = usageQ.data ?? [];
+  const now = new Date();
+  const startToday = new Date(now); startToday.setHours(0, 0, 0, 0);
+  const startWeek = new Date(startToday); startWeek.setDate(startWeek.getDate() - 6);
+  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  let todayCount = 0, weekCount = 0, monthCount = 0, totalChars = 0;
+  const perUser = new Map<string, number>();
+  const perDay = new Map<string, number>(); // ISO date -> count (last 7 days)
+
+  const dayKeys: string[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(startToday); d.setDate(d.getDate() - i);
+    dayKeys.push(d.toISOString().slice(0, 10));
+  }
+  for (const k of dayKeys) perDay.set(k, 0);
+
+  for (const r of rows) {
+    const t = new Date(r.created_at);
+    totalChars += r.text_length ?? 0;
+    if (t >= startToday) todayCount++;
+    if (t >= startWeek) weekCount++;
+    if (t >= startMonth) monthCount++;
+    perUser.set(r.user_id, (perUser.get(r.user_id) ?? 0) + 1);
+    const key = t.toISOString().slice(0, 10);
+    if (perDay.has(key)) perDay.set(key, (perDay.get(key) ?? 0) + 1);
+  }
+
+  const topUsers = Array.from(perUser.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  const maxDay = Math.max(1, ...Array.from(perDay.values()));
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-6">
       <PageHeader title="Voice Access Management" />
 
+      {/* Voice Usage */}
+      <section className="rounded-lg border border-border bg-card p-5 space-y-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-text2">Voice Usage</h2>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard label="Today" value={todayCount.toString()} />
+          <StatCard label="Last 7 days" value={weekCount.toString()} />
+          <StatCard label="This month" value={monthCount.toString()} />
+          <StatCard
+            label="Est. credits used"
+            value={totalChars.toLocaleString()}
+            hint="~1 credit/char"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* 7-day bar chart */}
+          <div>
+            <div className="text-xs uppercase tracking-wide text-text2 mb-2">Last 7 days</div>
+            <div className="flex items-end gap-2 h-32 border-b border-border">
+              {dayKeys.map((k) => {
+                const v = perDay.get(k) ?? 0;
+                const h = (v / maxDay) * 100;
+                const d = new Date(k);
+                const label = d.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric" });
+                return (
+                  <div key={k} className="flex-1 flex flex-col items-center justify-end gap-1">
+                    <div className="text-[10px] text-text3">{v}</div>
+                    <div
+                      className="w-full rounded-t"
+                      style={{ height: `${h}%`, minHeight: v > 0 ? 4 : 0, background: "#C8A566" }}
+                    />
+                    <div className="text-[10px] text-text3 whitespace-nowrap">{label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Top users */}
+          <div>
+            <div className="text-xs uppercase tracking-wide text-text2 mb-2">Top users</div>
+            {topUsers.length === 0 ? (
+              <div className="text-sm text-text3 py-4">Нет данных</div>
+            ) : (
+              <ul className="space-y-1.5">
+                {topUsers.map(([uid, count]) => {
+                  const share = (count / Math.max(1, topUsers[0][1])) * 100;
+                  return (
+                    <li key={uid} className="flex items-center gap-3 text-sm">
+                      <span className="w-40 truncate">{userNameById.get(uid) ?? uid.slice(0, 8)}</span>
+                      <div className="flex-1 h-2 rounded bg-bg2 overflow-hidden">
+                        <div className="h-full" style={{ width: `${share}%`, background: "#C8A566" }} />
+                      </div>
+                      <span className="w-10 text-right text-text2 tabular-nums">{count}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
+
       <div className="rounded-lg border border-border bg-card overflow-hidden">
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-bg2 text-[11px] uppercase tracking-wide text-text2">
@@ -225,5 +325,15 @@ function UserRow({
         </button>
       </td>
     </tr>
+  );
+}
+
+function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-md border border-border bg-bg2 p-3">
+      <div className="text-[10px] uppercase tracking-wide text-text2">{label}</div>
+      <div className="mt-1 text-xl font-semibold">{value}</div>
+      {hint && <div className="text-[10px] text-text3 mt-0.5">{hint}</div>}
+    </div>
   );
 }
