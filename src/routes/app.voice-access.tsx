@@ -19,7 +19,7 @@ type Perm = {
   daily_limit: number;
   char_limit: number;
 };
-type UsageRow = { user_id: string; created_at: string };
+type UsageRow = { user_id: string; created_at: string; text_length: number | null };
 
 function isAdminRole(role: string | undefined) {
   return role === "owner" || role === "production";
