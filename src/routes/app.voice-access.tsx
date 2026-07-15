@@ -107,7 +107,7 @@ function Page() {
   if (isLoading) {
     return (
       <div className="max-w-5xl mx-auto">
-        <PageHeader title="Voice Access Management" />
+        <PageHeader title="Управление доступом к голосу" />
         <div className="p-8 text-center text-text2 text-sm">
           <Loader2 className="h-5 w-5 animate-spin inline mr-2" /> Загрузка…
         </div>
