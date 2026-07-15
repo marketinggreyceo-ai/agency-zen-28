@@ -170,7 +170,14 @@ function Page() {
           apikey: SUPABASE_ANON_KEY,
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ text: text.trim(), voice_id: voiceId, model_id: modelId }),
+        body: JSON.stringify({
+          text: text.trim(),
+          voice_id: voiceId,
+          model_id: modelId,
+          speed,
+          stability,
+          similarity_boost: similarity,
+        }),
       });
       if (!res.ok) {
         let msg = "Ошибка генерации";
