@@ -159,23 +159,23 @@ function Page() {
 
       {/* Voice Usage */}
       <section className="rounded-lg border border-border bg-card p-5 space-y-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-text2">Voice Usage</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-text2">Использование</h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatCard label="Today" value={todayCount.toString()} />
-          <StatCard label="Last 7 days" value={weekCount.toString()} />
-          <StatCard label="This month" value={monthCount.toString()} />
+          <StatCard label="Сегодня" value={todayCount.toString()} />
+          <StatCard label="За 7 дней" value={weekCount.toString()} />
+          <StatCard label="За месяц" value={monthCount.toString()} />
           <StatCard
-            label="Est. credits used"
+            label="Кредитов использовано"
             value={totalChars.toLocaleString()}
-            hint="~1 credit/char"
+            hint="~1 кредит/символ"
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* 7-day bar chart */}
           <div>
-            <div className="text-xs uppercase tracking-wide text-text2 mb-2">Last 7 days</div>
+            <div className="text-xs uppercase tracking-wide text-text2 mb-2">Последние 7 дней</div>
             <div className="flex items-end gap-2 h-32 border-b border-border">
               {dayKeys.map((k) => {
                 const v = perDay.get(k) ?? 0;
@@ -198,7 +198,7 @@ function Page() {
 
           {/* Top users */}
           <div>
-            <div className="text-xs uppercase tracking-wide text-text2 mb-2">Top users</div>
+            <div className="text-xs uppercase tracking-wide text-text2 mb-2">Топ пользователей</div>
             {topUsers.length === 0 ? (
               <div className="text-sm text-text3 py-4">Нет данных</div>
             ) : (
