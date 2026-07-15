@@ -452,3 +452,38 @@ function Page() {
     </div>
   );
 }
+
+function SliderRow({
+  label, min, max, step, value, onChange, leftLabel, rightLabel,
+}: {
+  label: string;
+  min: number; max: number; step: number;
+  value: number;
+  onChange: (v: number) => void;
+  leftLabel: string;
+  rightLabel: string;
+}) {
+  const decimals = step < 0.1 ? 2 : 1;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-xs uppercase tracking-wide text-text2">{label}</label>
+        <span className="text-xs font-mono text-text px-2 py-0.5 rounded bg-bg3 border border-border">
+          {value.toFixed(decimals)}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min} max={max} step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full h-1.5 rounded-full bg-bg3 appearance-none cursor-pointer accent-[#C8A566]"
+      />
+      <div className="flex justify-between mt-1 text-[10px] text-text3">
+        <span>{leftLabel}</span>
+        <span>{rightLabel}</span>
+      </div>
+    </div>
+  );
+}
+
