@@ -13,12 +13,23 @@ export const Route = createFileRoute("/app/voice-gen")({
 });
 
 type Voice = { voice_id: string; name: string; category?: string; preview_url?: string };
+type Generation = {
+  id: string;
+  voice_id: string;
+  voice_name: string | null;
+  model_id: string | null;
+  text: string;
+  audio_file_path: string | null;
+  created_at: string;
+};
 
 const MODELS = [
   { value: "eleven_flash_v2_5",        label: "Flash v2.5 (Fastest)" },
   { value: "eleven_multilingual_v2",   label: "Multilingual v2 (Best quality)" },
   { value: "eleven_turbo_v2_5",        label: "Turbo v2.5 (Fast + quality)" },
 ];
+
+const CHAR_LIMIT_MAX = 500;
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY =
@@ -67,9 +78,27 @@ function Page() {
     },
   });
 
+  const historyQuery = useQuery({
+    enabled: !!userId,
+    queryKey: ["voice_generations", userId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("voice_generations")
+        .select("id, voice_id, voice_name, model_id, text, audio_file_path, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as Generation[];
+    },
+  });
+
   const canUse = isAdmin || !!permQuery.data?.can_generate_voice;
   const dailyLimit = isAdmin ? 9999 : (permQuery.data?.daily_limit ?? 0);
-  const charLimit = isAdmin ? 5000 : (permQuery.data?.char_limit ?? 500);
+  const charLimit = Math.min(
+    CHAR_LIMIT_MAX,
+    isAdmin ? CHAR_LIMIT_MAX : (permQuery.data?.char_limit ?? CHAR_LIMIT_MAX),
+  );
 
   const usedToday = todayQuery.data ?? 0;
   const remaining = Math.max(0, dailyLimit - usedToday);
@@ -87,6 +116,7 @@ function Page() {
     if (!canUse) { setLoadingVoices(false); return; }
     (async () => {
       try {
+        console.log("[voice-gen] fetching voices from", FN_URL);
         const res = await fetch(`${FN_URL}?action=list-voices`, {
           headers: {
             apikey: SUPABASE_ANON_KEY,
@@ -94,11 +124,13 @@ function Page() {
           },
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Не удалось загрузить голоса");
+        console.log("[voice-gen] list-voices response", res.status, data);
+        if (!res.ok) throw new Error(data?.error ? `${data.error}${data.details ? ": " + data.details : ""}` : "Не удалось загрузить голоса");
         const list: Voice[] = data?.voices ?? [];
         setVoices(list);
         if (list.length && !voiceId) setVoiceId(list[0].voice_id);
       } catch (e) {
+        console.error("[voice-gen] list-voices failed", e);
         toast.error(e instanceof Error ? e.message : "Ошибка загрузки голосов");
       } finally {
         setLoadingVoices(false);
@@ -148,13 +180,39 @@ function Page() {
       lastUrlRef.current = url;
       setAudioUrl(url);
 
+      // Upload to storage
+      const filePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp3`;
+      let storedPath: string | null = null;
+      const { error: upErr } = await supabase
+        .storage
+        .from("voice-messages")
+        .upload(filePath, blob, { contentType: "audio/mpeg", upsert: false });
+      if (upErr) {
+        console.error("[voice-gen] upload failed", upErr);
+      } else {
+        storedPath = filePath;
+      }
+
+      const voiceName = voices.find((v) => v.voice_id === voiceId)?.name ?? null;
+
       await (supabase as any).from("voice_generation_log").insert({
         user_id: userId,
         voice_id: voiceId,
         model_id: modelId,
         text_length: text.trim().length,
       });
+
+      await (supabase as any).from("voice_generations").insert({
+        user_id: userId,
+        voice_id: voiceId,
+        voice_name: voiceName,
+        model_id: modelId,
+        text: text.trim(),
+        audio_file_path: storedPath,
+      });
+
       qc.invalidateQueries({ queryKey: ["voice_gen_today", userId] });
+      qc.invalidateQueries({ queryKey: ["voice_generations", userId] });
       toast.success("Готово");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка генерации");
@@ -171,6 +229,22 @@ function Page() {
     document.body.appendChild(a);
     a.click();
     a.remove();
+  }
+
+  async function downloadFromStorage(path: string | null) {
+    if (!path) { toast.error("Файл недоступен"); return; }
+    try {
+      const { data, error } = await supabase.storage.from("voice-messages").createSignedUrl(path, 60);
+      if (error || !data?.signedUrl) throw error || new Error("Не удалось получить ссылку");
+      const a = document.createElement("a");
+      a.href = data.signedUrl;
+      a.download = path.split("/").pop() || "voice.mp3";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка скачивания");
+    }
   }
 
   if (permQuery.isLoading) {
@@ -198,8 +272,10 @@ function Page() {
     );
   }
 
+  const history = historyQuery.data ?? [];
+
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-3xl mx-auto space-y-6">
       <PageHeader
         title="Голосовые сообщения"
         action={
@@ -283,6 +359,61 @@ function Page() {
               <Download className="h-4 w-4" />
               Скачать MP3
             </button>
+          </div>
+        )}
+      </div>
+
+      {/* History */}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-text2 mb-3">
+          История генераций
+        </h2>
+        {historyQuery.isLoading ? (
+          <div className="text-sm text-text3 py-4 text-center">
+            <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Загрузка…
+          </div>
+        ) : history.length === 0 ? (
+          <div className="text-sm text-text3 py-4 text-center">Пока нет генераций</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-[11px] uppercase tracking-wide text-text2">
+                <tr className="border-b border-border">
+                  <th className="text-left px-2 py-2">Дата</th>
+                  <th className="text-left px-2 py-2">Голос</th>
+                  <th className="text-left px-2 py-2">Модель</th>
+                  <th className="text-left px-2 py-2">Текст</th>
+                  <th className="text-right px-2 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((g) => {
+                  const preview = g.text.length > 50 ? g.text.slice(0, 50) + "…" : g.text;
+                  const date = new Date(g.created_at).toLocaleString("ru-RU", {
+                    day: "2-digit", month: "2-digit", year: "numeric",
+                    hour: "2-digit", minute: "2-digit",
+                  });
+                  return (
+                    <tr key={g.id} className="border-b border-border/50">
+                      <td className="px-2 py-2 whitespace-nowrap text-text2">{date}</td>
+                      <td className="px-2 py-2 whitespace-nowrap">{g.voice_name || g.voice_id.slice(0, 8)}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-text2">{g.model_id || "—"}</td>
+                      <td className="px-2 py-2">{preview}</td>
+                      <td className="px-2 py-2 text-right">
+                        <button
+                          onClick={() => downloadFromStorage(g.audio_file_path)}
+                          disabled={!g.audio_file_path}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-bg3 border border-border hover:bg-bg2 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Скачать
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
