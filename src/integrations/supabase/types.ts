@@ -1263,6 +1263,39 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_generations: {
+        Row: {
+          audio_file_path: string | null
+          created_at: string
+          id: string
+          model_id: string | null
+          text: string
+          user_id: string
+          voice_id: string
+          voice_name: string | null
+        }
+        Insert: {
+          audio_file_path?: string | null
+          created_at?: string
+          id?: string
+          model_id?: string | null
+          text: string
+          user_id: string
+          voice_id: string
+          voice_name?: string | null
+        }
+        Update: {
+          audio_file_path?: string | null
+          created_at?: string
+          id?: string
+          model_id?: string | null
+          text?: string
+          user_id?: string
+          voice_id?: string
+          voice_name?: string | null
+        }
+        Relationships: []
+      }
       voice_permissions: {
         Row: {
           can_generate_voice: boolean
