@@ -37,6 +37,8 @@ function Page() {
   const userId = profile?.id;
   const qc = useQueryClient();
 
+  const isAdmin = profile?.role === "owner" || profile?.role === "production";
+
   const permQuery = useQuery({
     enabled: !!userId,
     queryKey: ["voice_permissions", userId],
@@ -51,6 +53,23 @@ function Page() {
         | null;
     },
   });
+
+  const todayQuery = useQuery({
+    enabled: !!userId,
+    queryKey: ["voice_gen_today", userId],
+    queryFn: async () => {
+      const { count } = await (supabase as any)
+        .from("voice_generation_log")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .gte("created_at", startOfTodayISO());
+      return count ?? 0;
+    },
+  });
+
+  const canUse = isAdmin || !!permQuery.data?.can_generate_voice;
+  const dailyLimit = isAdmin ? 9999 : (permQuery.data?.daily_limit ?? 0);
+  const charLimit = isAdmin ? 5000 : (permQuery.data?.char_limit ?? 500);
 
   const todayQuery = useQuery({
     enabled: !!userId,
