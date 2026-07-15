@@ -71,22 +71,6 @@ function Page() {
   const dailyLimit = isAdmin ? 9999 : (permQuery.data?.daily_limit ?? 0);
   const charLimit = isAdmin ? 5000 : (permQuery.data?.char_limit ?? 500);
 
-  const todayQuery = useQuery({
-    enabled: !!userId,
-    queryKey: ["voice_gen_today", userId],
-    queryFn: async () => {
-      const { count } = await (supabase as any)
-        .from("voice_generation_log")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .gte("created_at", startOfTodayISO());
-      return count ?? 0;
-    },
-  });
-
-  const canUse = !!permQuery.data?.can_generate_voice;
-  const dailyLimit = permQuery.data?.daily_limit ?? 0;
-  const charLimit = permQuery.data?.char_limit ?? 500;
   const usedToday = todayQuery.data ?? 0;
   const remaining = Math.max(0, dailyLimit - usedToday);
 
