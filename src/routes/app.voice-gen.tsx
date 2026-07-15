@@ -110,6 +110,9 @@ function Page() {
   const [loadingVoices, setLoadingVoices] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [speed, setSpeed] = useState(1.0);
+  const [stability, setStability] = useState(0.5);
+  const [similarity, setSimilarity] = useState(0.75);
   const lastUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
