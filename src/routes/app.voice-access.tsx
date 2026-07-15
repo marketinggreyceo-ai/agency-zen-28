@@ -66,7 +66,7 @@ function Page() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("voice_generation_log")
-        .select("user_id, created_at");
+        .select("user_id, created_at, text_length");
       if (error) throw error;
       return (data ?? []) as UsageRow[];
     },
