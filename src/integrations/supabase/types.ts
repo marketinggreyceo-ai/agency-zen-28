@@ -1236,6 +1236,63 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_generation_log: {
+        Row: {
+          created_at: string
+          id: string
+          model_id: string | null
+          text_length: number
+          user_id: string
+          voice_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model_id?: string | null
+          text_length?: number
+          user_id: string
+          voice_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model_id?: string | null
+          text_length?: number
+          user_id?: string
+          voice_id?: string | null
+        }
+        Relationships: []
+      }
+      voice_permissions: {
+        Row: {
+          can_generate_voice: boolean
+          char_limit: number
+          created_at: string
+          daily_limit: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_generate_voice?: boolean
+          char_limit?: number
+          created_at?: string
+          daily_limit?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_generate_voice?: boolean
+          char_limit?: number
+          created_at?: string
+          daily_limit?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       weekly_goal_types: {
         Row: {
           created_at: string
