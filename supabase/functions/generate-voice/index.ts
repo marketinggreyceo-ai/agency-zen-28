@@ -64,6 +64,10 @@ Deno.serve(async (req) => {
       const text: string | undefined = body?.text;
       const voice_id: string | undefined = body?.voice_id;
       const model_id: string = body?.model_id ?? "eleven_flash_v2_5";
+      const speed: number = typeof body?.speed === "number" ? body.speed : 1.0;
+      const stability: number = typeof body?.stability === "number" ? body.stability : 0.5;
+      const similarity_boost: number =
+        typeof body?.similarity_boost === "number" ? body.similarity_boost : 0.75;
       if (!text || !voice_id) {
         return jsonResponse({ error: "text and voice_id are required" }, 400);
       }
@@ -81,10 +85,11 @@ Deno.serve(async (req) => {
             text,
             model_id,
             voice_settings: {
-              stability: 0.5,
-              similarity_boost: 0.75,
+              stability,
+              similarity_boost,
               style: 0.0,
               use_speaker_boost: true,
+              speed,
             },
           }),
         },
