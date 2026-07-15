@@ -327,3 +327,13 @@ function UserRow({
     </tr>
   );
 }
+
+function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-md border border-border bg-bg2 p-3">
+      <div className="text-[10px] uppercase tracking-wide text-text2">{label}</div>
+      <div className="mt-1 text-xl font-semibold">{value}</div>
+      {hint && <div className="text-[10px] text-text3 mt-0.5">{hint}</div>}
+    </div>
+  );
+}
