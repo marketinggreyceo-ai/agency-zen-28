@@ -1,8 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Mic, Loader2, Download, Sparkles } from "lucide-react";
+import { Loader2, Download, Sparkles, Lock } from "lucide-react";
 import { PageHeader } from "@/components/ui-shared";
+import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/lib/auth";
 
 export const Route = createFileRoute("/app/voice-gen")({
   ssr: false,
@@ -17,16 +20,57 @@ const MODELS = [
   { value: "eleven_turbo_v2_5",        label: "Turbo v2.5 (Fast + quality)" },
 ];
 
-const MAX_CHARS = 500;
-
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY =
   (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ??
   (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string);
-
 const FN_URL = `${SUPABASE_URL}/functions/v1/generate-voice`;
 
+function startOfTodayISO() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
 function Page() {
+  const { data: profile } = useProfile();
+  const userId = profile?.id;
+  const qc = useQueryClient();
+
+  const permQuery = useQuery({
+    enabled: !!userId,
+    queryKey: ["voice_permissions", userId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("voice_permissions")
+        .select("can_generate_voice, daily_limit, char_limit")
+        .eq("user_id", userId)
+        .maybeSingle();
+      return (data ?? null) as
+        | { can_generate_voice: boolean; daily_limit: number; char_limit: number }
+        | null;
+    },
+  });
+
+  const todayQuery = useQuery({
+    enabled: !!userId,
+    queryKey: ["voice_gen_today", userId],
+    queryFn: async () => {
+      const { count } = await (supabase as any)
+        .from("voice_generation_log")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .gte("created_at", startOfTodayISO());
+      return count ?? 0;
+    },
+  });
+
+  const canUse = !!permQuery.data?.can_generate_voice;
+  const dailyLimit = permQuery.data?.daily_limit ?? 0;
+  const charLimit = permQuery.data?.char_limit ?? 500;
+  const usedToday = todayQuery.data ?? 0;
+  const remaining = Math.max(0, dailyLimit - usedToday);
+
   const [text, setText] = useState("");
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voiceId, setVoiceId] = useState("");
@@ -37,6 +81,7 @@ function Page() {
   const lastUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!canUse) { setLoadingVoices(false); return; }
     (async () => {
       try {
         const res = await fetch(`${FN_URL}?action=list-voices`, {
@@ -57,16 +102,14 @@ function Page() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [canUse]);
 
-  useEffect(() => {
-    return () => {
-      if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
-    };
-  }, []);
+  useEffect(() => () => { if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current); }, []);
 
   const charCount = text.length;
-  const canGenerate = text.trim().length > 0 && !!voiceId && !generating;
+  const overLimit = charCount > charLimit;
+  const canGenerate =
+    canUse && text.trim().length > 0 && !!voiceId && !generating && remaining > 0 && !overLimit;
 
   const groupedVoices = useMemo(() => {
     const groups = new Map<string, Voice[]>();
@@ -79,7 +122,7 @@ function Page() {
   }, [voices]);
 
   async function generate() {
-    if (!canGenerate) return;
+    if (!canGenerate || !userId) return;
     setGenerating(true);
     try {
       const res = await fetch(`${FN_URL}?action=generate`, {
@@ -93,10 +136,7 @@ function Page() {
       });
       if (!res.ok) {
         let msg = "Ошибка генерации";
-        try {
-          const j = await res.json();
-          msg = j?.error || j?.details || msg;
-        } catch { /* noop */ }
+        try { const j = await res.json(); msg = j?.error || j?.details || msg; } catch { /* noop */ }
         throw new Error(msg);
       }
       const blob = await res.blob();
@@ -104,6 +144,14 @@ function Page() {
       if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
       lastUrlRef.current = url;
       setAudioUrl(url);
+
+      await (supabase as any).from("voice_generation_log").insert({
+        user_id: userId,
+        voice_id: voiceId,
+        model_id: modelId,
+        text_length: text.trim().length,
+      });
+      qc.invalidateQueries({ queryKey: ["voice_gen_today", userId] });
       toast.success("Готово");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка генерации");
@@ -122,28 +170,58 @@ function Page() {
     a.remove();
   }
 
+  if (permQuery.isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <PageHeader title="Голосові повідомлення" />
+        <div className="rounded-lg border border-border bg-card p-8 text-center text-text2 text-sm">
+          <Loader2 className="h-5 w-5 animate-spin inline mr-2" /> Загрузка…
+        </div>
+      </div>
+    );
+  }
+
+  if (!canUse) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <PageHeader title="Голосові повідомлення" />
+        <div className="rounded-lg border border-border bg-card p-8 text-center space-y-3">
+          <Lock className="h-8 w-8 mx-auto text-text3" />
+          <p className="text-sm text-text2">
+            You don't have access to voice generation. Contact your admin.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
-      <PageHeader title="Голосові повідомлення" />
+      <PageHeader
+        title="Голосові повідомлення"
+        action={
+          <span className="text-xs text-text2 px-2 py-1 rounded bg-bg3 border border-border">
+            {remaining}/{dailyLimit} generations remaining today
+          </span>
+        }
+      />
 
       <div className="rounded-lg border border-border bg-card p-5 space-y-5">
-        {/* Text */}
         <div>
           <label className="block text-xs uppercase tracking-wide text-text2 mb-2">Текст</label>
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value.slice(0, MAX_CHARS))}
-            maxLength={MAX_CHARS}
+            onChange={(e) => setText(e.target.value.slice(0, charLimit))}
+            maxLength={charLimit}
             rows={6}
             placeholder="Введите текст сообщения…"
             className="w-full rounded-md bg-bg2 border border-border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#C8A566] resize-y"
           />
           <div className="mt-1 text-right text-[11px] text-text3">
-            {charCount}/{MAX_CHARS}
+            {charCount}/{charLimit}
           </div>
         </div>
 
-        {/* Voice + Model */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs uppercase tracking-wide text-text2 mb-2">Голос</label>
@@ -158,9 +236,7 @@ function Page() {
               {groupedVoices.map(([cat, vs]) => (
                 <optgroup key={cat} label={cat}>
                   {vs.map((v) => (
-                    <option key={v.voice_id} value={v.voice_id}>
-                      {v.name}
-                    </option>
+                    <option key={v.voice_id} value={v.voice_id}>{v.name}</option>
                   ))}
                 </optgroup>
               ))}
@@ -181,17 +257,19 @@ function Page() {
           </div>
         </div>
 
-        {/* Generate */}
         <button
           onClick={generate}
           disabled={!canGenerate}
           className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium bg-[#C8A566] text-black hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {generating ? "Генерация…" : "Сгенерировать"}
+          {generating
+            ? "Генерация…"
+            : remaining === 0
+              ? "Дневной лимит исчерпан"
+              : "Сгенерировать"}
         </button>
 
-        {/* Audio */}
         {audioUrl && (
           <div className="pt-2 border-t border-border space-y-3">
             <audio controls src={audioUrl} className="w-full" />
@@ -208,6 +286,3 @@ function Page() {
     </div>
   );
 }
-
-// Referenced by Sidebar for icon lookup.
-export const VoiceGenIcon = Mic;
