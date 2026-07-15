@@ -19,21 +19,25 @@ Deno.serve(async (req) => {
   }
 
   const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
+  console.log(`[generate-voice] request ${req.method} — ELEVENLABS_API_KEY present: ${!!apiKey}`);
   if (!apiKey) {
     return jsonResponse({ error: "ELEVENLABS_API_KEY is not configured" }, 500);
   }
 
   const url = new URL(req.url);
   const action = url.searchParams.get("action");
+  console.log(`[generate-voice] action=${action}`);
 
   try {
     if (action === "list-voices") {
       const res = await fetch("https://api.elevenlabs.io/v1/voices", {
         method: "GET",
-        headers: { "xi-api-key": apiKey },
+        headers: { "xi-api-key": apiKey, Accept: "application/json" },
       });
+      console.log(`[generate-voice] elevenlabs /v1/voices status=${res.status}`);
       if (!res.ok) {
         const errText = await res.text();
+        console.error(`[generate-voice] elevenlabs error body: ${errText}`);
         return jsonResponse({ error: "ElevenLabs error", details: errText }, res.status);
       }
       const data = await res.json();
@@ -43,6 +47,7 @@ Deno.serve(async (req) => {
         category: v.category,
         preview_url: v.preview_url,
       }));
+      console.log(`[generate-voice] returning ${voices.length} voices`);
       return jsonResponse({ voices });
     }
 
