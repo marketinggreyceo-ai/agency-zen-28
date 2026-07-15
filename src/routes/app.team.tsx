@@ -259,6 +259,24 @@ function ProfileRowView({
               </button>
             </>
           )}
+          {isOwner && p.email && (
+            <button
+              onClick={async () => {
+                try {
+                  const { error } = await supabase.auth.resetPasswordForEmail(p.email!, {
+                    redirectTo: `${window.location.origin}/auth`,
+                  });
+                  if (error) throw error;
+                  toast.success("Ссылка для сброса пароля отправлена на email пользователя");
+                } catch (e: any) {
+                  toast.error(e.message || "Не удалось отправить ссылку");
+                }
+              }}
+              title="Сбросить пароль"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-bg3 border border-border text-xs text-text2 hover:text-teal">
+              <KeyRound className="h-3 w-3" /> Сбросить пароль
+            </button>
+          )}
           {isOwner && !isSelf && (
             <button onClick={onDelete}
               title="Удалить участника"
