@@ -1091,19 +1091,29 @@ function ModelModal({ model, onClose }: { model: any; onClose: () => void }) {
     setTagInput("");
   }
 
+  const isNew = !model?.id;
   async function save() {
     try {
-      const patch: any = { ...form, platform: form.platforms[0] ?? null };
-      const { error } = await supabase.from("models").update(patch).eq("id", model.id);
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: ["models"] }); toast.success("Сохранено"); onClose();
+      if (!form.name.trim()) { toast.error("Введите имя модели"); return; }
+      const payload: any = { ...form, platform: form.platforms[0] ?? null };
+      if (isNew) {
+        const { error } = await supabase.from("models").insert(payload);
+        if (error) throw error;
+        toast.success("Модель создана");
+      } else {
+        const { error } = await supabase.from("models").update(payload).eq("id", model.id);
+        if (error) throw error;
+        toast.success("Сохранено");
+      }
+      qc.invalidateQueries({ queryKey: ["models"] });
+      onClose();
     } catch (e: any) { toast.error(e.message); }
   }
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-md bg-card border border-border rounded-lg p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between mb-4">
-          <h3 className="font-semibold">Редактировать модель</h3>
+          <h3 className="font-semibold">{isNew ? "Новая модель" : "Редактировать модель"}</h3>
           <button onClick={onClose}><X className="h-4 w-4" /></button>
         </div>
         <div className="space-y-3 text-sm">
