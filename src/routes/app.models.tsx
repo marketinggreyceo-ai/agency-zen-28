@@ -182,7 +182,17 @@ function Page() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <PageHeader title="Модели" />
+      <PageHeader
+        title="Модели"
+        action={isOwner ? (
+          <button
+            onClick={() => setEditingModel({ __new: true, name: "", english_name: "", platforms: [], platform: null, agency_cut: 0, status: "active", priority: "medium", tags: [] })}
+            className="px-3 py-2 text-sm rounded bg-primary text-primary-foreground font-medium inline-flex items-center gap-1"
+          >
+            <Plus className="h-4 w-4" /> Новая модель
+          </button>
+        ) : undefined}
+      />
 
       <div className="flex items-center gap-1 mb-4 bg-bg3 border border-border rounded-lg p-1 w-fit">
         <button
