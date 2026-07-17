@@ -76,6 +76,9 @@ export const Route = createFileRoute("/api/public/hooks/telegram-daily-tasks")({
             telegram_user_id: p.telegram_user_id,
             task_ids: open.map((t) => t.id),
           });
+          await admin.from("task_notification_log").insert({
+            user_id: p.id, recipient_name: p.full_name, tasks_sent: open.length, status: "sent",
+          });
           results.push({ profile: p.full_name, count: open.length });
         }
 
