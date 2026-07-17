@@ -144,6 +144,9 @@ function Page() {
           </button>
         </div>
 
+        <BotLinkRow value={s?.bot_link ?? ""} onSave={(v) => patch.mutate({ bot_link: v || null })} />
+
+
         <div className="flex items-center justify-between pt-2">
           <span className="text-xs text-text3">Подключённые чаты</span>
           <button onClick={() => refreshChats.mutate()} disabled={refreshChats.isPending}
