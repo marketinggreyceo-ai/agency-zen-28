@@ -39,6 +39,10 @@ export const Route = createFileRoute("/api/public/hooks/telegram-daily-tasks")({
           .eq("status", "active")
           .not("telegram_user_id", "is", null);
 
+        const { data: prefs = [] } = await admin
+          .from("task_notification_preferences").select("user_id, daily_enabled");
+        const disabled = new Set((prefs as any[]).filter((p) => p.daily_enabled === false).map((p) => p.user_id));
+
         const { data: tasks = [] } = await admin
           .from("tasks")
           .select("id, title, assignee, status, is_weekly, is_permanent, weekly_done_at");
@@ -49,6 +53,7 @@ export const Route = createFileRoute("/api/public/hooks/telegram-daily-tasks")({
         for (const p of profiles as any[]) {
           const asg = p.assignee_name;
           if (!asg) continue;
+          if (disabled.has(p.id)) continue;
           const open = (tasks as any[]).filter((t) => {
             if (t.assignee !== asg) return false;
             if (t.is_permanent) return false;
@@ -70,6 +75,9 @@ export const Route = createFileRoute("/api/public/hooks/telegram-daily-tasks")({
             profile_id: p.id,
             telegram_user_id: p.telegram_user_id,
             task_ids: open.map((t) => t.id),
+          });
+          await admin.from("task_notification_log").insert({
+            user_id: p.id, recipient_name: p.full_name, tasks_sent: open.length, status: "sent",
           });
           results.push({ profile: p.full_name, count: open.length });
         }

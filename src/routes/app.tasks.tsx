@@ -8,6 +8,7 @@ import { useAssignees } from "@/lib/lookups";
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { TaskSendDropdown, TelegramNotificationsPanel } from "@/components/TaskTelegramPanel";
 
 export const Route = createFileRoute("/app/tasks")({
   ssr: false, component: Page,
@@ -73,9 +74,12 @@ function Page() {
   return (
     <div className="p-4 md:p-8 max-w-[1400px] mx-auto">
       <PageHeader title="Задачи" action={
-        <button onClick={() => setCreating({ open: true })} className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-teal text-primary-foreground text-sm font-medium">
-          <Plus className="h-4 w-4" /> Новая задача
-        </button>
+        <div className="flex items-center gap-2">
+          {(profile?.role === "owner" || profile?.role === "production") && <TaskSendDropdown />}
+          <button onClick={() => setCreating({ open: true })} className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-teal text-primary-foreground text-sm font-medium">
+            <Plus className="h-4 w-4" /> Новая задача
+          </button>
+        </div>
       } />
 
       {/* Worker filter chips */}
@@ -164,6 +168,10 @@ function Page() {
           ))}
         </div>
       </section>
+
+      {(profile?.role === "owner" || profile?.role === "production") && <TelegramNotificationsPanel />}
+
+
 
       <TaskModal task={null} open={creating.open} onClose={() => setCreating({ open: false })}
         defaultWeekly={creating.weekly} defaultPermanent={creating.permanent} />
