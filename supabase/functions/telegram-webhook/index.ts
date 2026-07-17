@@ -593,6 +593,32 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Bare /start — activate bot for this user
+      if (/^\/start(?:@\w+)?\s*$/i.test(text.trim())) {
+        const { data: prof } = await admin
+          .from("profiles")
+          .select("id, full_name")
+          .eq("telegram_user_id", fromId)
+          .maybeSingle();
+        const { data: tm } = await admin
+          .from("team_members")
+          .select("id")
+          .eq("telegram_user_id", fromId)
+          .maybeSingle();
+        if (prof || tm) {
+          if (prof) await admin.from("profiles").update({ telegram_chat_id: String(chatId) }).eq("id", (prof as any).id);
+          if (tm) await admin.from("team_members").update({ telegram_chat_id: String(chatId) }).eq("id", (tm as any).id);
+          if (botToken) await sendMessage(botToken, chat.id, "✅ Бот активирован! Вы будете получать ежедневные задачи.");
+          await writeLog({ chat_id: chatId, message_text: text, parsed_action: "start_activated", success: true });
+        } else {
+          if (botToken) await sendMessage(botToken, chat.id, "❌ Ваш Telegram не привязан к аккаунту. Обратитесь к администратору.");
+          await writeLog({ chat_id: chatId, message_text: text, parsed_action: "start_unlinked", success: false });
+        }
+        return Response.json({ ok: true });
+      }
+
+
+
 
       // "N готово" / "N done" reply
       const doneMatch = text.trim().match(/^(\d+)\s*(готово|done)\s*$/i);
