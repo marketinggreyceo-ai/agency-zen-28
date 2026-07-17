@@ -18,6 +18,43 @@ async function sendTG(token: string, chatId: number | string, text: string) {
   }).catch(() => {});
 }
 
+function groupTasks(tasks: any[], assignee: string, currentWeek: string) {
+  const oneTime: any[] = [];
+  const weekly: any[] = [];
+  const permanent: any[] = [];
+  for (const t of tasks) {
+    if (t.assignee !== assignee) continue;
+    if (t.is_permanent) {
+      permanent.push(t);
+    } else if (t.is_weekly) {
+      const done = t.weekly_done_at && isoWeek(new Date(t.weekly_done_at)) === currentWeek;
+      if (!done) weekly.push(t);
+    } else if (t.status !== "done") {
+      oneTime.push(t);
+    }
+  }
+  return { oneTime, weekly, permanent, all: [...oneTime, ...weekly, ...permanent] };
+}
+
+function formatMessage(g: { oneTime: any[]; weekly: any[]; permanent: any[] }) {
+  const parts: string[] = ["📋 Задачи на сегодня:"];
+  let n = 1;
+  if (g.oneTime.length) {
+    parts.push("🔴 Разовые:");
+    for (const t of g.oneTime) parts.push(`${n++}. ${t.title}`);
+  }
+  if (g.weekly.length) {
+    parts.push("🔁 Еженедельные:");
+    for (const t of g.weekly) parts.push(`${n++}. ${t.title}`);
+  }
+  if (g.permanent.length) {
+    parts.push("📌 Постоянные:");
+    for (const t of g.permanent) parts.push(`${n++}. ${t.title} (Daily)`);
+  }
+  parts.push("Ответь номером и 'готово' чтобы закрыть задачу.\nПример: 1 готово");
+  return parts.join("\n\n");
+}
+
 export const Route = createFileRoute("/api/public/hooks/telegram-daily-tasks")({
   server: {
     handlers: {
@@ -47,6 +84,14 @@ export const Route = createFileRoute("/api/public/hooks/telegram-daily-tasks")({
           .from("tasks")
           .select("id, title, assignee, status, is_weekly, is_permanent, weekly_done_at");
 
+        // Dedupe: skip anyone who already got a list within the last 12 hours.
+        const cutoff = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+        const { data: recentSends = [] } = await admin
+          .from("telegram_daily_task_lists")
+          .select("profile_id, sent_at")
+          .gte("sent_at", cutoff);
+        const recentlySent = new Set((recentSends as any[]).map((r) => r.profile_id));
+
         const currentWeek = isoWeek(new Date());
         const results: any[] = [];
 
@@ -54,32 +99,23 @@ export const Route = createFileRoute("/api/public/hooks/telegram-daily-tasks")({
           const asg = p.assignee_name;
           if (!asg) continue;
           if (disabled.has(p.id)) continue;
-          const open = (tasks as any[]).filter((t) => {
-            if (t.assignee !== asg) return false;
-            if (t.is_permanent) return false;
-            if (t.is_weekly) {
-              const done = t.weekly_done_at && isoWeek(new Date(t.weekly_done_at)) === currentWeek;
-              return !done;
-            }
-            return t.status !== "done";
-          });
-          if (open.length === 0) continue;
+          if (recentlySent.has(p.id)) { results.push({ profile: p.full_name, skipped: "duplicate" }); continue; }
 
-          const lines = open.map((t, i) => `${i + 1}. ${t.title}`).join("\n\n");
-          const text =
-            `📋 Задачи на сегодня:\n\n${lines}\n\n` +
-            `Ответь номером и 'готово' чтобы закрыть задачу.\nПример: 1 готово`;
+          const groups = groupTasks(tasks as any[], asg, currentWeek);
+          if (groups.all.length === 0) continue;
+
+          const text = formatMessage(groups);
 
           await sendTG(token, p.telegram_user_id, text);
           await admin.from("telegram_daily_task_lists").insert({
             profile_id: p.id,
             telegram_user_id: p.telegram_user_id,
-            task_ids: open.map((t) => t.id),
+            task_ids: groups.all.map((t) => t.id),
           });
           await admin.from("task_notification_log").insert({
-            user_id: p.id, recipient_name: p.full_name, tasks_sent: open.length, status: "sent",
+            user_id: p.id, recipient_name: p.full_name, tasks_sent: groups.all.length, status: "sent",
           });
-          results.push({ profile: p.full_name, count: open.length });
+          results.push({ profile: p.full_name, count: groups.all.length });
         }
 
         return Response.json({ ok: true, sent: results.length, results });
