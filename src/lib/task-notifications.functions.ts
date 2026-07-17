@@ -45,14 +45,39 @@ async function openTasksFor(admin: any, assignee: string) {
   const { data: tasks = [] } = await admin.from("tasks")
     .select("id, title, assignee, status, is_weekly, is_permanent, weekly_done_at")
     .eq("assignee", assignee);
-  return (tasks as any[]).filter((t) => {
-    if (t.is_permanent) return false;
-    if (t.is_weekly) {
+  const oneTime: any[] = [];
+  const weekly: any[] = [];
+  const permanent: any[] = [];
+  for (const t of (tasks as any[])) {
+    if (t.is_permanent) {
+      permanent.push(t);
+    } else if (t.is_weekly) {
       const done = t.weekly_done_at && isoWeek(new Date(t.weekly_done_at)) === currentWeek;
-      return !done;
+      if (!done) weekly.push(t);
+    } else if (t.status !== "done") {
+      oneTime.push(t);
     }
-    return t.status !== "done";
-  });
+  }
+  return { oneTime, weekly, permanent, all: [...oneTime, ...weekly, ...permanent] };
+}
+
+export function formatDailyTaskMessage(groups: { oneTime: any[]; weekly: any[]; permanent: any[] }) {
+  const parts: string[] = ["📋 Задачи на сегодня:"];
+  let n = 1;
+  if (groups.oneTime.length) {
+    parts.push("🔴 Разовые:");
+    for (const t of groups.oneTime) parts.push(`${n++}. ${t.title}`);
+  }
+  if (groups.weekly.length) {
+    parts.push("🔁 Еженедельные:");
+    for (const t of groups.weekly) parts.push(`${n++}. ${t.title}`);
+  }
+  if (groups.permanent.length) {
+    parts.push("📌 Постоянные:");
+    for (const t of groups.permanent) parts.push(`${n++}. ${t.title}${t.is_permanent ? " (Daily)" : ""}`);
+  }
+  parts.push("Ответь номером и 'готово' чтобы закрыть задачу.\nПример: 1 готово");
+  return parts.join("\n\n");
 }
 
 export const listTaskNotifications = createServerFn({ method: "GET" })
