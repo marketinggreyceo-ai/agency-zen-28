@@ -39,6 +39,10 @@ export const Route = createFileRoute("/api/public/hooks/telegram-daily-tasks")({
           .eq("status", "active")
           .not("telegram_user_id", "is", null);
 
+        const { data: prefs = [] } = await admin
+          .from("task_notification_preferences").select("user_id, daily_enabled");
+        const disabled = new Set((prefs as any[]).filter((p) => p.daily_enabled === false).map((p) => p.user_id));
+
         const { data: tasks = [] } = await admin
           .from("tasks")
           .select("id, title, assignee, status, is_weekly, is_permanent, weekly_done_at");
