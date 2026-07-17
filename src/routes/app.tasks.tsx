@@ -8,6 +8,7 @@ import { useAssignees } from "@/lib/lookups";
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { TaskSendDropdown, TelegramNotificationsPanel } from "@/components/TaskTelegramPanel";
 
 export const Route = createFileRoute("/app/tasks")({
   ssr: false, component: Page,
