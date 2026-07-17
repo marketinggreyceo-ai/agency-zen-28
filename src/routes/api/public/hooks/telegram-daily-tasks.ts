@@ -53,6 +53,7 @@ export const Route = createFileRoute("/api/public/hooks/telegram-daily-tasks")({
         for (const p of profiles as any[]) {
           const asg = p.assignee_name;
           if (!asg) continue;
+          if (disabled.has(p.id)) continue;
           const open = (tasks as any[]).filter((t) => {
             if (t.assignee !== asg) return false;
             if (t.is_permanent) return false;
