@@ -5,7 +5,7 @@ import { PageHeader, Empty } from "@/components/ui-shared";
 import { useProfile } from "@/lib/auth";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { Plus, X, Copy, Trash2, Edit, ExternalLink, ChevronRight, ChevronDown } from "lucide-react";
+import { Plus, X, Trash2, Edit, ExternalLink, ChevronRight, ChevronDown, Link as LinkIcon, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/app/sops")({
   ssr: false, component: Page,
@@ -41,6 +41,8 @@ function Page() {
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
   const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState("");
+  const [renamingSub, setRenamingSub] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const { data: sops = [] } = useQuery({
     queryKey: ["sops"],
@@ -69,6 +71,8 @@ function Page() {
 
   const addSub = useMutation({
     mutationFn: async ({ name, parent_category }: { name: string; parent_category: string }) => {
+      // Guard: reject anything that looks like a URL
+      if (/^https?:\/\//i.test(name)) throw new Error("Введите название, а не ссылку");
       const { error } = await (supabase as any).from("sop_subcategories").insert({ name, parent_category, created_by: profile?.id });
       if (error) throw error;
     },
@@ -76,6 +80,39 @@ function Page() {
       qc.invalidateQueries({ queryKey: ["sop_subcategories"] });
       toast.success("Подкатегория добавлена");
       setAddingSubFor(null); setNewSubName("");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const renameSub = useMutation({
+    mutationFn: async ({ id, oldName, newName, parent_category }: { id: string; oldName: string; newName: string; parent_category: string }) => {
+      if (/^https?:\/\//i.test(newName)) throw new Error("Введите название, а не ссылку");
+      const { error } = await (supabase as any).from("sop_subcategories").update({ name: newName }).eq("id", id);
+      if (error) throw error;
+      // Update all SOPs that referenced the old name
+      await supabase.from("sops").update({ subcategory: newName }).eq("category", parent_category).eq("subcategory", oldName);
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["sop_subcategories"] });
+      qc.invalidateQueries({ queryKey: ["sops"] });
+      toast.success("Переименовано");
+      if (subcat === vars.oldName) setSubcat(vars.newName);
+      setRenamingSub(null); setRenameValue("");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteSub = useMutation({
+    mutationFn: async ({ id, name, parent_category }: { id: string; name: string; parent_category: string }) => {
+      const { error } = await (supabase as any).from("sop_subcategories").delete().eq("id", id);
+      if (error) throw error;
+      await supabase.from("sops").update({ subcategory: null }).eq("category", parent_category).eq("subcategory", name);
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["sop_subcategories"] });
+      qc.invalidateQueries({ queryKey: ["sops"] });
+      toast.success("Подкатегория удалена");
+      if (subcat === vars.name) setSubcat(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -99,7 +136,7 @@ function Page() {
       <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск..."
         className="w-full mb-4 bg-bg3 border border-border rounded-md px-3 py-2 text-sm" />
 
-      <div className="grid md:grid-cols-[220px_1fr] gap-4">
+      <div className="grid md:grid-cols-[240px_1fr] gap-4">
         <div className="space-y-1">
           <button onClick={() => { setCat("all"); setSubcat(null); }}
             className={`w-full text-left px-3 py-2 rounded text-sm ${cat === "all" ? "bg-bg3 text-foreground" : "text-text2 hover:bg-bg3"}`}>
@@ -116,36 +153,77 @@ function Page() {
                     className="p-1.5 text-text2">
                     {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                   </button>
-                  <button onClick={() => { setCat(c.slug); setSubcat(null); }}
+                  <button onClick={() => { setCat(c.slug); setSubcat(null); setExpandedCats((p) => ({ ...p, [c.slug]: true })); }}
                     className={`flex-1 text-left py-2 text-sm ${isActiveCat ? "text-foreground" : "text-text2"}`}>
                     {c.label}
                   </button>
                   {canManageSubs && (
-                    <button onClick={() => { setAddingSubFor(c.slug); setExpandedCats((p) => ({ ...p, [c.slug]: true })); }}
-                      title="Добавить подкатегорию" className="p-1.5 text-text2 hover:text-foreground">
+                    <button
+                      onClick={() => {
+                        setAddingSubFor(c.slug);
+                        setNewSubName("");
+                        setExpandedCats((p) => ({ ...p, [c.slug]: true }));
+                      }}
+                      title="Добавить подкатегорию (только название)"
+                      className="p-1.5 text-text2 hover:text-foreground">
                       <Plus className="h-3 w-3" />
                     </button>
                   )}
                 </div>
                 {isOpen && (
                   <div className="ml-6 mt-1 space-y-1">
-                    {subs.map((s: any) => (
-                      <button key={s.id} onClick={() => { setCat(c.slug); setSubcat(s.name); }}
-                        className={`w-full text-left px-2 py-1.5 rounded text-xs ${cat === c.slug && subcat === s.name ? "bg-bg3 text-foreground" : "text-text2 hover:bg-bg3"}`}>
-                        {s.name}
-                      </button>
-                    ))}
-                    {subs.length === 0 && !addingSubFor && (
+                    {subs.map((s: any) => {
+                      const active = cat === c.slug && subcat === s.name;
+                      const isRenaming = renamingSub === s.id;
+                      if (isRenaming) {
+                        return (
+                          <div key={s.id} className="flex gap-1 px-1">
+                            <input autoFocus value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && renameValue.trim())
+                                  renameSub.mutate({ id: s.id, oldName: s.name, newName: renameValue.trim(), parent_category: c.slug });
+                                if (e.key === "Escape") { setRenamingSub(null); setRenameValue(""); }
+                              }}
+                              className="flex-1 bg-bg3 border border-border rounded px-2 py-1 text-xs" />
+                            <button onClick={() => renameValue.trim() && renameSub.mutate({ id: s.id, oldName: s.name, newName: renameValue.trim(), parent_category: c.slug })}
+                              className="px-2 py-1 rounded bg-teal text-primary-foreground text-xs">OK</button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={s.id} className={`group flex items-center gap-1 rounded ${active ? "bg-bg3" : "hover:bg-bg3"}`}>
+                          <button onClick={() => { setCat(c.slug); setSubcat(s.name); }}
+                            className={`flex-1 text-left px-2 py-1.5 text-xs ${active ? "text-foreground" : "text-text2"}`}>
+                            {s.name}
+                          </button>
+                          {canManageSubs && (
+                            <div className="flex opacity-0 group-hover:opacity-100 transition-opacity pr-1">
+                              <button onClick={() => { setRenamingSub(s.id); setRenameValue(s.name); }}
+                                title="Переименовать" className="p-1 text-text2 hover:text-foreground">
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button onClick={() => confirm(`Удалить подкатегорию "${s.name}"?`) && deleteSub.mutate({ id: s.id, name: s.name, parent_category: c.slug })}
+                                title="Удалить" className="p-1 text-text2 hover:text-red-500">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {subs.length === 0 && addingSubFor !== c.slug && (
                       <div className="px-2 py-1 text-xs text-text3">Нет подкатегорий</div>
                     )}
                     {addingSubFor === c.slug && (
                       <div className="flex gap-1 px-1">
                         <input autoFocus value={newSubName} onChange={(e) => setNewSubName(e.target.value)}
                           onKeyDown={(e) => { if (e.key === "Enter" && newSubName.trim()) addSub.mutate({ name: newSubName.trim(), parent_category: c.slug }); if (e.key === "Escape") { setAddingSubFor(null); setNewSubName(""); } }}
-                          placeholder="Название"
+                          placeholder="Название подкатегории"
                           className="flex-1 bg-bg3 border border-border rounded px-2 py-1 text-xs" />
                         <button onClick={() => newSubName.trim() && addSub.mutate({ name: newSubName.trim(), parent_category: c.slug })}
                           className="px-2 py-1 rounded bg-teal text-primary-foreground text-xs">OK</button>
+                        <button onClick={() => { setAddingSubFor(null); setNewSubName(""); }}
+                          className="px-2 py-1 rounded text-text2 text-xs">×</button>
                       </div>
                     )}
                   </div>
@@ -155,44 +233,49 @@ function Page() {
           })}
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
+          {(cat !== "all" || subcat) && (
+            <div className="flex items-center gap-2 text-xs text-text3 mb-2">
+              <span>{CATEGORIES.find((c) => c.slug === cat)?.label ?? cat}</span>
+              {subcat && <><ChevronRight className="h-3 w-3" /><span className="text-foreground">{subcat}</span></>}
+            </div>
+          )}
           {filtered.map((s: any) => (
-            <div key={s.id} className="rounded-lg border border-border bg-card p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium">{s.title}</h3>
-                  {s.description && <p className="text-sm text-text2 mt-1">{s.description}</p>}
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg3 text-text2">{s.category}</span>
-                    {s.subcategory && <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg3 text-text2">{s.subcategory}</span>}
-                    {s.visible_to && s.visible_to !== "all" && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg3 text-text2">
-                        {VISIBLE_TO_OPTIONS.find((v) => v.value === s.visible_to)?.label ?? s.visible_to}
-                      </span>
-                    )}
-                    <span className="text-xs text-text3">{new Date(s.updated_at).toLocaleDateString("ru-RU")}</span>
-                  </div>
-                </div>
-                <div className="flex gap-1.5 items-center">
-                  {s.drive_url && (
-                    <a href={s.drive_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 px-3 py-1.5 rounded bg-teal text-primary-foreground text-xs font-medium">
-                      <ExternalLink className="h-3 w-3" /> Открыть
-                    </a>
+            <div key={s.id} className="rounded-lg border border-border bg-card p-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                {s.drive_url ? (
+                  <a href={s.drive_url} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 font-medium hover:text-teal group">
+                    <LinkIcon className="h-3.5 w-3.5 text-text2 group-hover:text-teal" />
+                    <span className="truncate">{s.title}</span>
+                    <ExternalLink className="h-3 w-3 text-text3" />
+                  </a>
+                ) : (
+                  <span className="font-medium">{s.title}</span>
+                )}
+                {s.description && <p className="text-xs text-text2 mt-0.5 line-clamp-2">{s.description}</p>}
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  {!subcat && s.subcategory && <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg3 text-text2">{s.subcategory}</span>}
+                  {s.visible_to && s.visible_to !== "all" && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg3 text-text2">
+                      {VISIBLE_TO_OPTIONS.find((v) => v.value === s.visible_to)?.label ?? s.visible_to}
+                    </span>
                   )}
-                  {isOwner && (
-                    <>
-                      {s.drive_url && (
-                        <button title="Копировать ссылку" onClick={() => { navigator.clipboard.writeText(s.drive_url); toast.success("Ссылка скопирована"); }}>
-                          <Copy className="h-3.5 w-3.5 text-text2" />
-                        </button>
-                      )}
-                      <button onClick={() => setEditing(s)}><Edit className="h-3.5 w-3.5 text-text2" /></button>
-                      <button onClick={() => confirm("Удалить?") && del.mutate(s.id)}><Trash2 className="h-3.5 w-3.5 text-text2" /></button>
-                    </>
-                  )}
+                  <span className="text-[10px] text-text3">{new Date(s.updated_at).toLocaleDateString("ru-RU")}</span>
                 </div>
               </div>
+              {isOwner && (
+                <div className="flex gap-1 items-center shrink-0">
+                  <button onClick={() => setEditing(s)} title="Изменить"
+                    className="flex items-center gap-1 px-2 py-1 rounded text-xs text-text2 hover:bg-bg3 hover:text-foreground">
+                    <Edit className="h-3.5 w-3.5" /> Изменить
+                  </button>
+                  <button onClick={() => confirm("Удалить?") && del.mutate(s.id)} title="Удалить"
+                    className="flex items-center gap-1 px-2 py-1 rounded text-xs text-text2 hover:bg-bg3 hover:text-red-500">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           {filtered.length === 0 && <Empty message="Нет SOPs в этой категории" />}
@@ -200,19 +283,19 @@ function Page() {
       </div>
 
       {(editing || creating) && (
-        <SopModal sop={editing} subcategories={subcategories} onClose={() => { setEditing(null); setCreating(false); }} />
+        <SopModal sop={editing} initialCategory={cat !== "all" ? cat : undefined} initialSubcategory={subcat ?? undefined} subcategories={subcategories} onClose={() => { setEditing(null); setCreating(false); }} />
       )}
     </div>
   );
 }
 
-function SopModal({ sop, subcategories, onClose }: { sop: any | null; subcategories: any[]; onClose: () => void }) {
+function SopModal({ sop, initialCategory, initialSubcategory, subcategories, onClose }: { sop: any | null; initialCategory?: string; initialSubcategory?: string; subcategories: any[]; onClose: () => void }) {
   const qc = useQueryClient();
   const { data: profile } = useProfile();
   const [form, setForm] = useState({
     title: sop?.title ?? "",
-    category: sop?.category ?? "general",
-    subcategory: sop?.subcategory ?? "",
+    category: sop?.category ?? initialCategory ?? "general",
+    subcategory: sop?.subcategory ?? initialSubcategory ?? "",
     drive_url: sop?.drive_url ?? "",
     description: sop?.description ?? "",
     visible_to: sop?.visible_to ?? "all",
@@ -229,7 +312,8 @@ function SopModal({ sop, subcategories, onClose }: { sop: any | null; subcategor
 
       let subcategoryValue = form.subcategory;
       if (addingNewSub && newSubName.trim()) {
-        const { data, error } = await (supabase as any).from("sop_subcategories")
+        if (/^https?:\/\//i.test(newSubName.trim())) throw new Error("Название подкатегории не может быть ссылкой");
+        const { error } = await (supabase as any).from("sop_subcategories")
           .insert({ name: newSubName.trim(), parent_category: form.category, created_by: profile?.id })
           .select().single();
         if (error && !String(error.message).includes("duplicate")) throw error;
@@ -293,7 +377,7 @@ function SopModal({ sop, subcategories, onClose }: { sop: any | null; subcategor
             </select>
             {addingNewSub && (
               <input autoFocus value={newSubName} onChange={(e) => setNewSubName(e.target.value)}
-                placeholder="Название подкатегории"
+                placeholder="Название подкатегории (не ссылка)"
                 className="w-full mt-2 bg-bg3 border border-border rounded px-3 py-2" />
             )}
           </div>
