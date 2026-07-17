@@ -32,6 +32,7 @@ import { Route as AppChattingRouteImport } from './routes/app.chatting'
 import { Route as AppAccessRouteImport } from './routes/app.access'
 import { Route as ApiPublicWebhookTasksRouteImport } from './routes/api/public/webhook.tasks'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
+import { Route as ApiPublicHooksTelegramDailyTasksRouteImport } from './routes/api/public/hooks/telegram-daily-tasks'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -149,6 +150,12 @@ const ApiPublicTelegramWebhookRoute =
     path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksTelegramDailyTasksRoute =
+  ApiPublicHooksTelegramDailyTasksRouteImport.update({
+    id: '/api/public/hooks/telegram-daily-tasks',
+    path: '/api/public/hooks/telegram-daily-tasks',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -172,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
+  '/api/public/hooks/telegram-daily-tasks': typeof ApiPublicHooksTelegramDailyTasksRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/webhook/tasks': typeof ApiPublicWebhookTasksRoute
 }
@@ -196,6 +204,7 @@ export interface FileRoutesByTo {
   '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app': typeof AppIndexRoute
+  '/api/public/hooks/telegram-daily-tasks': typeof ApiPublicHooksTelegramDailyTasksRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/webhook/tasks': typeof ApiPublicWebhookTasksRoute
 }
@@ -222,6 +231,7 @@ export interface FileRoutesById {
   '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
+  '/api/public/hooks/telegram-daily-tasks': typeof ApiPublicHooksTelegramDailyTasksRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/webhook/tasks': typeof ApiPublicWebhookTasksRoute
 }
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/app/voice-gen'
     | '/sops/$category'
     | '/app/'
+    | '/api/public/hooks/telegram-daily-tasks'
     | '/api/public/telegram/webhook'
     | '/api/public/webhook/tasks'
   fileRoutesByTo: FileRoutesByTo
@@ -273,6 +284,7 @@ export interface FileRouteTypes {
     | '/app/voice-gen'
     | '/sops/$category'
     | '/app'
+    | '/api/public/hooks/telegram-daily-tasks'
     | '/api/public/telegram/webhook'
     | '/api/public/webhook/tasks'
   id:
@@ -298,6 +310,7 @@ export interface FileRouteTypes {
     | '/app/voice-gen'
     | '/sops/$category'
     | '/app/'
+    | '/api/public/hooks/telegram-daily-tasks'
     | '/api/public/telegram/webhook'
     | '/api/public/webhook/tasks'
   fileRoutesById: FileRoutesById
@@ -308,6 +321,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   SetupRoute: typeof SetupRoute
   SopsCategoryRoute: typeof SopsCategoryRoute
+  ApiPublicHooksTelegramDailyTasksRoute: typeof ApiPublicHooksTelegramDailyTasksRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   ApiPublicWebhookTasksRoute: typeof ApiPublicWebhookTasksRoute
 }
@@ -475,6 +489,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/telegram-daily-tasks': {
+      id: '/api/public/hooks/telegram-daily-tasks'
+      path: '/api/public/hooks/telegram-daily-tasks'
+      fullPath: '/api/public/hooks/telegram-daily-tasks'
+      preLoaderRoute: typeof ApiPublicHooksTelegramDailyTasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -524,6 +545,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   SetupRoute: SetupRoute,
   SopsCategoryRoute: SopsCategoryRoute,
+  ApiPublicHooksTelegramDailyTasksRoute: ApiPublicHooksTelegramDailyTasksRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   ApiPublicWebhookTasksRoute: ApiPublicWebhookTasksRoute,
 }

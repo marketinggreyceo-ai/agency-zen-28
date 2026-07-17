@@ -569,6 +569,71 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, connected: model.name });
     }
 
+    // === Private-chat handling for daily task DMs ===
+    if (chat.type === "private" && msg.from?.id) {
+      const fromId = Number(msg.from.id);
+      const fromUsername = msg.from.username ?? null;
+
+      // Auto-link telegram_user_id to profile / team_member by username or existing id
+      const key = normalize(fromUsername);
+      if (key) {
+        const { data: profs } = await admin
+          .from("profiles").select("id, telegram_user_id, telegram_handle")
+          .not("telegram_handle", "is", null);
+        const prof = (profs ?? []).find((p: any) => normalize(p.telegram_handle) === key);
+        if (prof && (prof as any).telegram_user_id !== fromId) {
+          await admin.from("profiles").update({ telegram_user_id: fromId }).eq("id", (prof as any).id);
+        }
+        const { data: members } = await admin
+          .from("team_members").select("id, telegram_user_id, telegram_handle")
+          .not("telegram_handle", "is", null);
+        const tm = (members ?? []).find((m: any) => normalize(m.telegram_handle) === key);
+        if (tm && (tm as any).telegram_user_id !== fromId) {
+          await admin.from("team_members").update({ telegram_user_id: fromId }).eq("id", (tm as any).id);
+        }
+      }
+
+
+      // "N готово" / "N done" reply
+      const doneMatch = text.trim().match(/^(\d+)\s*(готово|done)\s*$/i);
+      if (doneMatch) {
+        const idx = Number(doneMatch[1]);
+        const { data: lastList } = await admin
+          .from("telegram_daily_task_lists")
+          .select("id, task_ids")
+          .eq("telegram_user_id", fromId)
+          .order("sent_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const ids: string[] = (lastList as any)?.task_ids ?? [];
+        const taskId = ids[idx - 1];
+        if (!taskId) {
+          if (botToken) await sendMessage(botToken, chat.id, "Напиши номер задачи и 'готово'. Пример: 2 готово");
+          await writeLog({ chat_id: chatId, message_text: text, parsed_action: "done_bad_index", success: false });
+          return Response.json({ ok: true });
+        }
+        const { data: task } = await admin.from("tasks").select("id, title, is_weekly").eq("id", taskId).maybeSingle();
+        if (!task) {
+          if (botToken) await sendMessage(botToken, chat.id, "Задача уже удалена.");
+          return Response.json({ ok: true });
+        }
+        const patch: any = (task as any).is_weekly
+          ? { weekly_done_at: new Date().toISOString() }
+          : { status: "done" };
+        await admin.from("tasks").update(patch).eq("id", taskId);
+        if (botToken) await sendMessage(botToken, chat.id, `✅ '${(task as any).title}' выполнена!`);
+        await writeLog({ chat_id: chatId, message_text: text, parsed_action: "task_done_via_dm", success: true });
+        return Response.json({ ok: true, done: taskId });
+      }
+
+      // If it looks like a done-attempt but wrong format
+      if (/\b(готово|done)\b/i.test(text) && !/#/.test(text)) {
+        if (botToken) await sendMessage(botToken, chat.id, "Напиши номер задачи и 'готово'. Пример: 2 готово");
+        return Response.json({ ok: true });
+      }
+    }
+
+
     // Album continuation: photo message in same media_group_id as a recent custom
     if (mediaGroupId && photoFileId && !/#кастом/i.test(text)) {
       const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
