@@ -941,13 +941,40 @@ export type Database = {
         }
         Relationships: []
       }
+      sop_subcategories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          parent_category: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          parent_category: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          parent_category?: string
+        }
+        Relationships: []
+      }
       sops: {
         Row: {
           category: string
           content: string | null
           created_at: string
+          description: string | null
+          drive_url: string | null
           id: string
           public_slug: string | null
+          subcategory: string | null
           title: string
           updated_at: string
           visible_to: string | null
@@ -956,8 +983,11 @@ export type Database = {
           category: string
           content?: string | null
           created_at?: string
+          description?: string | null
+          drive_url?: string | null
           id?: string
           public_slug?: string | null
+          subcategory?: string | null
           title: string
           updated_at?: string
           visible_to?: string | null
@@ -966,8 +996,11 @@ export type Database = {
           category?: string
           content?: string | null
           created_at?: string
+          description?: string | null
+          drive_url?: string | null
           id?: string
           public_slug?: string | null
+          subcategory?: string | null
           title?: string
           updated_at?: string
           visible_to?: string | null
