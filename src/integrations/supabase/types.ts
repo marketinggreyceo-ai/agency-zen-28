@@ -1010,6 +1010,79 @@ export type Database = {
         }
         Relationships: []
       }
+      task_notification_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          recipient_name: string | null
+          status: string
+          tasks_sent: number
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipient_name?: string | null
+          status?: string
+          tasks_sent?: number
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipient_name?: string | null
+          status?: string
+          tasks_sent?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_notification_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_notification_preferences: {
+        Row: {
+          created_at: string
+          daily_enabled: boolean
+          id: string
+          telegram_id: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          daily_enabled?: boolean
+          id?: string
+          telegram_id?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          daily_enabled?: boolean
+          id?: string
+          telegram_id?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_types: {
         Row: {
           color: string
