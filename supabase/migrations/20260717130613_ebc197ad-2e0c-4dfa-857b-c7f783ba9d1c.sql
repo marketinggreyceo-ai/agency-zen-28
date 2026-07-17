@@ -1,0 +1,1 @@
+ALTER TABLE public.telegram_settings ADD COLUMN IF NOT EXISTS bot_link text;

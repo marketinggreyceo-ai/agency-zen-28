@@ -42,6 +42,8 @@ export const getTelegramSettings = createServerFn({ method: "GET" })
       weekly_report_time: row.weekly_report_time,
       weekly_report_chat_id: row.weekly_report_chat_id,
       auto_tasks_enabled: row.auto_tasks_enabled,
+      bot_link: row.bot_link ?? null,
+
       chats: chats ?? [],
       logs: logs ?? [],
       task_logs: taskLogs ?? [],
@@ -69,6 +71,8 @@ export const updateTelegramSettings = createServerFn({ method: "POST" })
     weekly_report_time: z.string().optional(),
     weekly_report_chat_id: z.string().nullable().optional(),
     auto_tasks_enabled: z.boolean().optional(),
+    bot_link: z.string().max(500).nullable().optional(),
+
   }).parse(d))
   .handler(async ({ data, context }) => {
     await assertOwner(context.supabase, context.userId);

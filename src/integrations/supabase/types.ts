@@ -1317,6 +1317,7 @@ export type Database = {
       telegram_settings: {
         Row: {
           auto_tasks_enabled: boolean
+          bot_link: string | null
           bot_token: string | null
           created_at: string
           cron_secret: string | null
@@ -1329,6 +1330,7 @@ export type Database = {
         }
         Insert: {
           auto_tasks_enabled?: boolean
+          bot_link?: string | null
           bot_token?: string | null
           created_at?: string
           cron_secret?: string | null
@@ -1341,6 +1343,7 @@ export type Database = {
         }
         Update: {
           auto_tasks_enabled?: boolean
+          bot_link?: string | null
           bot_token?: string | null
           created_at?: string
           cron_secret?: string | null
