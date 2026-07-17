@@ -160,30 +160,28 @@ export const sendTasksToUsers = createServerFn({ method: "POST" })
         results.push({ user: p.full_name, status: "skipped" });
         continue;
       }
-      const open = await openTasksFor(admin, asg);
-      const lines = open.length
-        ? open.map((t: any, i: number) => `${i + 1}. ${t.title}`).join("\n\n")
-        : "Открытых задач нет 🎉";
-      const text =
-        `📋 Задачи на сегодня:\n\n${lines}` +
-        (open.length ? `\n\nОтветь номером и 'готово' чтобы закрыть задачу.\nПример: 1 готово` : "");
+      const groups = await openTasksFor(admin, asg);
+      const all = groups.all;
+      const text = all.length
+        ? formatDailyTaskMessage(groups)
+        : "📋 Задачи на сегодня:\n\nОткрытых задач нет 🎉";
 
       try {
         await sendTG(token, p.telegram_user_id, text);
-        if (open.length) {
+        if (all.length) {
           await admin.from("telegram_daily_task_lists").insert({
             profile_id: p.id,
             telegram_user_id: p.telegram_user_id,
-            task_ids: open.map((t: any) => t.id),
+            task_ids: all.map((t: any) => t.id),
           });
         }
         await admin.from("task_notification_log").insert({
-          user_id: p.id, recipient_name: p.full_name, tasks_sent: open.length, status: "sent",
+          user_id: p.id, recipient_name: p.full_name, tasks_sent: all.length, status: "sent",
         });
-        results.push({ user: p.full_name, status: "sent", count: open.length });
+        results.push({ user: p.full_name, status: "sent", count: all.length });
       } catch (e: any) {
         await admin.from("task_notification_log").insert({
-          user_id: p.id, recipient_name: p.full_name, tasks_sent: open.length, status: "failed", error_message: e.message,
+          user_id: p.id, recipient_name: p.full_name, tasks_sent: 0, status: "failed", error_message: e.message,
         });
         results.push({ user: p.full_name, status: "failed", error: e.message });
       }
