@@ -169,6 +169,10 @@ function Page() {
         </div>
       </section>
 
+      {(profile?.role === "owner" || profile?.role === "production") && <TelegramNotificationsPanel />}
+
+
+
       <TaskModal task={null} open={creating.open} onClose={() => setCreating({ open: false })}
         defaultWeekly={creating.weekly} defaultPermanent={creating.permanent} />
       <TaskModal task={editing} open={!!editing} onClose={() => setEditing(null)} />
