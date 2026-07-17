@@ -577,21 +577,22 @@ Deno.serve(async (req) => {
       // Auto-link telegram_user_id to profile / team_member by username or existing id
       const key = normalize(fromUsername);
       if (key) {
-        const { data: prof } = await admin
+        const { data: profs } = await admin
           .from("profiles").select("id, telegram_user_id, telegram_handle")
-          .or(`telegram_handle.ilike.${key},telegram_handle.ilike.@${key}`)
-          .maybeSingle();
+          .not("telegram_handle", "is", null);
+        const prof = (profs ?? []).find((p: any) => normalize(p.telegram_handle) === key);
         if (prof && (prof as any).telegram_user_id !== fromId) {
           await admin.from("profiles").update({ telegram_user_id: fromId }).eq("id", (prof as any).id);
         }
-        const { data: tm } = await admin
+        const { data: members } = await admin
           .from("team_members").select("id, telegram_user_id, telegram_handle")
-          .or(`telegram_handle.ilike.${key},telegram_handle.ilike.@${key}`)
-          .maybeSingle();
+          .not("telegram_handle", "is", null);
+        const tm = (members ?? []).find((m: any) => normalize(m.telegram_handle) === key);
         if (tm && (tm as any).telegram_user_id !== fromId) {
           await admin.from("team_members").update({ telegram_user_id: fromId }).eq("id", (tm as any).id);
         }
       }
+
 
       // "N готово" / "N done" reply
       const doneMatch = text.trim().match(/^(\d+)\s*(готово|done)\s*$/i);
