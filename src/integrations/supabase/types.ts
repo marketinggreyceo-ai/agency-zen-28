@@ -812,6 +812,7 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
           status: Database["public"]["Enums"]["profile_status"]
           telegram_handle: string | null
+          telegram_user_id: number | null
           weekly_tasks: string | null
         }
         Insert: {
@@ -827,6 +828,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["profile_status"]
           telegram_handle?: string | null
+          telegram_user_id?: number | null
           weekly_tasks?: string | null
         }
         Update: {
@@ -842,6 +844,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["profile_status"]
           telegram_handle?: string | null
+          telegram_user_id?: number | null
           weekly_tasks?: string | null
         }
         Relationships: []
@@ -1108,6 +1111,7 @@ export type Database = {
           responsibilities: string | null
           role_label: string | null
           telegram_handle: string | null
+          telegram_user_id: number | null
           weekly_tasks: string | null
         }
         Insert: {
@@ -1121,6 +1125,7 @@ export type Database = {
           responsibilities?: string | null
           role_label?: string | null
           telegram_handle?: string | null
+          telegram_user_id?: number | null
           weekly_tasks?: string | null
         }
         Update: {
@@ -1134,6 +1139,7 @@ export type Database = {
           responsibilities?: string | null
           role_label?: string | null
           telegram_handle?: string | null
+          telegram_user_id?: number | null
           weekly_tasks?: string | null
         }
         Relationships: [
@@ -1169,6 +1175,41 @@ export type Database = {
           type?: string | null
         }
         Relationships: []
+      }
+      telegram_daily_task_lists: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string | null
+          sent_at: string
+          task_ids: string[]
+          telegram_user_id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id?: string | null
+          sent_at?: string
+          task_ids?: string[]
+          telegram_user_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string | null
+          sent_at?: string
+          task_ids?: string[]
+          telegram_user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_daily_task_lists_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       telegram_logs: {
         Row: {
