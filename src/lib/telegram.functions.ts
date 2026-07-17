@@ -42,6 +42,8 @@ export const getTelegramSettings = createServerFn({ method: "GET" })
       weekly_report_time: row.weekly_report_time,
       weekly_report_chat_id: row.weekly_report_chat_id,
       auto_tasks_enabled: row.auto_tasks_enabled,
+      bot_link: row.bot_link ?? null,
+
       chats: chats ?? [],
       logs: logs ?? [],
       task_logs: taskLogs ?? [],
