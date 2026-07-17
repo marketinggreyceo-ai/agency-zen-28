@@ -164,8 +164,8 @@ export function TelegramNotificationsPanel() {
 
           {tab === "log" && data && (
             <div className="rounded border border-border divide-y divide-border">
-              {data.log.length === 0 && <p className="text-xs text-text3 text-center py-4">пусто</p>}
-              {data.log.map((l: any) => (
+              {(data.log ?? []).length === 0 && <p className="text-xs text-text3 text-center py-4">пусто</p>}
+              {(data.log ?? []).map((l: any) => (
                 <div key={l.id} className="flex items-center gap-3 px-3 py-2 text-sm">
                   <span className="text-text3 text-xs w-32">{fmt(l.created_at)}</span>
                   <span className="flex-1">{l.recipient_name ?? "—"}</span>
