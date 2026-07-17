@@ -45,14 +45,39 @@ async function openTasksFor(admin: any, assignee: string) {
   const { data: tasks = [] } = await admin.from("tasks")
     .select("id, title, assignee, status, is_weekly, is_permanent, weekly_done_at")
     .eq("assignee", assignee);
-  return (tasks as any[]).filter((t) => {
-    if (t.is_permanent) return false;
-    if (t.is_weekly) {
+  const oneTime: any[] = [];
+  const weekly: any[] = [];
+  const permanent: any[] = [];
+  for (const t of (tasks as any[])) {
+    if (t.is_permanent) {
+      permanent.push(t);
+    } else if (t.is_weekly) {
       const done = t.weekly_done_at && isoWeek(new Date(t.weekly_done_at)) === currentWeek;
-      return !done;
+      if (!done) weekly.push(t);
+    } else if (t.status !== "done") {
+      oneTime.push(t);
     }
-    return t.status !== "done";
-  });
+  }
+  return { oneTime, weekly, permanent, all: [...oneTime, ...weekly, ...permanent] };
+}
+
+export function formatDailyTaskMessage(groups: { oneTime: any[]; weekly: any[]; permanent: any[] }) {
+  const parts: string[] = ["📋 Задачи на сегодня:"];
+  let n = 1;
+  if (groups.oneTime.length) {
+    parts.push("🔴 Разовые:");
+    for (const t of groups.oneTime) parts.push(`${n++}. ${t.title}`);
+  }
+  if (groups.weekly.length) {
+    parts.push("🔁 Еженедельные:");
+    for (const t of groups.weekly) parts.push(`${n++}. ${t.title}`);
+  }
+  if (groups.permanent.length) {
+    parts.push("📌 Постоянные:");
+    for (const t of groups.permanent) parts.push(`${n++}. ${t.title}${t.is_permanent ? " (Daily)" : ""}`);
+  }
+  parts.push("Ответь номером и 'готово' чтобы закрыть задачу.\nПример: 1 готово");
+  return parts.join("\n\n");
 }
 
 export const listTaskNotifications = createServerFn({ method: "GET" })
@@ -135,30 +160,28 @@ export const sendTasksToUsers = createServerFn({ method: "POST" })
         results.push({ user: p.full_name, status: "skipped" });
         continue;
       }
-      const open = await openTasksFor(admin, asg);
-      const lines = open.length
-        ? open.map((t: any, i: number) => `${i + 1}. ${t.title}`).join("\n\n")
-        : "Открытых задач нет 🎉";
-      const text =
-        `📋 Задачи на сегодня:\n\n${lines}` +
-        (open.length ? `\n\nОтветь номером и 'готово' чтобы закрыть задачу.\nПример: 1 готово` : "");
+      const groups = await openTasksFor(admin, asg);
+      const all = groups.all;
+      const text = all.length
+        ? formatDailyTaskMessage(groups)
+        : "📋 Задачи на сегодня:\n\nОткрытых задач нет 🎉";
 
       try {
         await sendTG(token, p.telegram_user_id, text);
-        if (open.length) {
+        if (all.length) {
           await admin.from("telegram_daily_task_lists").insert({
             profile_id: p.id,
             telegram_user_id: p.telegram_user_id,
-            task_ids: open.map((t: any) => t.id),
+            task_ids: all.map((t: any) => t.id),
           });
         }
         await admin.from("task_notification_log").insert({
-          user_id: p.id, recipient_name: p.full_name, tasks_sent: open.length, status: "sent",
+          user_id: p.id, recipient_name: p.full_name, tasks_sent: all.length, status: "sent",
         });
-        results.push({ user: p.full_name, status: "sent", count: open.length });
+        results.push({ user: p.full_name, status: "sent", count: all.length });
       } catch (e: any) {
         await admin.from("task_notification_log").insert({
-          user_id: p.id, recipient_name: p.full_name, tasks_sent: open.length, status: "failed", error_message: e.message,
+          user_id: p.id, recipient_name: p.full_name, tasks_sent: 0, status: "failed", error_message: e.message,
         });
         results.push({ user: p.full_name, status: "failed", error: e.message });
       }
