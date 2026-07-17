@@ -326,3 +326,26 @@ function Page() {
     </div>
   );
 }
+
+function BotLinkRow({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+  const [v, setV] = useState(value);
+  useEffect(() => { setV(value); }, [value]);
+  return (
+    <div className="pt-2 space-y-1">
+      <label className="text-xs text-text3">Ссылка на бот (например https://t.me/your_bot)</label>
+      <div className="flex gap-2 items-center">
+        <input value={v} onChange={(e) => setV(e.target.value)}
+          placeholder="https://t.me/your_bot"
+          className="flex-1 px-3 py-2 rounded-md bg-bg3 border border-border text-sm" />
+        <button onClick={() => onSave(v.trim())}
+          className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm">Сохранить</button>
+        <button disabled={!v}
+          onClick={() => { navigator.clipboard.writeText(v); toast.success("Скопировано"); }}
+          className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm inline-flex items-center gap-1 disabled:opacity-50">
+          <Copy className="h-3.5 w-3.5" /> Копировать
+        </button>
+      </div>
+    </div>
+  );
+
+}
