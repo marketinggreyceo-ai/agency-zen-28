@@ -169,7 +169,7 @@ async function runDigest(): Promise<{ notified: number; skipped_no_customs: numb
     if (!m.telegram_chat_id) { skipped_not_connected++; continue; }
     const { data: customs } = await admin
       .from("customs")
-      .select("customer_nickname, description, fan_description, duration, costume, photo_file_ids, notes, status, created_at")
+      .select("id, customer_nickname, description, fan_description, duration, costume, photo_file_ids, notes, status, created_at")
       .eq("model_id", m.id)
       .not("status", "in", "(done,sent)")
       .order("created_at", { ascending: true });
@@ -179,24 +179,35 @@ async function runDigest(): Promise<{ notified: number; skipped_no_customs: numb
     let anyOk = false;
 
     if (items.length >= 2) {
-      const intro = `Привет, ${m.name}! У тебя ${items.length} открытых кастомов 🎬`;
+      const intro = `Привет, ${m.name}! У тебя ${items.length} открытых кастомов 🎬\n\nОтветь номером и 'готово' чтобы отметить кастом готовым. Пример: 1 готово`;
       const r = await tgCall(botToken, "sendMessage", { chat_id: m.telegram_chat_id, text: intro });
       if (r) anyOk = true;
     }
 
+    let idx = 1;
     for (const c of items) {
-      const ok = await sendCustom(botToken, m.telegram_chat_id, c);
+      const numbered = { ...c, description: `#${idx}${c.description ? ` — ${c.description}` : ""}` };
+      const ok = await sendCustom(botToken, m.telegram_chat_id, numbered);
       if (ok) anyOk = true;
       await writeLog({
         chat_id: m.telegram_chat_id,
-        message_text: `daily digest → ${m.name} · ${c.customer_nickname ?? "—"}`,
+        message_text: `daily digest → ${m.name} · #${idx} ${c.customer_nickname ?? "—"}`,
         parsed_action: "customs_digest_item",
         success: ok,
         error_message: ok ? null : "telegram send failed",
       });
+      idx++;
     }
 
-    if (anyOk) notified++;
+    // Record the sent list so "N готово" replies can be mapped back to the custom id
+    if (anyOk) {
+      await admin.from("telegram_daily_custom_lists").insert({
+        model_id: m.id,
+        telegram_chat_id: String(m.telegram_chat_id),
+        custom_ids: items.map((c) => c.id),
+      });
+      notified++;
+    }
   }
 
   return { notified, skipped_no_customs, skipped_not_connected, total_models: list.length };
