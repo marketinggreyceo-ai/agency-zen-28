@@ -613,41 +613,95 @@ Deno.serve(async (req) => {
 
 
 
-      // "N готово" / "N done" reply
-      const doneMatch = text.trim().match(/^(\d+)\s*(готово|done)\s*$/i);
+      // Determine roles for this chat: team member (task list) and/or model (customs list)
+      const { data: profRow } = await admin
+        .from("profiles").select("id").eq("telegram_user_id", fromId).maybeSingle();
+      const { data: tmRow } = await admin
+        .from("team_members").select("id").eq("telegram_user_id", fromId).maybeSingle();
+      const isTeam = !!(profRow || tmRow);
+      const { data: modelRow } = await admin
+        .from("models").select("id, name").eq("telegram_chat_id", chatId).maybeSingle();
+      const isModel = !!modelRow;
+
+      // "{prefix?}{N} готово" reply — prefix з=задачи, к=кастомы
+      const doneMatch = text.trim().match(/^([зкkz]?)\s*(\d+)\s*(готово|done)\s*$/i);
       if (doneMatch) {
-        const idx = Number(doneMatch[1]);
-        const { data: lastList } = await admin
-          .from("telegram_daily_task_lists")
-          .select("id, task_ids")
-          .eq("telegram_user_id", fromId)
+        const rawPrefix = doneMatch[1].toLowerCase();
+        const idx = Number(doneMatch[2]);
+        let target: "task" | "custom" | null = null;
+        if (rawPrefix === "з" || rawPrefix === "z") target = "task";
+        else if (rawPrefix === "к" || rawPrefix === "k") target = "custom";
+        else if (isTeam && isModel) target = null;
+        else if (isTeam) target = "task";
+        else if (isModel) target = "custom";
+
+        if (!target) {
+          if (botToken) await sendMessage(botToken, chat.id, "Ты и в команде, и модель. Уточни префикс: 'з1 готово' — задача, 'к1 готово' — кастом.");
+          return Response.json({ ok: true });
+        }
+
+        if (target === "task") {
+          const { data: lastList } = await admin
+            .from("telegram_daily_task_lists")
+            .select("id, task_ids")
+            .eq("telegram_user_id", fromId)
+            .order("sent_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const ids: string[] = (lastList as any)?.task_ids ?? [];
+          const taskId = ids[idx - 1];
+          if (!taskId) {
+            if (botToken) await sendMessage(botToken, chat.id, "Напиши номер задачи и 'готово'. Пример: 2 готово");
+            await writeLog({ chat_id: chatId, message_text: text, parsed_action: "done_bad_index", success: false });
+            return Response.json({ ok: true });
+          }
+          const { data: task } = await admin.from("tasks").select("id, title, is_weekly").eq("id", taskId).maybeSingle();
+          if (!task) {
+            if (botToken) await sendMessage(botToken, chat.id, "Задача уже удалена.");
+            return Response.json({ ok: true });
+          }
+          const patch: any = (task as any).is_weekly
+            ? { weekly_done_at: new Date().toISOString() }
+            : { status: "done" };
+          await admin.from("tasks").update(patch).eq("id", taskId);
+          if (botToken) await sendMessage(botToken, chat.id, `✅ Задача '${(task as any).title}' выполнена!`);
+          await writeLog({ chat_id: chatId, message_text: text, parsed_action: "task_done_via_dm", success: true });
+          return Response.json({ ok: true, done_task: taskId });
+        }
+
+        // target === "custom"
+        const { data: lastCustList } = await admin
+          .from("telegram_daily_custom_lists")
+          .select("id, custom_ids")
+          .eq("telegram_chat_id", chatId)
           .order("sent_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        const ids: string[] = (lastList as any)?.task_ids ?? [];
-        const taskId = ids[idx - 1];
-        if (!taskId) {
-          if (botToken) await sendMessage(botToken, chat.id, "Напиши номер задачи и 'готово'. Пример: 2 готово");
-          await writeLog({ chat_id: chatId, message_text: text, parsed_action: "done_bad_index", success: false });
+        const cids: string[] = (lastCustList as any)?.custom_ids ?? [];
+        const customId = cids[idx - 1];
+        if (!customId) {
+          if (botToken) await sendMessage(botToken, chat.id, "Напиши номер кастома и 'готово'. Пример: 1 готово");
+          await writeLog({ chat_id: chatId, message_text: text, parsed_action: "custom_done_bad_index", success: false });
           return Response.json({ ok: true });
         }
-        const { data: task } = await admin.from("tasks").select("id, title, is_weekly").eq("id", taskId).maybeSingle();
-        if (!task) {
-          if (botToken) await sendMessage(botToken, chat.id, "Задача уже удалена.");
+        const { data: cust } = await admin.from("customs").select("id, customer_nickname, description").eq("id", customId).maybeSingle();
+        if (!cust) {
+          if (botToken) await sendMessage(botToken, chat.id, "Кастом уже удалён.");
           return Response.json({ ok: true });
         }
-        const patch: any = (task as any).is_weekly
-          ? { weekly_done_at: new Date().toISOString() }
-          : { status: "done" };
-        await admin.from("tasks").update(patch).eq("id", taskId);
-        if (botToken) await sendMessage(botToken, chat.id, `✅ '${(task as any).title}' выполнена!`);
-        await writeLog({ chat_id: chatId, message_text: text, parsed_action: "task_done_via_dm", success: true });
-        return Response.json({ ok: true, done: taskId });
+        await admin.from("customs").update({ status: "done" }).eq("id", customId);
+        const label = (cust as any).customer_nickname || (cust as any).description || "кастом";
+        if (botToken) await sendMessage(botToken, chat.id, `✅ Кастом '${label}' отмечен как готовый!`);
+        await writeLog({ chat_id: chatId, message_text: text, parsed_action: "custom_done_via_dm", success: true });
+        return Response.json({ ok: true, done_custom: customId });
       }
 
       // If it looks like a done-attempt but wrong format
       if (/\b(готово|done)\b/i.test(text) && !/#/.test(text)) {
-        if (botToken) await sendMessage(botToken, chat.id, "Напиши номер задачи и 'готово'. Пример: 2 готово");
+        const hint = isTeam && isModel
+          ? "Формат: 'з1 готово' — задача, 'к1 готово' — кастом."
+          : "Напиши номер и 'готово'. Пример: 1 готово";
+        if (botToken) await sendMessage(botToken, chat.id, hint);
         return Response.json({ ok: true });
       }
     }
