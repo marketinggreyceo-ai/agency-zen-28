@@ -593,13 +593,19 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Bare /start — activate bot for this user
+      // Bare /start — activate bot for this user (team member or model)
       if (/^\/start(?:@\w+)?\s*$/i.test(text.trim())) {
         const { data: prof } = await admin
           .from("profiles").select("id").eq("telegram_user_id", fromId).maybeSingle();
         const { data: tm } = await admin
           .from("team_members").select("id").eq("telegram_user_id", fromId).maybeSingle();
-        if (prof || tm) {
+        const { data: modelByChat } = await admin
+          .from("models").select("id, name").eq("telegram_chat_id", chatId).maybeSingle();
+        console.log("[telegram-webhook] /start", { fromId, chatId, hasProfile: !!prof, hasTeamMember: !!tm, hasModel: !!modelByChat });
+        if (modelByChat) {
+          if (botToken) await sendMessage(botToken, chat.id, "✅ Бот активирован! Вы будете получать уведомления о кастомах.");
+          await writeLog({ chat_id: chatId, message_text: text, parsed_action: "start_model_activated", success: true });
+        } else if (prof || tm) {
           if (botToken) await sendMessage(botToken, chat.id, "✅ Бот активирован! Вы будете получать ежедневные задачи.");
           await writeLog({ chat_id: chatId, message_text: text, parsed_action: "start_activated", success: true });
         } else {
