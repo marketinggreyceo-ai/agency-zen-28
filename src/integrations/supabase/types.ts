@@ -1249,6 +1249,38 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_daily_custom_lists: {
+        Row: {
+          custom_ids: string[]
+          id: string
+          model_id: string
+          sent_at: string
+          telegram_chat_id: string
+        }
+        Insert: {
+          custom_ids?: string[]
+          id?: string
+          model_id: string
+          sent_at?: string
+          telegram_chat_id: string
+        }
+        Update: {
+          custom_ids?: string[]
+          id?: string
+          model_id?: string
+          sent_at?: string
+          telegram_chat_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_daily_custom_lists_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telegram_daily_task_lists: {
         Row: {
           created_at: string
