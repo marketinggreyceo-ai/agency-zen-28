@@ -629,17 +629,24 @@ Deno.serve(async (req) => {
         .from("models").select("id, name").eq("telegram_chat_id", chatId).maybeSingle();
       const isModel = !!modelRow;
 
-      // "{prefix?}{N} готово" reply — prefix з=задачи, к=кастомы
-      const doneMatch = text.trim().match(/^([зкkz]?)\s*(\d+)\s*(готово|done)\s*$/i);
+      // "{prefix?}{N} готово" / "готово {N}" reply — prefix з=задачи, к=кастомы
+      // Flexible: accepts "1 готово", "1готово", "готово 1", any capitalization.
+      const trimmed = text.trim();
+      let doneMatch = trimmed.match(/^([зкkz]?)\s*(\d+)\s*(готово|done)\s*$/i);
+      if (!doneMatch) {
+        const rev = trimmed.match(/^(готово|done)\s*([зкkz]?)\s*(\d+)\s*$/i);
+        if (rev) doneMatch = [rev[0], rev[2], rev[3], rev[1]] as any;
+      }
+      console.log("[telegram-webhook] done-check", { chatId, text: trimmed.slice(0, 50), matched: !!doneMatch, isTeam, isModel });
       if (doneMatch) {
-        const rawPrefix = doneMatch[1].toLowerCase();
+        const rawPrefix = (doneMatch[1] || "").toLowerCase();
         const idx = Number(doneMatch[2]);
         let target: "task" | "custom" | null = null;
         if (rawPrefix === "з" || rawPrefix === "z") target = "task";
         else if (rawPrefix === "к" || rawPrefix === "k") target = "custom";
-        else if (isTeam && isModel) target = null;
-        else if (isTeam) target = "task";
+        else if (isModel && isTeam) target = null;
         else if (isModel) target = "custom";
+        else if (isTeam) target = "task";
 
         if (!target) {
           if (botToken) await sendMessage(botToken, chat.id, "Ты и в команде, и модель. Уточни префикс: 'з1 готово' — задача, 'к1 готово' — кастом.");
