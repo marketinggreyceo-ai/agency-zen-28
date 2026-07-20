@@ -231,6 +231,10 @@ function Page() {
                 <button onClick={() => toggle(m.id)} className="w-full flex flex-wrap items-center gap-2 p-4 text-left">
                   {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   <span className="font-medium">{m.name}</span>
+                  <span
+                    title={m.telegram_chat_id ? "Telegram подключён" : "Telegram не подключён"}
+                    className={`inline-block h-2 w-2 rounded-full ${m.telegram_chat_id ? "bg-[color:var(--green)]" : "bg-red-500"}`}
+                  />
                   {platformList.map((p) => <PlatformBadge key={p} platform={p} />)}
                   <span className="text-xs text-text2">{m.agency_cut}%</span>
                   {isOwner ? (
