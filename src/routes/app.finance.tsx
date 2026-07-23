@@ -230,9 +230,6 @@ function Page() {
             <div className="max-w-md mx-auto rounded-lg border border-border bg-bg2 p-5 space-y-2 text-sm">
               <Row label="Получено от моделей:" value={`${currency}${Math.round(totals.received).toLocaleString()}`} />
               <Row label="− Расходы:" value={`−${currency}${Math.round(totals.expTotal).toLocaleString()}`} color="#E15B5B" />
-              {chattingPaidThisMonth > 0 && (
-                <Row label="Чаттинг выплачено:" value={`${currency}${Math.round(chattingPaidThisMonth).toLocaleString()}`} color="#F59E0B" />
-              )}
               <div className="border-t border-border my-2" />
               <Row label="Чистая прибыль:" value={`${currency}${Math.round(totals.profit).toLocaleString()}`}
                 bold color={totals.profit >= 0 ? "#1FB8B0" : "#E15B5B"} />
