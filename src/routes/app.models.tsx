@@ -482,13 +482,13 @@ type SortKey = "followers" | "account_name" | "model";
 type SortDir = "asc" | "desc";
 
 function AccountsTableView({
-  accounts, models, teamMembers, activeTransfers, accountsById,
+  accounts, models, vaNames, activeTransfers, accountsById,
   transferBySrc, transferByDst,
   isOwner, canManageAccounts,
   onEditAccount, onStartTransfer, onOpenTransfer,
 }: {
   accounts: any[]; models: any[];
-  teamMembers: { name: string; role_label: string | null }[];
+  vaNames: string[];
   activeTransfers: Transfer[];
   accountsById: Map<string, any>;
   transferBySrc: Map<string, Transfer>;
@@ -498,6 +498,7 @@ function AccountsTableView({
   onStartTransfer: (a: any) => void;
   onOpenTransfer: (t: Transfer) => void;
 }) {
+  const qc = useQueryClient();
   const [fModel, setFModel] = useState<string>("");
   const [fPlatform, setFPlatform] = useState<string>("");
   const [fStatus, setFStatus] = useState<string>("");
@@ -506,6 +507,8 @@ function AccountsTableView({
   const [sortKey, setSortKey] = useState<SortKey>("followers");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [staleOnly, setStaleOnly] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkVa, setBulkVa] = useState<string>("");
 
   const modelById = useMemo(() => {
     const m = new Map<string, any>(); for (const x of models) m.set(x.id, x); return m;
@@ -517,12 +520,12 @@ function AccountsTableView({
     return Array.from(s).sort();
   }, [accounts]);
 
+  // VA filter: only VAs who actually have at least one account assigned
   const vaList = useMemo(() => {
     const s = new Set<string>();
     for (const a of accounts) if (a.va_owner) s.add(a.va_owner);
-    for (const t of teamMembers) if ((t.role_label ?? "").toLowerCase().includes("va")) s.add(t.name);
-    return Array.from(s).sort();
-  }, [accounts, teamMembers]);
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "ru"));
+  }, [accounts]);
 
   const now = Date.now();
   const staleCount = accounts.filter((a) => {
