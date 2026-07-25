@@ -813,7 +813,7 @@ function AccountsTableView({
               );
             })}
             {sorted.length === 0 && (
-              <tr><td colSpan={9} className="text-center py-10 text-text3">Ничего не найдено</td></tr>
+              <tr><td colSpan={canManageAccounts ? 10 : 9} className="text-center py-10 text-text3">Ничего не найдено</td></tr>
             )}
           </tbody>
         </table>
