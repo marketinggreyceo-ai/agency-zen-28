@@ -608,6 +608,45 @@ function AccountsTableView({
             ⚠ {staleCount} не обновлялись {STALE_DAYS}+ дней
           </button>
         )}
+        {isOwner && (
+          <button
+            onClick={async () => {
+              const re = /VA[\s-]*([A-Za-zА-Яа-яЁё][\wА-Яа-яЁё-]*)/i;
+              const candidates: { id: string; account_name: string; guess: string }[] = [];
+              const known = new Set(vaNames.map((v) => v.toLowerCase()));
+              for (const a of accounts) {
+                if (a.va_owner) continue;
+                const notes = (a.notes ?? "") as string;
+                const m = notes.match(re);
+                if (!m) continue;
+                const guess = m[1];
+                const match = vaNames.find((v) => v.toLowerCase() === guess.toLowerCase())
+                  ?? (known.has(guess.toLowerCase()) ? guess : null);
+                if (match) candidates.push({ id: a.id, account_name: a.account_name ?? "—", guess: match });
+              }
+              if (candidates.length === 0) return toast.info("VA в заметках не найдены");
+              const ok = window.confirm(
+                `Найдено аккаунтов с VA в заметках: ${candidates.length}.\n\n` +
+                candidates.slice(0, 10).map((c) => `• ${c.account_name} → ${c.guess}`).join("\n") +
+                (candidates.length > 10 ? `\n… и ещё ${candidates.length - 10}` : "") +
+                `\n\nНазначить VA автоматически?`
+              );
+              if (!ok) return;
+              let done = 0;
+              for (const c of candidates) {
+                const { error } = await supabase.from("model_accounts")
+                  .update({ va_owner: c.guess }).eq("id", c.id);
+                if (!error) done++;
+              }
+              toast.success(`Назначено: ${done} из ${candidates.length}`);
+              qc.invalidateQueries({ queryKey: ["model_accounts"] });
+            }}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-border bg-bg3 text-text2 hover:text-foreground"
+            title="Найти VA-{имя} в заметках и назначить"
+          >
+            🔎 Мигрировать VA из заметок
+          </button>
+        )}
       </div>
 
       {/* Filters */}
