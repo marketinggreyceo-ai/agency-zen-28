@@ -693,6 +693,20 @@ function AccountsTableView({
         <table className="w-full text-xs">
           <thead className="text-text3 uppercase tracking-wide">
             <tr className="border-b border-border">
+              {canManageAccounts && (
+                <th className="px-3 py-2 w-8">
+                  <input
+                    type="checkbox"
+                    checked={sorted.length > 0 && sorted.every((a) => selected.has(a.id))}
+                    onChange={(e) => {
+                      const s = new Set(selected);
+                      if (e.target.checked) sorted.forEach((a) => s.add(a.id));
+                      else sorted.forEach((a) => s.delete(a.id));
+                      setSelected(s);
+                    }}
+                  />
+                </th>
+              )}
               <Th onClick={() => toggleSort("account_name")} active={sortKey === "account_name"} dir={sortDir}>Аккаунт</Th>
               <Th onClick={() => toggleSort("model")} active={sortKey === "model"} dir={sortDir}>Модель</Th>
               <th className="text-left px-3 py-2 font-medium">Платформа</th>
