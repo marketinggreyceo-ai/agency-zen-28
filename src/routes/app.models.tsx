@@ -972,11 +972,11 @@ function TelegramRow({ model }: { model: any }) {
   );
 }
 
-function AccountModal({ account, modelId, defaultPlatform, teamMembers, onClose }: {
+function AccountModal({ account, modelId, defaultPlatform, vaNames, onClose }: {
   account: any | null;
   modelId: string | null;
   defaultPlatform?: string;
-  teamMembers: { name: string; role_label: string | null }[];
+  vaNames: string[];
   onClose: () => void;
 }) {
   const qc = useQueryClient();
