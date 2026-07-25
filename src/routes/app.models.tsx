@@ -81,10 +81,29 @@ function Page() {
     queryKey: ["team_members_vas"],
     queryFn: async () => (await supabase.from("team_members").select("name,role_label")).data ?? [],
   });
+  const { data: vaProfiles = [] } = useQuery({
+    queryKey: ["profiles_for_va"],
+    queryFn: async () => (await supabase.from("profiles").select("full_name,role,status")).data ?? [],
+  });
   const { data: transfers = [] } = useQuery<Transfer[]>({
     queryKey: ["account_transfers"],
     queryFn: async () => ((await supabase.from("account_transfers").select("*").order("started_at", { ascending: false })).data ?? []) as Transfer[],
   });
+
+  const vaNames = useMemo(() => {
+    const vas = new Set<string>();
+    for (const t of teamMembers as any[]) {
+      if ((t.role_label ?? "").toLowerCase().includes("va")) vas.add(t.name);
+    }
+    for (const p of vaProfiles as any[]) {
+      if (p.role === "va" && p.full_name) vas.add(p.full_name);
+    }
+    if (vas.size === 0) {
+      for (const t of teamMembers as any[]) vas.add(t.name);
+      for (const p of vaProfiles as any[]) if (p.full_name) vas.add(p.full_name);
+    }
+    return Array.from(vas).sort((a, b) => a.localeCompare(b, "ru"));
+  }, [teamMembers, vaProfiles]);
 
   const activeTransfers = transfers.filter((t) => t.status === "active");
   const transferBySrc = new Map<string, Transfer>();
