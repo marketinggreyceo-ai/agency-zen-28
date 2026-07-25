@@ -649,6 +649,45 @@ function AccountsTableView({
         )}
       </div>
 
+      {/* Bulk actions */}
+      {canManageAccounts && selected.size > 0 && (
+        <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-foreground font-medium">Выбрано: {selected.size}</span>
+          <span className="text-text3">·</span>
+          <span className="text-text2">Назначить VA:</span>
+          <select
+            value={bulkVa}
+            onChange={(e) => setBulkVa(e.target.value)}
+            className="bg-bg3 border border-border rounded px-2 py-1"
+          >
+            <option value="">— выбрать —</option>
+            <option value="__clear__">— снять VA —</option>
+            {vaNames.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <button
+            disabled={!bulkVa}
+            onClick={async () => {
+              const value = bulkVa === "__clear__" ? null : bulkVa;
+              const ids = Array.from(selected);
+              const { error } = await supabase.from("model_accounts")
+                .update({ va_owner: value }).in("id", ids);
+              if (error) return toast.error(error.message);
+              toast.success(`Обновлено: ${ids.length}`);
+              setSelected(new Set());
+              setBulkVa("");
+              qc.invalidateQueries({ queryKey: ["model_accounts"] });
+            }}
+            className="px-3 py-1 rounded bg-primary text-primary-foreground font-medium disabled:opacity-50"
+          >
+            Применить
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="ml-auto px-2 py-1 rounded border border-border text-text2 hover:text-foreground"
+          >Очистить</button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="rounded-lg border border-border bg-card overflow-x-auto">
         <table className="w-full text-xs">
