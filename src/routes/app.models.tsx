@@ -1047,7 +1047,7 @@ function AccountModal({ account, modelId, defaultPlatform, vaNames, onClose }: {
             <select value={form.va_owner} onChange={(e) => setForm({ ...form, va_owner: e.target.value })}
               className="w-full bg-bg3 border border-border rounded px-3 py-2">
               <option value="">—</option>
-              {vaOptions.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+              {vaOptions.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
           <div>
