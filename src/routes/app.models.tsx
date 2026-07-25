@@ -1015,10 +1015,7 @@ function AccountModal({ account, modelId, defaultPlatform, vaNames, onClose }: {
     } catch (e: any) { toast.error(e.message); }
   }
 
-  const vaOptions = teamMembers.filter((t) =>
-    (t.role_label ?? "").toLowerCase().includes("va") ||
-    ["Ника","Ольга","Сильвестр"].includes(t.name)
-  );
+  const vaOptions = vaNames;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
