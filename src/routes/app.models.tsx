@@ -407,7 +407,7 @@ function Page() {
         <AccountsTableView
           accounts={accounts}
           models={models}
-          teamMembers={teamMembers}
+          vaNames={vaNames}
           activeTransfers={activeTransfers}
           accountsById={accountsById}
           transferBySrc={transferBySrc}
@@ -425,7 +425,7 @@ function Page() {
           account={editingAccount}
           modelId={accountForModel?.modelId ?? null}
           defaultPlatform={accountForModel?.platform}
-          teamMembers={teamMembers}
+          vaNames={vaNames}
           onClose={() => { setEditingAccount(null); setAccountForModel(null); }} />
       )}
       {editingModel && <ModelModal model={editingModel} onClose={() => setEditingModel(null)} />}
