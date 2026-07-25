@@ -727,6 +727,19 @@ function AccountsTableView({
               const other = src ? accountsById.get(src.to_account_id) : dst ? accountsById.get(dst.from_account_id) : null;
               return (
                 <tr key={a.id} className="border-b border-border/60 hover:bg-bg2">
+                  {canManageAccounts && (
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(a.id)}
+                        onChange={(e) => {
+                          const s = new Set(selected);
+                          if (e.target.checked) s.add(a.id); else s.delete(a.id);
+                          setSelected(s);
+                        }}
+                      />
+                    </td>
+                  )}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium text-foreground">{a.account_name || "—"}</span>
