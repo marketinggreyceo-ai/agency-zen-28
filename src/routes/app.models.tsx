@@ -81,10 +81,29 @@ function Page() {
     queryKey: ["team_members_vas"],
     queryFn: async () => (await supabase.from("team_members").select("name,role_label")).data ?? [],
   });
+  const { data: vaProfiles = [] } = useQuery({
+    queryKey: ["profiles_for_va"],
+    queryFn: async () => (await supabase.from("profiles").select("full_name,role,status")).data ?? [],
+  });
   const { data: transfers = [] } = useQuery<Transfer[]>({
     queryKey: ["account_transfers"],
     queryFn: async () => ((await supabase.from("account_transfers").select("*").order("started_at", { ascending: false })).data ?? []) as Transfer[],
   });
+
+  const vaNames = useMemo(() => {
+    const vas = new Set<string>();
+    for (const t of teamMembers as any[]) {
+      if ((t.role_label ?? "").toLowerCase().includes("va")) vas.add(t.name);
+    }
+    for (const p of vaProfiles as any[]) {
+      if (p.role === "va" && p.full_name) vas.add(p.full_name);
+    }
+    if (vas.size === 0) {
+      for (const t of teamMembers as any[]) vas.add(t.name);
+      for (const p of vaProfiles as any[]) if (p.full_name) vas.add(p.full_name);
+    }
+    return Array.from(vas).sort((a, b) => a.localeCompare(b, "ru"));
+  }, [teamMembers, vaProfiles]);
 
   const activeTransfers = transfers.filter((t) => t.status === "active");
   const transferBySrc = new Map<string, Transfer>();
@@ -388,7 +407,7 @@ function Page() {
         <AccountsTableView
           accounts={accounts}
           models={models}
-          teamMembers={teamMembers}
+          vaNames={vaNames}
           activeTransfers={activeTransfers}
           accountsById={accountsById}
           transferBySrc={transferBySrc}
@@ -406,7 +425,7 @@ function Page() {
           account={editingAccount}
           modelId={accountForModel?.modelId ?? null}
           defaultPlatform={accountForModel?.platform}
-          teamMembers={teamMembers}
+          vaNames={vaNames}
           onClose={() => { setEditingAccount(null); setAccountForModel(null); }} />
       )}
       {editingModel && <ModelModal model={editingModel} onClose={() => setEditingModel(null)} />}
@@ -463,13 +482,13 @@ type SortKey = "followers" | "account_name" | "model";
 type SortDir = "asc" | "desc";
 
 function AccountsTableView({
-  accounts, models, teamMembers, activeTransfers, accountsById,
+  accounts, models, vaNames, activeTransfers, accountsById,
   transferBySrc, transferByDst,
   isOwner, canManageAccounts,
   onEditAccount, onStartTransfer, onOpenTransfer,
 }: {
   accounts: any[]; models: any[];
-  teamMembers: { name: string; role_label: string | null }[];
+  vaNames: string[];
   activeTransfers: Transfer[];
   accountsById: Map<string, any>;
   transferBySrc: Map<string, Transfer>;
@@ -479,6 +498,7 @@ function AccountsTableView({
   onStartTransfer: (a: any) => void;
   onOpenTransfer: (t: Transfer) => void;
 }) {
+  const qc = useQueryClient();
   const [fModel, setFModel] = useState<string>("");
   const [fPlatform, setFPlatform] = useState<string>("");
   const [fStatus, setFStatus] = useState<string>("");
@@ -487,6 +507,8 @@ function AccountsTableView({
   const [sortKey, setSortKey] = useState<SortKey>("followers");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [staleOnly, setStaleOnly] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkVa, setBulkVa] = useState<string>("");
 
   const modelById = useMemo(() => {
     const m = new Map<string, any>(); for (const x of models) m.set(x.id, x); return m;
@@ -498,12 +520,12 @@ function AccountsTableView({
     return Array.from(s).sort();
   }, [accounts]);
 
+  // VA filter: only VAs who actually have at least one account assigned
   const vaList = useMemo(() => {
     const s = new Set<string>();
     for (const a of accounts) if (a.va_owner) s.add(a.va_owner);
-    for (const t of teamMembers) if ((t.role_label ?? "").toLowerCase().includes("va")) s.add(t.name);
-    return Array.from(s).sort();
-  }, [accounts, teamMembers]);
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "ru"));
+  }, [accounts]);
 
   const now = Date.now();
   const staleCount = accounts.filter((a) => {
@@ -586,6 +608,45 @@ function AccountsTableView({
             ⚠ {staleCount} не обновлялись {STALE_DAYS}+ дней
           </button>
         )}
+        {isOwner && (
+          <button
+            onClick={async () => {
+              const re = /VA[\s-]*([A-Za-zА-Яа-яЁё][\wА-Яа-яЁё-]*)/i;
+              const candidates: { id: string; account_name: string; guess: string }[] = [];
+              const known = new Set(vaNames.map((v) => v.toLowerCase()));
+              for (const a of accounts) {
+                if (a.va_owner) continue;
+                const notes = (a.notes ?? "") as string;
+                const m = notes.match(re);
+                if (!m) continue;
+                const guess = m[1];
+                const match = vaNames.find((v) => v.toLowerCase() === guess.toLowerCase())
+                  ?? (known.has(guess.toLowerCase()) ? guess : null);
+                if (match) candidates.push({ id: a.id, account_name: a.account_name ?? "—", guess: match });
+              }
+              if (candidates.length === 0) return toast.info("VA в заметках не найдены");
+              const ok = window.confirm(
+                `Найдено аккаунтов с VA в заметках: ${candidates.length}.\n\n` +
+                candidates.slice(0, 10).map((c) => `• ${c.account_name} → ${c.guess}`).join("\n") +
+                (candidates.length > 10 ? `\n… и ещё ${candidates.length - 10}` : "") +
+                `\n\nНазначить VA автоматически?`
+              );
+              if (!ok) return;
+              let done = 0;
+              for (const c of candidates) {
+                const { error } = await supabase.from("model_accounts")
+                  .update({ va_owner: c.guess }).eq("id", c.id);
+                if (!error) done++;
+              }
+              toast.success(`Назначено: ${done} из ${candidates.length}`);
+              qc.invalidateQueries({ queryKey: ["model_accounts"] });
+            }}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-border bg-bg3 text-text2 hover:text-foreground"
+            title="Найти VA-{имя} в заметках и назначить"
+          >
+            🔎 Мигрировать VA из заметок
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -627,11 +688,64 @@ function AccountsTableView({
         )}
       </div>
 
+      {/* Bulk actions */}
+      {canManageAccounts && selected.size > 0 && (
+        <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-foreground font-medium">Выбрано: {selected.size}</span>
+          <span className="text-text3">·</span>
+          <span className="text-text2">Назначить VA:</span>
+          <select
+            value={bulkVa}
+            onChange={(e) => setBulkVa(e.target.value)}
+            className="bg-bg3 border border-border rounded px-2 py-1"
+          >
+            <option value="">— выбрать —</option>
+            <option value="__clear__">— снять VA —</option>
+            {vaNames.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <button
+            disabled={!bulkVa}
+            onClick={async () => {
+              const value = bulkVa === "__clear__" ? null : bulkVa;
+              const ids = Array.from(selected);
+              const { error } = await supabase.from("model_accounts")
+                .update({ va_owner: value }).in("id", ids);
+              if (error) return toast.error(error.message);
+              toast.success(`Обновлено: ${ids.length}`);
+              setSelected(new Set());
+              setBulkVa("");
+              qc.invalidateQueries({ queryKey: ["model_accounts"] });
+            }}
+            className="px-3 py-1 rounded bg-primary text-primary-foreground font-medium disabled:opacity-50"
+          >
+            Применить
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="ml-auto px-2 py-1 rounded border border-border text-text2 hover:text-foreground"
+          >Очистить</button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="rounded-lg border border-border bg-card overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="text-text3 uppercase tracking-wide">
             <tr className="border-b border-border">
+              {canManageAccounts && (
+                <th className="px-3 py-2 w-8">
+                  <input
+                    type="checkbox"
+                    checked={sorted.length > 0 && sorted.every((a) => selected.has(a.id))}
+                    onChange={(e) => {
+                      const s = new Set(selected);
+                      if (e.target.checked) sorted.forEach((a) => s.add(a.id));
+                      else sorted.forEach((a) => s.delete(a.id));
+                      setSelected(s);
+                    }}
+                  />
+                </th>
+              )}
               <Th onClick={() => toggleSort("account_name")} active={sortKey === "account_name"} dir={sortDir}>Аккаунт</Th>
               <Th onClick={() => toggleSort("model")} active={sortKey === "model"} dir={sortDir}>Модель</Th>
               <th className="text-left px-3 py-2 font-medium">Платформа</th>
@@ -652,6 +766,19 @@ function AccountsTableView({
               const other = src ? accountsById.get(src.to_account_id) : dst ? accountsById.get(dst.from_account_id) : null;
               return (
                 <tr key={a.id} className="border-b border-border/60 hover:bg-bg2">
+                  {canManageAccounts && (
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(a.id)}
+                        onChange={(e) => {
+                          const s = new Set(selected);
+                          if (e.target.checked) s.add(a.id); else s.delete(a.id);
+                          setSelected(s);
+                        }}
+                      />
+                    </td>
+                  )}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium text-foreground">{a.account_name || "—"}</span>
@@ -725,7 +852,7 @@ function AccountsTableView({
               );
             })}
             {sorted.length === 0 && (
-              <tr><td colSpan={9} className="text-center py-10 text-text3">Ничего не найдено</td></tr>
+              <tr><td colSpan={canManageAccounts ? 10 : 9} className="text-center py-10 text-text3">Ничего не найдено</td></tr>
             )}
           </tbody>
         </table>
@@ -950,11 +1077,11 @@ function TelegramRow({ model }: { model: any }) {
   );
 }
 
-function AccountModal({ account, modelId, defaultPlatform, teamMembers, onClose }: {
+function AccountModal({ account, modelId, defaultPlatform, vaNames, onClose }: {
   account: any | null;
   modelId: string | null;
   defaultPlatform?: string;
-  teamMembers: { name: string; role_label: string | null }[];
+  vaNames: string[];
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -993,10 +1120,7 @@ function AccountModal({ account, modelId, defaultPlatform, teamMembers, onClose 
     } catch (e: any) { toast.error(e.message); }
   }
 
-  const vaOptions = teamMembers.filter((t) =>
-    (t.role_label ?? "").toLowerCase().includes("va") ||
-    ["Ника","Ольга","Сильвестр"].includes(t.name)
-  );
+  const vaOptions = vaNames;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
@@ -1028,7 +1152,7 @@ function AccountModal({ account, modelId, defaultPlatform, teamMembers, onClose 
             <select value={form.va_owner} onChange={(e) => setForm({ ...form, va_owner: e.target.value })}
               className="w-full bg-bg3 border border-border rounded px-3 py-2">
               <option value="">—</option>
-              {vaOptions.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+              {vaOptions.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
           <div>
