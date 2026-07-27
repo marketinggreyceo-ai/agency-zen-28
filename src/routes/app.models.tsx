@@ -6,6 +6,8 @@ import { StatusBottomSheet } from "@/components/StatusBottomSheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useProfile } from "@/lib/auth";
 import { useVas, useVaNames, createVa } from "@/lib/vas";
+import { PixelsView } from "@/components/PixelsView";
+import { usePixelAssignments } from "@/lib/pixels";
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -65,10 +67,10 @@ function Page() {
   const myAssignee = profile?.assignee_name ?? "";
   const myName = profile?.full_name ?? profile?.assignee_name ?? "unknown";
 
-  const [view, setView] = useState<"models" | "accounts" | "vas">(() => {
+  const [view, setView] = useState<"models" | "accounts" | "pixels" | "vas">(() => {
     if (typeof window === "undefined") return "models";
     const v = localStorage.getItem(VIEW_KEY);
-    return v === "accounts" || v === "vas" ? (v as any) : "models";
+    return v === "accounts" || v === "vas" || v === "pixels" ? (v as any) : "models";
   });
 
   useEffect(() => { try { localStorage.setItem(VIEW_KEY, view); } catch {} }, [view]);
@@ -87,6 +89,7 @@ function Page() {
   });
 
   const vaNames = useVaNames();
+  const pixelAssignments = usePixelAssignments();
 
 
   const activeTransfers = transfers.filter((t) => t.status === "active");
@@ -206,6 +209,10 @@ function Page() {
           onClick={() => setView("accounts")}
           className={`text-xs px-3 py-1.5 rounded-md ${view === "accounts" ? "bg-card text-foreground border border-border" : "text-text2"}`}
         >Аккаунты</button>
+        <button
+          onClick={() => setView("pixels")}
+          className={`text-xs px-3 py-1.5 rounded-md ${view === "pixels" ? "bg-card text-foreground border border-border" : "text-text2"}`}
+        >Пиксели</button>
         {canManageAccounts && (
           <button
             onClick={() => setView("vas")}
@@ -394,6 +401,8 @@ function Page() {
           })}
           {filteredModels.length === 0 && <Empty message="Нет моделей" />}
         </div>
+      ) : view === "pixels" ? (
+        <PixelsView accounts={accounts} canEdit={canManageAccounts} />
       ) : view === "vas" ? (
         <VaManager accounts={accounts} canEdit={canManageAccounts} />
       ) : (
@@ -401,6 +410,7 @@ function Page() {
           accounts={accounts}
           models={models}
           vaNames={vaNames}
+          pixelAssignments={pixelAssignments}
           activeTransfers={activeTransfers}
           accountsById={accountsById}
           transferBySrc={transferBySrc}
@@ -476,13 +486,14 @@ type SortKey = "followers" | "account_name" | "model";
 type SortDir = "asc" | "desc";
 
 function AccountsTableView({
-  accounts, models, vaNames, activeTransfers, accountsById,
+  accounts, models, vaNames, pixelAssignments, activeTransfers, accountsById,
   transferBySrc, transferByDst,
   isOwner, canManageAccounts,
   onEditAccount, onStartTransfer, onOpenTransfer,
 }: {
   accounts: any[]; models: any[];
   vaNames: string[];
+  pixelAssignments: Map<string, { pixelId: string; pixelName: string; profileId: string; profileName: string; label: string }>;
   activeTransfers: Transfer[];
   accountsById: Map<string, any>;
   transferBySrc: Map<string, Transfer>;
@@ -497,6 +508,7 @@ function AccountsTableView({
   const [fPlatform, setFPlatform] = useState<string>("");
   const [fStatus, setFStatus] = useState<string>("");
   const [fVa, setFVa] = useState<string>("");
+  const [fPixel, setFPixel] = useState<string>("");
   const [fFollowersMin, setFFollowersMin] = useState<string>("");
   const [sortKey, setSortKey] = useState<SortKey>("followers");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -544,6 +556,11 @@ function AccountsTableView({
     if (fPlatform && a.platform !== fPlatform) return false;
     if (fStatus && (a.status ?? "") !== fStatus) return false;
     if (fVa && (a.va_owner ?? "") !== fVa) return false;
+    if (fPixel) {
+      const asg = pixelAssignments.get(a.id);
+      if (fPixel === "__none__") { if (asg) return false; }
+      else if (asg?.pixelId !== fPixel) return false;
+    }
     if (fFollowersMin && Number(a.followers ?? 0) < Number(fFollowersMin)) return false;
     if (staleOnly && !isStale(a)) return false;
     return true;
@@ -565,10 +582,16 @@ function AccountsTableView({
   }
 
   function reset() {
-    setFModel(""); setFPlatform(""); setFStatus(""); setFVa(""); setFFollowersMin(""); setStaleOnly(false);
+    setFModel(""); setFPlatform(""); setFStatus(""); setFVa(""); setFPixel(""); setFFollowersMin(""); setStaleOnly(false);
   }
 
-  const anyFilter = fModel || fPlatform || fStatus || fVa || fFollowersMin || staleOnly;
+  const anyFilter = fModel || fPlatform || fStatus || fVa || fPixel || fFollowersMin || staleOnly;
+
+  const pixelOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const v of pixelAssignments.values()) m.set(v.pixelId, v.pixelName);
+    return Array.from(m, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  }, [pixelAssignments]);
 
   return (
     <div className="space-y-3">
@@ -670,6 +693,13 @@ function AccountsTableView({
             {vaList.map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
         </FilterField>
+        <FilterField label="Пиксель">
+          <select value={fPixel} onChange={(e) => setFPixel(e.target.value)} className="bg-bg3 border border-border rounded px-2 py-1">
+            <option value="">Все</option>
+            <option value="__none__">Без пикселя</option>
+            {pixelOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </FilterField>
         <FilterField label="Подписчики от">
           <input
             type="number" value={fFollowersMin} onChange={(e) => setFFollowersMin(e.target.value)}
@@ -747,6 +777,7 @@ function AccountsTableView({
               <Th onClick={() => toggleSort("followers")} active={sortKey === "followers"} dir={sortDir} align="right">Подписчики</Th>
               <th className="text-left px-3 py-2 font-medium">Статус</th>
               <th className="text-left px-3 py-2 font-medium">VA</th>
+              <th className="text-left px-3 py-2 font-medium">Пиксель</th>
               <th className="text-left px-3 py-2 font-medium">Телефон</th>
               <th className="text-left px-3 py-2 font-medium">Перелив</th>
               <th className="text-right px-3 py-2 font-medium">Действия</th>
@@ -789,6 +820,7 @@ function AccountsTableView({
                     </span>
                   </td>
                   <td className="px-3 py-2 text-text2">{a.va_owner || "—"}</td>
+                  <td className="px-3 py-2 text-text2">{pixelAssignments.get(a.id)?.label ?? "—"}</td>
                   <td className="px-3 py-2 text-text2">{a.pixel_phone || "—"}</td>
                   <td className="px-3 py-2">
                     {src || dst ? (
@@ -847,7 +879,7 @@ function AccountsTableView({
               );
             })}
             {sorted.length === 0 && (
-              <tr><td colSpan={canManageAccounts ? 10 : 9} className="text-center py-10 text-text3">Ничего не найдено</td></tr>
+              <tr><td colSpan={canManageAccounts ? 11 : 10} className="text-center py-10 text-text3">Ничего не найдено</td></tr>
             )}
           </tbody>
         </table>

@@ -768,6 +768,95 @@ export type Database = {
           },
         ]
       }
+      pixel_profile_accounts: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pixel_profile_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "model_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pixel_profile_accounts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "pixel_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pixel_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          pixel_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          pixel_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          pixel_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pixel_profiles_pixel_id_fkey"
+            columns: ["pixel_id"]
+            isOneToOne: false
+            referencedRelation: "pixels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pixels: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       platforms: {
         Row: {
           created_at: string
