@@ -65,10 +65,12 @@ function Page() {
   const myAssignee = profile?.assignee_name ?? "";
   const myName = profile?.full_name ?? profile?.assignee_name ?? "unknown";
 
-  const [view, setView] = useState<"models" | "accounts">(() => {
+  const [view, setView] = useState<"models" | "accounts" | "vas">(() => {
     if (typeof window === "undefined") return "models";
-    return (localStorage.getItem(VIEW_KEY) as any) === "accounts" ? "accounts" : "models";
+    const v = localStorage.getItem(VIEW_KEY);
+    return v === "accounts" || v === "vas" ? (v as any) : "models";
   });
+
   useEffect(() => { try { localStorage.setItem(VIEW_KEY, view); } catch {} }, [view]);
 
   const { data: models = [] } = useQuery({
