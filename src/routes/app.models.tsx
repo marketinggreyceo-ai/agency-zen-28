@@ -514,12 +514,13 @@ function AccountsTableView({
     return Array.from(s).sort();
   }, [accounts]);
 
-  // VA filter: only VAs who actually have at least one account assigned
+  // VA filter: full list from the `vas` table (+ any legacy value already on an account)
   const vaList = useMemo(() => {
-    const s = new Set<string>();
+    const s = new Set<string>(vaNames);
     for (const a of accounts) if (a.va_owner) s.add(a.va_owner);
     return Array.from(s).sort((a, b) => a.localeCompare(b, "ru"));
-  }, [accounts]);
+  }, [accounts, vaNames]);
+
 
   const now = Date.now();
   const staleCount = accounts.filter((a) => {
