@@ -5,6 +5,8 @@ import { PageHeader, PlatformBadge, PriorityBadge, Empty } from "@/components/ui
 import { StatusBottomSheet } from "@/components/StatusBottomSheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useProfile } from "@/lib/auth";
+import { useVas, useVaNames, createVa } from "@/lib/vas";
+
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -63,10 +65,12 @@ function Page() {
   const myAssignee = profile?.assignee_name ?? "";
   const myName = profile?.full_name ?? profile?.assignee_name ?? "unknown";
 
-  const [view, setView] = useState<"models" | "accounts">(() => {
+  const [view, setView] = useState<"models" | "accounts" | "vas">(() => {
     if (typeof window === "undefined") return "models";
-    return (localStorage.getItem(VIEW_KEY) as any) === "accounts" ? "accounts" : "models";
+    const v = localStorage.getItem(VIEW_KEY);
+    return v === "accounts" || v === "vas" ? (v as any) : "models";
   });
+
   useEffect(() => { try { localStorage.setItem(VIEW_KEY, view); } catch {} }, [view]);
 
   const { data: models = [] } = useQuery({
@@ -77,33 +81,13 @@ function Page() {
     queryKey: ["model_accounts"],
     queryFn: async () => (await supabase.from("model_accounts").select("*").order("account_name")).data ?? [],
   });
-  const { data: teamMembers = [] } = useQuery({
-    queryKey: ["team_members_vas"],
-    queryFn: async () => (await supabase.from("team_members").select("name,role_label")).data ?? [],
-  });
-  const { data: vaProfiles = [] } = useQuery({
-    queryKey: ["profiles_for_va"],
-    queryFn: async () => (await supabase.from("profiles").select("full_name,role,status")).data ?? [],
-  });
   const { data: transfers = [] } = useQuery<Transfer[]>({
     queryKey: ["account_transfers"],
     queryFn: async () => ((await supabase.from("account_transfers").select("*").order("started_at", { ascending: false })).data ?? []) as Transfer[],
   });
 
-  const vaNames = useMemo(() => {
-    const vas = new Set<string>();
-    for (const t of teamMembers as any[]) {
-      if ((t.role_label ?? "").toLowerCase().includes("va")) vas.add(t.name);
-    }
-    for (const p of vaProfiles as any[]) {
-      if (p.role === "va" && p.full_name) vas.add(p.full_name);
-    }
-    if (vas.size === 0) {
-      for (const t of teamMembers as any[]) vas.add(t.name);
-      for (const p of vaProfiles as any[]) if (p.full_name) vas.add(p.full_name);
-    }
-    return Array.from(vas).sort((a, b) => a.localeCompare(b, "ru"));
-  }, [teamMembers, vaProfiles]);
+  const vaNames = useVaNames();
+
 
   const activeTransfers = transfers.filter((t) => t.status === "active");
   const transferBySrc = new Map<string, Transfer>();
@@ -222,7 +206,14 @@ function Page() {
           onClick={() => setView("accounts")}
           className={`text-xs px-3 py-1.5 rounded-md ${view === "accounts" ? "bg-card text-foreground border border-border" : "text-text2"}`}
         >Аккаунты</button>
+        {canManageAccounts && (
+          <button
+            onClick={() => setView("vas")}
+            className={`text-xs px-3 py-1.5 rounded-md ${view === "vas" ? "bg-card text-foreground border border-border" : "text-text2"}`}
+          >Управление VA</button>
+        )}
       </div>
+
 
       {view === "models" && allTags.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
@@ -403,6 +394,8 @@ function Page() {
           })}
           {filteredModels.length === 0 && <Empty message="Нет моделей" />}
         </div>
+      ) : view === "vas" ? (
+        <VaManager accounts={accounts} canEdit={canManageAccounts} />
       ) : (
         <AccountsTableView
           accounts={accounts}
@@ -419,6 +412,7 @@ function Page() {
           onOpenTransfer={(t) => setOpenTransfer(t)}
         />
       )}
+
 
       {(editingAccount || accountForModel) && (
         <AccountModal
@@ -520,12 +514,13 @@ function AccountsTableView({
     return Array.from(s).sort();
   }, [accounts]);
 
-  // VA filter: only VAs who actually have at least one account assigned
+  // VA filter: full list from the `vas` table (+ any legacy value already on an account)
   const vaList = useMemo(() => {
-    const s = new Set<string>();
+    const s = new Set<string>(vaNames);
     for (const a of accounts) if (a.va_owner) s.add(a.va_owner);
     return Array.from(s).sort((a, b) => a.localeCompare(b, "ru"));
-  }, [accounts]);
+  }, [accounts, vaNames]);
+
 
   const now = Date.now();
   const staleCount = accounts.filter((a) => {
@@ -1149,12 +1144,13 @@ function AccountModal({ account, modelId, defaultPlatform, vaNames, onClose }: {
           </div>
           <div>
             <label className="text-xs text-text2 block mb-1">VA</label>
-            <select value={form.va_owner} onChange={(e) => setForm({ ...form, va_owner: e.target.value })}
-              className="w-full bg-bg3 border border-border rounded px-3 py-2">
-              <option value="">—</option>
-              {vaOptions.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <VaSelect
+              value={form.va_owner}
+              options={vaOptions}
+              onChange={(v) => setForm({ ...form, va_owner: v })}
+            />
           </div>
+
           <div>
             <label className="text-xs text-text2 block mb-1">Pixel / Phone</label>
             <input placeholder="Pixel, Main phone, Pixel 2..." value={form.pixel_phone}
@@ -1315,6 +1311,175 @@ function ModelModal({ model, onClose }: { model: any; onClose: () => void }) {
           <button onClick={save} className="px-4 py-2 text-sm rounded bg-primary text-primary-foreground font-medium">Сохранить</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------------- VA select with inline "+ Добавить VA" ---------------- */
+
+function VaSelect({ value, options, onChange }: {
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  const qc = useQueryClient();
+  const names = useVaNames();
+  const list = useMemo(() => {
+    const s = new Set<string>([...names, ...options]);
+    if (value) s.add(value);
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "ru"));
+  }, [names, options, value]);
+
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    if (!draft.trim()) return;
+    setSaving(true);
+    try {
+      const name = await createVa(draft);
+      await qc.invalidateQueries({ queryKey: ["vas"] });
+      onChange(name);
+      setDraft(""); setAdding(false);
+      toast.success("VA добавлен");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSaving(false); }
+  }
+
+  if (adding) {
+    return (
+      <div className="flex gap-2">
+        <input
+          autoFocus value={draft} onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } }}
+          placeholder="Имя нового VA"
+          className="flex-1 bg-bg3 border border-border rounded px-3 py-2"
+        />
+        <button type="button" disabled={saving || !draft.trim()} onClick={submit}
+          className="px-3 py-2 text-sm rounded bg-primary text-primary-foreground font-medium disabled:opacity-50">
+          Добавить
+        </button>
+        <button type="button" onClick={() => { setAdding(false); setDraft(""); }}
+          className="px-2 py-2 text-sm text-text2">Отмена</button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      value={value}
+      onChange={(e) => {
+        if (e.target.value === "__add__") { setAdding(true); return; }
+        onChange(e.target.value);
+      }}
+      className="w-full bg-bg3 border border-border rounded px-3 py-2"
+    >
+      <option value="">—</option>
+      {list.map((n) => <option key={n} value={n}>{n}</option>)}
+      <option value="__add__">+ Добавить VA</option>
+    </select>
+  );
+}
+
+/* ---------------- VA management ---------------- */
+
+function VaManager({ accounts, canEdit }: { accounts: any[]; canEdit: boolean }) {
+  const qc = useQueryClient();
+  const { data: vas = [], isLoading } = useVas();
+  const [newName, setNewName] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const counts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const a of accounts) if (a.va_owner) m.set(a.va_owner, (m.get(a.va_owner) ?? 0) + 1);
+    return m;
+  }, [accounts]);
+
+  async function add() {
+    try {
+      await createVa(newName);
+      setNewName("");
+      qc.invalidateQueries({ queryKey: ["vas"] });
+      toast.success("VA добавлен");
+    } catch (e: any) { toast.error(e.message); }
+  }
+
+  async function rename(v: any) {
+    const name = editName.trim();
+    if (!name || name === v.name) { setEditId(null); return; }
+    const { error } = await (supabase as any).from("vas").update({ name }).eq("id", v.id);
+    if (error) return toast.error(error.message);
+    // keep accounts in sync
+    await supabase.from("model_accounts").update({ va_owner: name }).eq("va_owner", v.name);
+    setEditId(null);
+    qc.invalidateQueries({ queryKey: ["vas"] });
+    qc.invalidateQueries({ queryKey: ["model_accounts"] });
+    toast.success("Переименовано");
+  }
+
+  async function remove(v: any) {
+    const n = counts.get(v.name) ?? 0;
+    if (!window.confirm(
+      n > 0
+        ? `У «${v.name}» ${n} аккаунт(ов). Удалить VA? Аккаунты останутся без VA.`
+        : `Удалить VA «${v.name}»?`
+    )) return;
+    const { error } = await (supabase as any).from("vas").delete().eq("id", v.id);
+    if (error) return toast.error(error.message);
+    if (n > 0) await supabase.from("model_accounts").update({ va_owner: null }).eq("va_owner", v.name);
+    qc.invalidateQueries({ queryKey: ["vas"] });
+    qc.invalidateQueries({ queryKey: ["model_accounts"] });
+    toast.success("Удалено");
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-card max-w-2xl">
+      <div className="px-4 py-3 border-b border-border text-sm font-medium">Управление VA</div>
+      <ul className="divide-y divide-border">
+        {vas.map((v: any) => (
+          <li key={v.id} className="flex items-center gap-2 px-4 py-2.5 text-sm">
+            {editId === v.id ? (
+              <>
+                <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") rename(v); if (e.key === "Escape") setEditId(null); }}
+                  className="flex-1 bg-bg3 border border-border rounded px-2 py-1" />
+                <button onClick={() => rename(v)} className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground">Сохранить</button>
+                <button onClick={() => setEditId(null)} className="text-xs px-2 py-1 text-text2">Отмена</button>
+              </>
+            ) : (
+              <>
+                <span className="flex-1 text-foreground">{v.name}</span>
+                <span className="text-xs text-text2">{counts.get(v.name) ?? 0} аккаунт(ов)</span>
+                {canEdit && (
+                  <>
+                    <button onClick={() => { setEditId(v.id); setEditName(v.name); }}
+                      className="text-text2 hover:text-foreground p-1" title="Переименовать">
+                      <Edit className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => remove(v)} className="text-text2 hover:text-[color:var(--red)] p-1" title="Удалить">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </li>
+        ))}
+        {!isLoading && vas.length === 0 && <li className="px-4 py-3 text-xs text-text3">Пока нет VA</li>}
+      </ul>
+      {canEdit && (
+        <div className="p-3 border-t border-border flex items-center gap-2 bg-bg3/40">
+          <input value={newName} onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+            placeholder="Имя VA" className="flex-1 bg-bg3 border border-border rounded px-2 py-1.5 text-sm" />
+          <button onClick={add} disabled={!newName.trim()}
+            className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-medium inline-flex items-center gap-1 disabled:opacity-50">
+            <Plus className="h-3 w-3" /> Добавить VA
+          </button>
+        </div>
+      )}
     </div>
   );
 }
