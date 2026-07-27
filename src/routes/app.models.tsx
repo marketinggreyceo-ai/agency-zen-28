@@ -206,7 +206,14 @@ function Page() {
           onClick={() => setView("accounts")}
           className={`text-xs px-3 py-1.5 rounded-md ${view === "accounts" ? "bg-card text-foreground border border-border" : "text-text2"}`}
         >Аккаунты</button>
+        {canManageAccounts && (
+          <button
+            onClick={() => setView("vas")}
+            className={`text-xs px-3 py-1.5 rounded-md ${view === "vas" ? "bg-card text-foreground border border-border" : "text-text2"}`}
+          >Управление VA</button>
+        )}
       </div>
+
 
       {view === "models" && allTags.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
