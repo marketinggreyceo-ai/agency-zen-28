@@ -394,6 +394,8 @@ function Page() {
           })}
           {filteredModels.length === 0 && <Empty message="Нет моделей" />}
         </div>
+      ) : view === "vas" ? (
+        <VaManager accounts={accounts} canEdit={canManageAccounts} />
       ) : (
         <AccountsTableView
           accounts={accounts}
@@ -410,6 +412,7 @@ function Page() {
           onOpenTransfer={(t) => setOpenTransfer(t)}
         />
       )}
+
 
       {(editingAccount || accountForModel) && (
         <AccountModal
