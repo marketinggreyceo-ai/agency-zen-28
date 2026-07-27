@@ -1,0 +1,346 @@
+// "Пиксели" tab on the Модели page: pixels → profiles → assigned accounts.
+import { useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { ChevronDown, ChevronRight, Plus, Edit, Trash2, X } from "lucide-react";
+import { Empty } from "@/components/ui-shared";
+import {
+  usePixels, usePixelProfiles, usePixelProfileAccounts, useInvalidatePixels,
+  type PixelProfile,
+} from "@/lib/pixels";
+
+const PLATFORM_ICONS: Record<string, string> = {
+  Instagram: "📸", X: "𝕏", Facebook: "📘", Reddit: "👽", Fansly: "💙", OnlyFans: "🔵",
+};
+const GROUP_PLATFORMS = ["Instagram", "X", "Facebook"];
+
+function platformIcon(p: string) { return PLATFORM_ICONS[p] ?? "🌐"; }
+
+export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: boolean }) {
+  const { data: pixels = [] } = usePixels();
+  const { data: profiles = [] } = usePixelProfiles();
+  const { data: links = [] } = usePixelProfileAccounts();
+  const invalidate = useInvalidatePixels();
+
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [editingProfile, setEditingProfile] = useState<{ profile: PixelProfile | null; pixelId: string } | null>(null);
+
+  const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+  const profilesByPixel = useMemo(() => {
+    const m = new Map<string, PixelProfile[]>();
+    for (const p of profiles) {
+      const arr = m.get(p.pixel_id) ?? [];
+      arr.push(p); m.set(p.pixel_id, arr);
+    }
+    return m;
+  }, [profiles]);
+  const accountIdsByProfile = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const l of links) {
+      const arr = m.get(l.profile_id) ?? [];
+      arr.push(l.account_id); m.set(l.profile_id, arr);
+    }
+    return m;
+  }, [links]);
+
+  // account_id → label, for the "already assigned" hint in the modal
+  const assignmentLabel = useMemo(() => {
+    const pixelById = new Map(pixels.map((p) => [p.id, p]));
+    const profileById = new Map(profiles.map((p) => [p.id, p]));
+    const m = new Map<string, { profileId: string; label: string }>();
+    for (const l of links) {
+      const prof = profileById.get(l.profile_id);
+      const px = prof ? pixelById.get(prof.pixel_id) : null;
+      if (!prof || !px) continue;
+      m.set(l.account_id, { profileId: prof.id, label: `${px.name} → ${prof.name}` });
+    }
+    return m;
+  }, [pixels, profiles, links]);
+
+  async function addPixel() {
+    const name = window.prompt("Название пикселя", `Pixel ${pixels.length + 1}`);
+    if (!name?.trim()) return;
+    const { error } = await (supabase as any).from("pixels").insert({ name: name.trim() });
+    if (error) return toast.error(error.message);
+    invalidate(); toast.success("Пиксель добавлен");
+  }
+  async function renamePixel(id: string, current: string) {
+    const name = window.prompt("Новое название", current);
+    if (!name?.trim() || name.trim() === current) return;
+    const { error } = await (supabase as any).from("pixels").update({ name: name.trim() }).eq("id", id);
+    if (error) return toast.error(error.message);
+    invalidate();
+  }
+  async function deletePixel(id: string, name: string) {
+    if (!window.confirm(`Удалить пиксель «${name}» со всеми профилями?`)) return;
+    const { error } = await (supabase as any).from("pixels").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    invalidate(); toast.success("Удалено");
+  }
+  async function deleteProfile(id: string, name: string) {
+    if (!window.confirm(`Удалить профиль «${name}»?`)) return;
+    const { error } = await (supabase as any).from("pixel_profiles").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    invalidate(); toast.success("Удалено");
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Summary */}
+      <div className="rounded-lg border border-border bg-card p-3 flex flex-wrap items-center gap-3 text-xs">
+        <span className="text-text2">Всего пикселей: <span className="text-foreground font-semibold">{pixels.length}</span></span>
+        <span className="text-text3">·</span>
+        <span className="text-text2">Всего профилей: <span className="text-foreground font-semibold">{profiles.length}</span></span>
+        <span className="text-text3">·</span>
+        <span className="text-text2">
+          Аккаунтов привязано: <span className="text-foreground font-semibold">{links.length}</span> / {accounts.length}
+        </span>
+        {canEdit && (
+          <button onClick={addPixel}
+            className="ml-auto px-3 py-1.5 rounded bg-primary text-primary-foreground font-medium inline-flex items-center gap-1">
+            <Plus className="h-3.5 w-3.5" /> Новый пиксель
+          </button>
+        )}
+      </div>
+
+      {pixels.length === 0 && <Empty message="Пикселей пока нет" />}
+
+      {pixels.map((px) => {
+        const pxProfiles = profilesByPixel.get(px.id) ?? [];
+        const accountCount = pxProfiles.reduce((n, p) => n + (accountIdsByProfile.get(p.id)?.length ?? 0), 0);
+        const isOpen = open.has(px.id);
+        return (
+          <div key={px.id} className="rounded-lg border border-border bg-card">
+            <div className="flex items-center gap-2 px-3 py-3">
+              <button
+                onClick={() => {
+                  const s = new Set(open);
+                  isOpen ? s.delete(px.id) : s.add(px.id);
+                  setOpen(s);
+                }}
+                className="text-text2 hover:text-foreground"
+              >
+                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </button>
+              <span className="font-medium text-foreground text-sm">{px.name}</span>
+              <span className="text-xs text-text3">
+                Профилей: {pxProfiles.length} · Аккаунтов: {accountCount}
+              </span>
+              {canEdit && (
+                <div className="ml-auto flex items-center gap-1">
+                  <button onClick={() => setEditingProfile({ profile: null, pixelId: px.id })}
+                    className="text-xs px-2 py-1 rounded border border-border text-text2 hover:text-foreground inline-flex items-center gap-1">
+                    <Plus className="h-3 w-3" /> Новый профиль
+                  </button>
+                  <button onClick={() => renamePixel(px.id, px.name)}
+                    className="p-1 rounded border border-border text-text2 hover:text-foreground" title="Переименовать">
+                    <Edit className="h-3 w-3" />
+                  </button>
+                  <button onClick={() => deletePixel(px.id, px.name)}
+                    className="p-1 rounded border border-border text-text2 hover:text-[color:var(--red)]" title="Удалить">
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {isOpen && (
+              <div className="border-t border-border divide-y divide-border">
+                {pxProfiles.length === 0 && (
+                  <div className="px-4 py-3 text-xs text-text3">Профилей нет</div>
+                )}
+                {pxProfiles.map((p) => {
+                  const ids = accountIdsByProfile.get(p.id) ?? [];
+                  const accs = ids.map((id) => accountById.get(id)).filter(Boolean);
+                  const platforms = Array.from(new Set([...GROUP_PLATFORMS, ...accs.map((a: any) => a.platform ?? "—")]));
+                  return (
+                    <div key={p.id} className="px-4 py-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm text-foreground">{p.name}</span>
+                        <span className="text-[11px] text-text3">{ids.length} аккаунтов</span>
+                        {canEdit && (
+                          <div className="ml-auto flex items-center gap-1">
+                            <button onClick={() => setEditingProfile({ profile: p, pixelId: px.id })}
+                              className="text-xs px-2 py-1 rounded border border-border text-text2 hover:text-foreground">
+                              Привязать аккаунты
+                            </button>
+                            <button onClick={() => deleteProfile(p.id, p.name)}
+                              className="p-1 rounded border border-border text-text2 hover:text-[color:var(--red)]" title="Удалить">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        {platforms.map((pl) => {
+                          const list = accs.filter((a: any) => (a.platform ?? "—") === pl);
+                          if (!GROUP_PLATFORMS.includes(pl) && list.length === 0) return null;
+                          return (
+                            <div key={pl} className="text-xs flex flex-wrap gap-1.5">
+                              <span className="text-text2 w-28 shrink-0">{platformIcon(pl)} {pl}:</span>
+                              {list.length === 0
+                                ? <span className="text-text3">(нет)</span>
+                                : list.map((a: any) => (
+                                  <span key={a.id} className="px-1.5 py-0.5 rounded bg-bg3 border border-border text-foreground">
+                                    {a.account_name || "—"}
+                                  </span>
+                                ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {editingProfile && (
+        <ProfileModal
+          profile={editingProfile.profile}
+          pixelId={editingProfile.pixelId}
+          accounts={accounts}
+          assignmentLabel={assignmentLabel}
+          assignedIds={editingProfile.profile ? (accountIdsByProfile.get(editingProfile.profile.id) ?? []) : []}
+          onClose={() => setEditingProfile(null)}
+          onSaved={() => { setEditingProfile(null); invalidate(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProfileModal({
+  profile, pixelId, accounts, assignmentLabel, assignedIds, onClose, onSaved,
+}: {
+  profile: PixelProfile | null;
+  pixelId: string;
+  accounts: any[];
+  assignmentLabel: Map<string, { profileId: string; label: string }>;
+  assignedIds: string[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(profile?.name ?? "");
+  const [selected, setSelected] = useState<Set<string>>(new Set(assignedIds));
+  const [saving, setSaving] = useState(false);
+
+  const platforms = useMemo(() => {
+    const s = new Set<string>(GROUP_PLATFORMS);
+    for (const a of accounts) if (a.platform) s.add(a.platform);
+    return Array.from(s);
+  }, [accounts]);
+
+  async function save() {
+    const n = name.trim();
+    if (!n) return toast.error("Введите название профиля");
+    setSaving(true);
+    try {
+      let profileId = profile?.id ?? null;
+      if (profileId) {
+        const { error } = await (supabase as any).from("pixel_profiles").update({ name: n }).eq("id", profileId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await (supabase as any).from("pixel_profiles")
+          .insert({ pixel_id: pixelId, name: n }).select("id").single();
+        if (error) throw error;
+        profileId = data.id as string;
+      }
+
+      const before = new Set(assignedIds);
+      const toAdd = Array.from(selected).filter((id) => !before.has(id));
+      const toRemove = assignedIds.filter((id) => !selected.has(id));
+
+      if (toRemove.length) {
+        const { error } = await (supabase as any).from("pixel_profile_accounts").delete().in("account_id", toRemove);
+        if (error) throw error;
+      }
+      if (toAdd.length) {
+        const { error } = await (supabase as any).from("pixel_profile_accounts")
+          .insert(toAdd.map((account_id) => ({ profile_id: profileId, account_id })));
+        if (error) throw error;
+      }
+      toast.success("Сохранено");
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message ?? "Ошибка сохранения");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-card border border-border rounded-lg w-full max-w-2xl my-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <span className="text-sm font-medium">{profile ? "Профиль" : "Новый профиль"}</span>
+          <button onClick={onClose} className="text-text2 hover:text-foreground"><X className="h-4 w-4" /></button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div>
+            <label className="block text-xs text-text2 mb-1">Название профиля</label>
+            <input value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="Profile 1"
+              className="w-full px-3 py-2 rounded bg-bg3 border border-border text-sm" />
+          </div>
+
+          <div>
+            <div className="text-xs text-text2 mb-2">Привязать аккаунты</div>
+            <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
+              {platforms.map((pl) => {
+                const list = accounts.filter((a) => (a.platform ?? "") === pl);
+                return (
+                  <div key={pl}>
+                    <div className="text-xs text-foreground mb-1">{platformIcon(pl)} {pl}</div>
+                    {list.length === 0 && <div className="text-xs text-text3">Нет аккаунтов</div>}
+                    <div className="flex flex-wrap gap-1.5">
+                      {list.map((a) => {
+                        const other = assignmentLabel.get(a.id);
+                        const takenByOther = !!other && other.profileId !== profile?.id;
+                        const isSel = selected.has(a.id);
+                        return (
+                          <button
+                            key={a.id}
+                            disabled={takenByOther}
+                            onClick={() => {
+                              const s = new Set(selected);
+                              isSel ? s.delete(a.id) : s.add(a.id);
+                              setSelected(s);
+                            }}
+                            className={`text-xs px-2 py-1 rounded border ${
+                              takenByOther
+                                ? "bg-bg3 border-border text-text3 opacity-50 cursor-not-allowed"
+                                : isSel
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-bg3 border-border text-text2"
+                            }`}
+                            title={takenByOther ? other!.label : undefined}
+                          >
+                            {a.account_name || "—"}
+                            {takenByOther && <span className="ml-1">({other!.label})</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border">
+          <button onClick={onClose} className="px-3 py-1.5 text-sm rounded border border-border text-text2">Отмена</button>
+          <button onClick={save} disabled={saving}
+            className="px-3 py-1.5 text-sm rounded bg-primary text-primary-foreground font-medium disabled:opacity-50">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
