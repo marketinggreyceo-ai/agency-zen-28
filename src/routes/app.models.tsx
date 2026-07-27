@@ -1144,12 +1144,13 @@ function AccountModal({ account, modelId, defaultPlatform, vaNames, onClose }: {
           </div>
           <div>
             <label className="text-xs text-text2 block mb-1">VA</label>
-            <select value={form.va_owner} onChange={(e) => setForm({ ...form, va_owner: e.target.value })}
-              className="w-full bg-bg3 border border-border rounded px-3 py-2">
-              <option value="">—</option>
-              {vaOptions.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            <VaSelect
+              value={form.va_owner}
+              options={vaOptions}
+              onChange={(v) => setForm({ ...form, va_owner: v })}
+            />
           </div>
+
           <div>
             <label className="text-xs text-text2 block mb-1">Pixel / Phone</label>
             <input placeholder="Pixel, Main phone, Pixel 2..." value={form.pixel_phone}
