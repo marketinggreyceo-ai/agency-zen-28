@@ -522,7 +522,7 @@ function AccountsTableView({
   }, [models]);
 
   const platformList = useMemo(() => {
-    const s = new Set<string>();
+    const s = new Set<string>(ACCOUNT_PLATFORMS);
     for (const a of accounts) if (a.platform) s.add(a.platform);
     return Array.from(s).sort();
   }, [accounts]);
