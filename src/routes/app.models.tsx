@@ -24,7 +24,7 @@ export const Route = createFileRoute("/app/models")({
   ssr: false, component: Page,
 });
 
-const ACCOUNT_PLATFORMS = ["Instagram","X","Reddit","Facebook","Fansly","OnlyFans"];
+import { ACCOUNT_PLATFORMS, MODEL_PLATFORMS } from "@/lib/platforms";
 const ACCOUNT_STATUSES = [
   { value: "active", label: "Active", color: "#34B98A" },
   { value: "appeal", label: "Appeal", color: "#C98F3D" },
@@ -522,7 +522,7 @@ function AccountsTableView({
   }, [models]);
 
   const platformList = useMemo(() => {
-    const s = new Set<string>();
+    const s = new Set<string>(ACCOUNT_PLATFORMS);
     for (const a of accounts) if (a.platform) s.add(a.platform);
     return Array.from(s).sort();
   }, [accounts]);
@@ -1228,7 +1228,7 @@ function AccountModal({ account, modelId, defaultPlatform, vaNames, onClose }: {
   );
 }
 
-const PLATFORM_OPTIONS = ["Fansly","OnlyFans","Instagram","X","Reddit","AI","Other"];
+const PLATFORM_OPTIONS = MODEL_PLATFORMS;
 
 function ModelModal({ model, onClose }: { model: any; onClose: () => void }) {
   const qc = useQueryClient();
