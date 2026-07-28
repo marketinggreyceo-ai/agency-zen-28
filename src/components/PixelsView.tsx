@@ -33,8 +33,12 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
       const arr = m.get(p.pixel_id) ?? [];
       arr.push(p); m.set(p.pixel_id, arr);
     }
+    for (const arr of m.values()) {
+      arr.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.created_at.localeCompare(b.created_at));
+    }
     return m;
   }, [profiles]);
+
   const accountIdsByProfile = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const l of links) {
