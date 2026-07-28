@@ -1,8 +1,9 @@
 // "Пиксели" tab on the Модели page: pixels → profiles → assigned accounts.
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Plus, Edit, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Edit, Trash2, X, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
 import { Empty } from "@/components/ui-shared";
 import {
   usePixels, usePixelProfiles, usePixelProfileAccounts, useInvalidatePixels,
