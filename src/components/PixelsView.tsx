@@ -324,7 +324,7 @@ function ProfileModal({
         if (error) throw error;
       } else {
         const { data, error } = await (supabase as any).from("pixel_profiles")
-          .insert({ pixel_id: pixelId, name: n }).select("id").single();
+          .insert({ pixel_id: pixelId, name: n, sort_order: nextSortOrder }).select("id").single();
         if (error) throw error;
         profileId = data.id as string;
       }
