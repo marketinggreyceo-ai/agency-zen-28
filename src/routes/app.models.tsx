@@ -513,6 +513,7 @@ function AccountsTableView({
   const [sortKey, setSortKey] = useState<SortKey>("followers");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [staleOnly, setStaleOnly] = useState(false);
+  const [showExternal, setShowExternal] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkVa, setBulkVa] = useState<string>("");
 
