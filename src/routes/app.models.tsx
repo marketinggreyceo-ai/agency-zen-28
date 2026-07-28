@@ -553,6 +553,7 @@ function AccountsTableView({
   }
 
   const filtered = accounts.filter((a) => {
+    if (!showExternal && a.is_external) return false;
     if (fModel && a.model_id !== fModel) return false;
     if (fPlatform && a.platform !== fPlatform) return false;
     if (fStatus && (a.status ?? "") !== fStatus) return false;
