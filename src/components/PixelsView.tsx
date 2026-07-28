@@ -371,7 +371,7 @@ function ProfileModal({
             <div className="text-xs text-text2 mb-2">Привязать аккаунты</div>
             <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
               {platforms.map((pl) => {
-                const list = accounts.filter((a) => (a.platform ?? "") === pl);
+                const list = allAccounts.filter((a) => (a.platform ?? "") === pl);
                 return (
                   <div key={pl}>
                     <div className="text-xs text-foreground mb-1">{platformIcon(pl)} {pl}</div>
@@ -395,18 +395,38 @@ function ProfileModal({
                                 ? "bg-bg3 border-border text-text3 opacity-50 cursor-not-allowed"
                                 : isSel
                                   ? "bg-primary text-primary-foreground border-primary"
-                                  : "bg-bg3 border-border text-text2"
+                                  : `bg-bg3 border-border text-text2${a.is_external ? " border-dashed opacity-80" : ""}`
                             }`}
-                            title={takenByOther ? other!.label : undefined}
+                            title={takenByOther ? other!.label : a.is_external ? "Внешний аккаунт" : undefined}
                           >
                             {a.account_name || "—"}
+                            {a.is_external && !isSel && <span className="ml-1 text-[10px] text-text3">внешний</span>}
                             {takenByOther && <span className="ml-1">({other!.label})</span>}
                           </button>
                         );
                       })}
                     </div>
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <input
+                        value={manual[pl] ?? ""}
+                        onChange={(e) => setManual((m) => ({ ...m, [pl]: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addManual(pl); } }}
+                        placeholder="Добавить вручную (внешний аккаунт)"
+                        className="flex-1 min-w-0 px-2 py-1 rounded bg-bg3 border border-border text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => addManual(pl)}
+                        disabled={adding === pl || !(manual[pl] ?? "").trim()}
+                        className="px-2 py-1 rounded border border-border text-text2 hover:text-foreground disabled:opacity-40"
+                        title="Добавить вручную"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
+
               })}
             </div>
           </div>
