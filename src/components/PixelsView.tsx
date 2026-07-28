@@ -10,12 +10,7 @@ import {
   type PixelProfile,
 } from "@/lib/pixels";
 
-const PLATFORM_ICONS: Record<string, string> = {
-  Instagram: "📸", X: "𝕏", Facebook: "📘", Reddit: "👽", Fansly: "💙", OnlyFans: "🔵",
-};
-const GROUP_PLATFORMS = ["Instagram", "X", "Facebook"];
-
-function platformIcon(p: string) { return PLATFORM_ICONS[p] ?? "🌐"; }
+import { PIXEL_GROUP_PLATFORMS as GROUP_PLATFORMS, platformIcon } from "@/lib/platforms";
 
 export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: boolean }) {
   const { data: pixels = [] } = usePixels();
