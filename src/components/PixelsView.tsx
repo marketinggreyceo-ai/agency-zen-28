@@ -249,6 +249,7 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
         <ProfileModal
           profile={editingProfile.profile}
           pixelId={editingProfile.pixelId}
+          nextSortOrder={profilesByPixel.get(editingProfile.pixelId)?.length ?? 0}
           accounts={accounts}
           assignmentLabel={assignmentLabel}
           assignedIds={editingProfile.profile ? (accountIdsByProfile.get(editingProfile.profile.id) ?? []) : []}
@@ -261,25 +262,56 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
 }
 
 function ProfileModal({
-  profile, pixelId, accounts, assignmentLabel, assignedIds, onClose, onSaved,
+  profile, pixelId, nextSortOrder, accounts, assignmentLabel, assignedIds, onClose, onSaved,
 }: {
   profile: PixelProfile | null;
   pixelId: string;
+  nextSortOrder: number;
   accounts: any[];
   assignmentLabel: Map<string, { profileId: string; label: string }>;
   assignedIds: string[];
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const qc = useQueryClient();
   const [name, setName] = useState(profile?.name ?? "");
   const [selected, setSelected] = useState<Set<string>>(new Set(assignedIds));
   const [saving, setSaving] = useState(false);
+  // Manually added external accounts created within this modal session.
+  const [extraAccounts, setExtraAccounts] = useState<any[]>([]);
+  const [manual, setManual] = useState<Record<string, string>>({});
+  const [adding, setAdding] = useState<string | null>(null);
+
+  const allAccounts = useMemo(() => [...accounts, ...extraAccounts], [accounts, extraAccounts]);
 
   const platforms = useMemo(() => {
     const s = new Set<string>(GROUP_PLATFORMS);
-    for (const a of accounts) if (a.platform) s.add(a.platform);
+    for (const a of allAccounts) if (a.platform) s.add(a.platform);
     return Array.from(s);
-  }, [accounts]);
+  }, [allAccounts]);
+
+  /** Create an external (not-our-pool) account for a platform and select it. */
+  async function addManual(platform: string) {
+    const value = (manual[platform] ?? "").trim().replace(/^@/, "");
+    if (!value) return;
+    setAdding(platform);
+    try {
+      const { data, error } = await (supabase as any).from("model_accounts")
+        .insert({ account_name: value, platform, is_external: true })
+        .select("*").single();
+      if (error) throw error;
+      setExtraAccounts((prev) => [...prev, data]);
+      setSelected((prev) => new Set(prev).add(data.id));
+      setManual((m) => ({ ...m, [platform]: "" }));
+      qc.invalidateQueries({ queryKey: ["model_accounts"] });
+      toast.success("Внешний аккаунт добавлен");
+    } catch (e: any) {
+      toast.error(e.message ?? "Не удалось добавить");
+    } finally {
+      setAdding(null);
+    }
+  }
+
 
   async function save() {
     const n = name.trim();
