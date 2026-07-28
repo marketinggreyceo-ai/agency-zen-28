@@ -23,7 +23,7 @@ export function usePixelProfiles() {
   return useQuery({
     queryKey: ["pixel_profiles"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("pixel_profiles").select("*").order("created_at");
+      const { data, error } = await (supabase as any).from("pixel_profiles").select("*").order("sort_order").order("created_at");
       if (error) throw error;
       return (data ?? []) as PixelProfile[];
     },
