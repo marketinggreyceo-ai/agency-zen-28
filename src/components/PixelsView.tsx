@@ -89,6 +89,21 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
     invalidate(); toast.success("Удалено");
   }
 
+  /** Move a profile up/down inside its pixel and persist sort_order. */
+  async function moveProfile(pixelId: string, index: number, dir: -1 | 1) {
+    const list = [...(profilesByPixel.get(pixelId) ?? [])];
+    const target = index + dir;
+    if (target < 0 || target >= list.length) return;
+    [list[index], list[target]] = [list[target], list[index]];
+    const updates = list.map((p, i) =>
+      (supabase as any).from("pixel_profiles").update({ sort_order: i }).eq("id", p.id));
+    const results = await Promise.all(updates);
+    const bad = results.find((r: any) => r.error);
+    if (bad) return toast.error(bad.error.message);
+    invalidate();
+  }
+
+
   return (
     <div className="space-y-3">
       {/* Summary */}
