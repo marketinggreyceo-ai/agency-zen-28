@@ -169,13 +169,34 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
                 {pxProfiles.length === 0 && (
                   <div className="px-4 py-3 text-xs text-text3">Профилей нет</div>
                 )}
-                {pxProfiles.map((p) => {
+                {pxProfiles.map((p, pi) => {
                   const ids = accountIdsByProfile.get(p.id) ?? [];
                   const accs = ids.map((id) => accountById.get(id)).filter(Boolean);
                   const platforms = Array.from(new Set([...GROUP_PLATFORMS, ...accs.map((a: any) => a.platform ?? "—")]));
                   return (
                     <div key={p.id} className="px-4 py-3">
                       <div className="flex items-center gap-2 mb-2">
+                        {canEdit && (
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <GripVertical className="h-3.5 w-3.5 text-text3" />
+                            <button
+                              onClick={() => moveProfile(px.id, pi, -1)}
+                              disabled={pi === 0}
+                              title="Выше"
+                              className="p-0.5 rounded border border-border text-text2 hover:text-foreground disabled:opacity-30"
+                            >
+                              <ArrowUp className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => moveProfile(px.id, pi, 1)}
+                              disabled={pi === pxProfiles.length - 1}
+                              title="Ниже"
+                              className="p-0.5 rounded border border-border text-text2 hover:text-foreground disabled:opacity-30"
+                            >
+                              <ArrowDown className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
                         <span className="text-sm text-foreground">{p.name}</span>
                         <span className="text-[11px] text-text3">{ids.length} аккаунтов</span>
                         {canEdit && (
@@ -201,10 +222,21 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
                               {list.length === 0
                                 ? <span className="text-text3">(нет)</span>
                                 : list.map((a: any) => (
-                                  <span key={a.id} className="px-1.5 py-0.5 rounded bg-bg3 border border-border text-foreground">
+                                  <span key={a.id}
+                                    className={`px-1.5 py-0.5 rounded border ${
+                                      a.is_external
+                                        ? "bg-bg3/50 border-dashed border-border text-text2 opacity-70"
+                                        : "bg-bg3 border-border text-foreground"
+                                    }`}>
                                     {a.account_name || "—"}
+                                    {a.is_external && <span className="ml-1 text-[10px] text-text3">внешний</span>}
                                   </span>
                                 ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+
                             </div>
                           );
                         })}
