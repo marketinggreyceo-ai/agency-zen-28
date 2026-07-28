@@ -236,11 +236,6 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
                           );
                         })}
                       </div>
-
-                            </div>
-                          );
-                        })}
-                      </div>
                     </div>
                   );
                 })}
