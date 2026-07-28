@@ -558,6 +558,7 @@ export type Database = {
           account_url: string | null
           followers: number | null
           id: string
+          is_external: boolean
           linkinbio_url: string | null
           model_id: string | null
           notes: string | null
@@ -573,6 +574,7 @@ export type Database = {
           account_url?: string | null
           followers?: number | null
           id?: string
+          is_external?: boolean
           linkinbio_url?: string | null
           model_id?: string | null
           notes?: string | null
@@ -588,6 +590,7 @@ export type Database = {
           account_url?: string | null
           followers?: number | null
           id?: string
+          is_external?: boolean
           linkinbio_url?: string | null
           model_id?: string | null
           notes?: string | null
@@ -810,6 +813,7 @@ export type Database = {
           id: string
           name: string
           pixel_id: string
+          sort_order: number
           updated_at: string
         }
         Insert: {
@@ -817,6 +821,7 @@ export type Database = {
           id?: string
           name: string
           pixel_id: string
+          sort_order?: number
           updated_at?: string
         }
         Update: {
@@ -824,6 +829,7 @@ export type Database = {
           id?: string
           name?: string
           pixel_id?: string
+          sort_order?: number
           updated_at?: string
         }
         Relationships: [

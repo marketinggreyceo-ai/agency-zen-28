@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type Pixel = { id: string; name: string; created_at: string };
-export type PixelProfile = { id: string; pixel_id: string; name: string; created_at: string };
+export type PixelProfile = { id: string; pixel_id: string; name: string; sort_order: number; created_at: string };
 export type PixelProfileAccount = { id: string; profile_id: string; account_id: string; created_at: string };
 
 export function usePixels() {
@@ -23,7 +23,7 @@ export function usePixelProfiles() {
   return useQuery({
     queryKey: ["pixel_profiles"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("pixel_profiles").select("*").order("created_at");
+      const { data, error } = await (supabase as any).from("pixel_profiles").select("*").order("sort_order").order("created_at");
       if (error) throw error;
       return (data ?? []) as PixelProfile[];
     },

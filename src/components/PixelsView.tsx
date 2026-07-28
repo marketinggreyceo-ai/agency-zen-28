@@ -1,8 +1,9 @@
 // "Пиксели" tab on the Модели page: pixels → profiles → assigned accounts.
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Plus, Edit, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Edit, Trash2, X, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
 import { Empty } from "@/components/ui-shared";
 import {
   usePixels, usePixelProfiles, usePixelProfileAccounts, useInvalidatePixels,
@@ -32,8 +33,12 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
       const arr = m.get(p.pixel_id) ?? [];
       arr.push(p); m.set(p.pixel_id, arr);
     }
+    for (const arr of m.values()) {
+      arr.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.created_at.localeCompare(b.created_at));
+    }
     return m;
   }, [profiles]);
+
   const accountIdsByProfile = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const l of links) {
@@ -83,6 +88,21 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
     if (error) return toast.error(error.message);
     invalidate(); toast.success("Удалено");
   }
+
+  /** Move a profile up/down inside its pixel and persist sort_order. */
+  async function moveProfile(pixelId: string, index: number, dir: -1 | 1) {
+    const list = [...(profilesByPixel.get(pixelId) ?? [])];
+    const target = index + dir;
+    if (target < 0 || target >= list.length) return;
+    [list[index], list[target]] = [list[target], list[index]];
+    const updates = list.map((p, i) =>
+      (supabase as any).from("pixel_profiles").update({ sort_order: i }).eq("id", p.id));
+    const results = await Promise.all(updates);
+    const bad = results.find((r: any) => r.error);
+    if (bad) return toast.error(bad.error.message);
+    invalidate();
+  }
+
 
   return (
     <div className="space-y-3">
@@ -149,13 +169,34 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
                 {pxProfiles.length === 0 && (
                   <div className="px-4 py-3 text-xs text-text3">Профилей нет</div>
                 )}
-                {pxProfiles.map((p) => {
+                {pxProfiles.map((p, pi) => {
                   const ids = accountIdsByProfile.get(p.id) ?? [];
                   const accs = ids.map((id) => accountById.get(id)).filter(Boolean);
                   const platforms = Array.from(new Set([...GROUP_PLATFORMS, ...accs.map((a: any) => a.platform ?? "—")]));
                   return (
                     <div key={p.id} className="px-4 py-3">
                       <div className="flex items-center gap-2 mb-2">
+                        {canEdit && (
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <GripVertical className="h-3.5 w-3.5 text-text3" />
+                            <button
+                              onClick={() => moveProfile(px.id, pi, -1)}
+                              disabled={pi === 0}
+                              title="Выше"
+                              className="p-0.5 rounded border border-border text-text2 hover:text-foreground disabled:opacity-30"
+                            >
+                              <ArrowUp className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => moveProfile(px.id, pi, 1)}
+                              disabled={pi === pxProfiles.length - 1}
+                              title="Ниже"
+                              className="p-0.5 rounded border border-border text-text2 hover:text-foreground disabled:opacity-30"
+                            >
+                              <ArrowDown className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
                         <span className="text-sm text-foreground">{p.name}</span>
                         <span className="text-[11px] text-text3">{ids.length} аккаунтов</span>
                         {canEdit && (
@@ -181,8 +222,14 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
                               {list.length === 0
                                 ? <span className="text-text3">(нет)</span>
                                 : list.map((a: any) => (
-                                  <span key={a.id} className="px-1.5 py-0.5 rounded bg-bg3 border border-border text-foreground">
+                                  <span key={a.id}
+                                    className={`px-1.5 py-0.5 rounded border ${
+                                      a.is_external
+                                        ? "bg-bg3/50 border-dashed border-border text-text2 opacity-70"
+                                        : "bg-bg3 border-border text-foreground"
+                                    }`}>
                                     {a.account_name || "—"}
+                                    {a.is_external && <span className="ml-1 text-[10px] text-text3">внешний</span>}
                                   </span>
                                 ))}
                             </div>
@@ -202,6 +249,7 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
         <ProfileModal
           profile={editingProfile.profile}
           pixelId={editingProfile.pixelId}
+          nextSortOrder={profilesByPixel.get(editingProfile.pixelId)?.length ?? 0}
           accounts={accounts}
           assignmentLabel={assignmentLabel}
           assignedIds={editingProfile.profile ? (accountIdsByProfile.get(editingProfile.profile.id) ?? []) : []}
@@ -214,25 +262,56 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
 }
 
 function ProfileModal({
-  profile, pixelId, accounts, assignmentLabel, assignedIds, onClose, onSaved,
+  profile, pixelId, nextSortOrder, accounts, assignmentLabel, assignedIds, onClose, onSaved,
 }: {
   profile: PixelProfile | null;
   pixelId: string;
+  nextSortOrder: number;
   accounts: any[];
   assignmentLabel: Map<string, { profileId: string; label: string }>;
   assignedIds: string[];
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const qc = useQueryClient();
   const [name, setName] = useState(profile?.name ?? "");
   const [selected, setSelected] = useState<Set<string>>(new Set(assignedIds));
   const [saving, setSaving] = useState(false);
+  // Manually added external accounts created within this modal session.
+  const [extraAccounts, setExtraAccounts] = useState<any[]>([]);
+  const [manual, setManual] = useState<Record<string, string>>({});
+  const [adding, setAdding] = useState<string | null>(null);
+
+  const allAccounts = useMemo(() => [...accounts, ...extraAccounts], [accounts, extraAccounts]);
 
   const platforms = useMemo(() => {
     const s = new Set<string>(GROUP_PLATFORMS);
-    for (const a of accounts) if (a.platform) s.add(a.platform);
+    for (const a of allAccounts) if (a.platform) s.add(a.platform);
     return Array.from(s);
-  }, [accounts]);
+  }, [allAccounts]);
+
+  /** Create an external (not-our-pool) account for a platform and select it. */
+  async function addManual(platform: string) {
+    const value = (manual[platform] ?? "").trim().replace(/^@/, "");
+    if (!value) return;
+    setAdding(platform);
+    try {
+      const { data, error } = await (supabase as any).from("model_accounts")
+        .insert({ account_name: value, platform, is_external: true })
+        .select("*").single();
+      if (error) throw error;
+      setExtraAccounts((prev) => [...prev, data]);
+      setSelected((prev) => new Set(prev).add(data.id));
+      setManual((m) => ({ ...m, [platform]: "" }));
+      qc.invalidateQueries({ queryKey: ["model_accounts"] });
+      toast.success("Внешний аккаунт добавлен");
+    } catch (e: any) {
+      toast.error(e.message ?? "Не удалось добавить");
+    } finally {
+      setAdding(null);
+    }
+  }
+
 
   async function save() {
     const n = name.trim();
@@ -245,7 +324,7 @@ function ProfileModal({
         if (error) throw error;
       } else {
         const { data, error } = await (supabase as any).from("pixel_profiles")
-          .insert({ pixel_id: pixelId, name: n }).select("id").single();
+          .insert({ pixel_id: pixelId, name: n, sort_order: nextSortOrder }).select("id").single();
         if (error) throw error;
         profileId = data.id as string;
       }
@@ -292,7 +371,7 @@ function ProfileModal({
             <div className="text-xs text-text2 mb-2">Привязать аккаунты</div>
             <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
               {platforms.map((pl) => {
-                const list = accounts.filter((a) => (a.platform ?? "") === pl);
+                const list = allAccounts.filter((a) => (a.platform ?? "") === pl);
                 return (
                   <div key={pl}>
                     <div className="text-xs text-foreground mb-1">{platformIcon(pl)} {pl}</div>
@@ -316,18 +395,38 @@ function ProfileModal({
                                 ? "bg-bg3 border-border text-text3 opacity-50 cursor-not-allowed"
                                 : isSel
                                   ? "bg-primary text-primary-foreground border-primary"
-                                  : "bg-bg3 border-border text-text2"
+                                  : `bg-bg3 border-border text-text2${a.is_external ? " border-dashed opacity-80" : ""}`
                             }`}
-                            title={takenByOther ? other!.label : undefined}
+                            title={takenByOther ? other!.label : a.is_external ? "Внешний аккаунт" : undefined}
                           >
                             {a.account_name || "—"}
+                            {a.is_external && !isSel && <span className="ml-1 text-[10px] text-text3">внешний</span>}
                             {takenByOther && <span className="ml-1">({other!.label})</span>}
                           </button>
                         );
                       })}
                     </div>
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <input
+                        value={manual[pl] ?? ""}
+                        onChange={(e) => setManual((m) => ({ ...m, [pl]: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addManual(pl); } }}
+                        placeholder="Добавить вручную (внешний аккаунт)"
+                        className="flex-1 min-w-0 px-2 py-1 rounded bg-bg3 border border-border text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => addManual(pl)}
+                        disabled={adding === pl || !(manual[pl] ?? "").trim()}
+                        className="px-2 py-1 rounded border border-border text-text2 hover:text-foreground disabled:opacity-40"
+                        title="Добавить вручную"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
+
               })}
             </div>
           </div>

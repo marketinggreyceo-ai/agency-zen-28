@@ -513,6 +513,7 @@ function AccountsTableView({
   const [sortKey, setSortKey] = useState<SortKey>("followers");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [staleOnly, setStaleOnly] = useState(false);
+  const [showExternal, setShowExternal] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkVa, setBulkVa] = useState<string>("");
 
@@ -552,6 +553,7 @@ function AccountsTableView({
   }
 
   const filtered = accounts.filter((a) => {
+    if (!showExternal && a.is_external) return false;
     if (fModel && a.model_id !== fModel) return false;
     if (fPlatform && a.platform !== fPlatform) return false;
     if (fStatus && (a.status ?? "") !== fStatus) return false;
@@ -706,6 +708,10 @@ function AccountsTableView({
             placeholder="0" className="w-24 bg-bg3 border border-border rounded px-2 py-1"
           />
         </FilterField>
+        <label className="inline-flex items-center gap-1.5 text-text2 cursor-pointer px-2 py-1">
+          <input type="checkbox" checked={showExternal} onChange={(e) => setShowExternal(e.target.checked)} />
+          Показать внешние
+        </label>
         {anyFilter && (
           <button onClick={reset} className="ml-auto px-2 py-1 rounded border border-border text-text2 hover:text-foreground">
             Сбросить
