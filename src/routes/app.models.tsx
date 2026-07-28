@@ -708,6 +708,10 @@ function AccountsTableView({
             placeholder="0" className="w-24 bg-bg3 border border-border rounded px-2 py-1"
           />
         </FilterField>
+        <label className="inline-flex items-center gap-1.5 text-text2 cursor-pointer px-2 py-1">
+          <input type="checkbox" checked={showExternal} onChange={(e) => setShowExternal(e.target.checked)} />
+          Показать внешние
+        </label>
         {anyFilter && (
           <button onClick={reset} className="ml-auto px-2 py-1 rounded border border-border text-text2 hover:text-foreground">
             Сбросить
