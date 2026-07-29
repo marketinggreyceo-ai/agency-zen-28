@@ -11,6 +11,9 @@ import {
 } from "@/lib/pixels";
 
 import { PIXEL_GROUP_PLATFORMS as GROUP_PLATFORMS, platformIcon } from "@/lib/platforms";
+import { usePlannedAccounts, useInvalidatePlanned, type PlannedAccount } from "@/lib/planned";
+import { PlanAccountModal, ConvertPlannedModal } from "@/components/PlannedAccountModals";
+import { useModels } from "@/lib/lookups";
 
 export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: boolean }) {
   const { data: pixels = [] } = usePixels();
