@@ -892,6 +892,7 @@ export type Database = {
           platform: string
           status: string
           updated_at: string
+          va_name: string | null
         }
         Insert: {
           created_at?: string
@@ -903,6 +904,7 @@ export type Database = {
           platform: string
           status?: string
           updated_at?: string
+          va_name?: string | null
         }
         Update: {
           created_at?: string
@@ -914,6 +916,7 @@ export type Database = {
           platform?: string
           status?: string
           updated_at?: string
+          va_name?: string | null
         }
         Relationships: [
           {
