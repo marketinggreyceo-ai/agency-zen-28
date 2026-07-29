@@ -7,6 +7,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useProfile } from "@/lib/auth";
 import { useVas, useVaNames, createVa } from "@/lib/vas";
 import { PixelsView } from "@/components/PixelsView";
+import { PlannedPlanView } from "@/components/PlannedPlanView";
 import { usePixelAssignments } from "@/lib/pixels";
 
 import { useEffect, useMemo, useState } from "react";
