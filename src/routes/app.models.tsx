@@ -7,6 +7,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useProfile } from "@/lib/auth";
 import { useVas, useVaNames, createVa } from "@/lib/vas";
 import { PixelsView } from "@/components/PixelsView";
+import { PlannedPlanView } from "@/components/PlannedPlanView";
 import { usePixelAssignments } from "@/lib/pixels";
 
 import { useEffect, useMemo, useState } from "react";
@@ -67,11 +68,12 @@ function Page() {
   const myAssignee = profile?.assignee_name ?? "";
   const myName = profile?.full_name ?? profile?.assignee_name ?? "unknown";
 
-  const [view, setView] = useState<"models" | "accounts" | "pixels" | "vas">(() => {
+  const [view, setView] = useState<"models" | "accounts" | "pixels" | "vas" | "plan">(() => {
     if (typeof window === "undefined") return "models";
     const v = localStorage.getItem(VIEW_KEY);
-    return v === "accounts" || v === "vas" || v === "pixels" ? (v as any) : "models";
+    return v === "accounts" || v === "vas" || v === "pixels" || v === "plan" ? (v as any) : "models";
   });
+
 
   useEffect(() => { try { localStorage.setItem(VIEW_KEY, view); } catch {} }, [view]);
 
@@ -213,12 +215,17 @@ function Page() {
           onClick={() => setView("pixels")}
           className={`text-xs px-3 py-1.5 rounded-md ${view === "pixels" ? "bg-card text-foreground border border-border" : "text-text2"}`}
         >Пиксели</button>
+        <button
+          onClick={() => setView("plan")}
+          className={`text-xs px-3 py-1.5 rounded-md ${view === "plan" ? "bg-card text-foreground border border-border" : "text-text2"}`}
+        >План создания</button>
         {canManageAccounts && (
           <button
             onClick={() => setView("vas")}
             className={`text-xs px-3 py-1.5 rounded-md ${view === "vas" ? "bg-card text-foreground border border-border" : "text-text2"}`}
           >Управление VA</button>
         )}
+
       </div>
 
 
@@ -403,7 +410,10 @@ function Page() {
         </div>
       ) : view === "pixels" ? (
         <PixelsView accounts={accounts} canEdit={canManageAccounts} />
+      ) : view === "plan" ? (
+        <PlannedPlanView canEdit={canManageAccounts} myVaName={isVa ? myAssignee || myName : null} />
       ) : view === "vas" ? (
+
         <VaManager accounts={accounts} canEdit={canManageAccounts} />
       ) : (
         <AccountsTableView

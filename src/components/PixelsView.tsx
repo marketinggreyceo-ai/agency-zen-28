@@ -257,24 +257,30 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
                               ))}
                               {plans.map((pa) => (
                                 <span key={pa.id}
-                                  className="px-1.5 py-0.5 rounded border border-dashed border-border bg-transparent text-text2 inline-flex items-center gap-1">
-                                  🔜 {modelName.get(pa.model_id ?? "") ?? "—"}
-                                  {pa.niche && <span className="text-text3">({pa.niche})</span>}
-                                  <span className="text-[10px] text-text3">планируется</span>
+                                  className="px-2 py-0.5 rounded-md border inline-flex items-center gap-1.5 font-medium"
+                                  style={{ borderColor: "#34B98A", background: "#34B98A1F", color: "#34B98A" }}>
+                                  <span className="h-2 w-2 rounded-full shrink-0" style={{ background: "#34B98A" }} />
+                                  {modelName.get(pa.model_id ?? "") ?? "—"}
+                                  {pa.niche && <span style={{ color: "#34B98A" }}>({pa.niche})</span>}
+                                  <span className="text-[10px]" style={{ color: "#34B98A" }}>
+                                    — {pa.status === "in_progress" ? "в процессе" : "планируется"}
+                                  </span>
+                                  {pa.va_name && <span className="text-[10px] opacity-80">· VA: {pa.va_name}</span>}
                                   {canEdit && (
                                     <>
                                       <button onClick={() => setConverting(pa)}
-                                        className="text-[10px] underline text-text2 hover:text-foreground">
+                                        className="text-[10px] underline hover:opacity-80" style={{ color: "#34B98A" }}>
                                         Аккаунт создан
                                       </button>
                                       <button onClick={() => deletePlanned(pa.id)}
-                                        className="text-text3 hover:text-[color:var(--red)]" title="Удалить">
+                                        className="opacity-70 hover:text-[color:var(--red)]" title="Удалить">
                                         <X className="h-3 w-3" />
                                       </button>
                                     </>
                                   )}
                                 </span>
                               ))}
+
                               {canEdit && (
                                 <button onClick={() => setPlanning({ profileId: p.id, platform: pl })}
                                   className="px-1.5 py-0.5 rounded border border-dashed border-border text-text3 hover:text-foreground">

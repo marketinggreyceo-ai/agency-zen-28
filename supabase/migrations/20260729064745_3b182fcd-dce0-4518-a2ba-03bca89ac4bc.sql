@@ -1,0 +1,1 @@
+ALTER TABLE public.planned_accounts ADD COLUMN IF NOT EXISTS va_name text;
