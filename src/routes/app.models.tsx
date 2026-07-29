@@ -356,7 +356,7 @@ function Page() {
                                       <TransferChip acc={a} />
                                       {canEditAll && (
                                         <div className="ml-auto flex items-center gap-2">
-                                          {isOwner && (
+                                          {canManageAccounts && (
                                             <button onClick={() => setTransferForAccount(a)} className="text-text2 hover:text-primary" title="Перелив">
                                               <Shuffle className="h-3.5 w-3.5" />
                                             </button>
@@ -425,7 +425,7 @@ function Page() {
           accountsById={accountsById}
           transferBySrc={transferBySrc}
           transferByDst={transferByDst}
-          isOwner={isOwner}
+          isOwner={canManageAccounts}
           canManageAccounts={canManageAccounts}
           onEditAccount={(a) => setEditingAccount(a)}
           onStartTransfer={(a) => setTransferForAccount(a)}
@@ -456,7 +456,7 @@ function Page() {
         <TransferDetailModal
           transfer={openTransfer}
           accountsById={accountsById}
-          canEdit={isOwner}
+          canEdit={canManageAccounts}
           onClose={() => setOpenTransfer(null)}
         />
       )}
