@@ -286,7 +286,7 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
                                       ? "bg-bg3/50 border-dashed border-border text-text2 opacity-70"
                                       : "bg-bg3 border-border text-foreground"
                                   }`}>
-                                  {a.account_name || "—"}
+                                  <AccountLink account={a} />
                                   {a.is_external && <span className="ml-1 text-[10px] text-text3">внешний</span>}
                                 </span>
                               ))}
