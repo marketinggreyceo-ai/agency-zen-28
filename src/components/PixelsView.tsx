@@ -307,6 +307,23 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
           onSaved={() => { setEditingProfile(null); invalidate(); }}
         />
       )}
+
+      {planning && (
+        <PlanAccountModal
+          profileId={planning.profileId}
+          platform={planning.platform}
+          onClose={() => setPlanning(null)}
+          onSaved={() => { setPlanning(null); invalidatePlanned(); }}
+        />
+      )}
+
+      {converting && (
+        <ConvertPlannedModal
+          planned={converting}
+          onClose={() => setConverting(null)}
+          onSaved={() => { setConverting(null); invalidatePlanned(); invalidate(); }}
+        />
+      )}
     </div>
   );
 }
