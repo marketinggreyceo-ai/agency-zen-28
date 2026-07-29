@@ -67,11 +67,12 @@ function Page() {
   const myAssignee = profile?.assignee_name ?? "";
   const myName = profile?.full_name ?? profile?.assignee_name ?? "unknown";
 
-  const [view, setView] = useState<"models" | "accounts" | "pixels" | "vas">(() => {
+  const [view, setView] = useState<"models" | "accounts" | "pixels" | "vas" | "plan">(() => {
     if (typeof window === "undefined") return "models";
     const v = localStorage.getItem(VIEW_KEY);
-    return v === "accounts" || v === "vas" || v === "pixels" ? (v as any) : "models";
+    return v === "accounts" || v === "vas" || v === "pixels" || v === "plan" ? (v as any) : "models";
   });
+
 
   useEffect(() => { try { localStorage.setItem(VIEW_KEY, view); } catch {} }, [view]);
 
