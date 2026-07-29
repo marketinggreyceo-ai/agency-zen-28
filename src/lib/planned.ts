@@ -77,6 +77,7 @@ export function useInvalidatePlanned() {
   const qc = useQueryClient();
   return () => {
     qc.invalidateQueries({ queryKey: ["planned_accounts"] });
+    qc.invalidateQueries({ queryKey: ["planned_accounts_all"] });
     qc.invalidateQueries({ queryKey: ["niches"] });
   };
 }
