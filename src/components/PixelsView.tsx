@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Plus, Edit, Trash2, X, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Edit, Trash2, X, ArrowUp, ArrowDown, GripVertical, Link2 } from "lucide-react";
 import { Empty } from "@/components/ui-shared";
 import {
   usePixels, usePixelProfiles, usePixelProfileAccounts, useInvalidatePixels,
@@ -14,6 +14,41 @@ import { PIXEL_GROUP_PLATFORMS as GROUP_PLATFORMS, platformIcon } from "@/lib/pl
 import { usePlannedAccounts, useInvalidatePlanned, type PlannedAccount } from "@/lib/planned";
 import { PlanAccountModal, ConvertPlannedModal } from "@/components/PlannedAccountModals";
 import { useModels } from "@/lib/lookups";
+
+/** Ссылка на аккаунт: сохранённый URL, иначе — генерируем по платформе. */
+function accountUrl(a: any): string | null {
+  const raw = (a?.account_url ?? "").trim();
+  if (raw) return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  const name = (a?.account_name ?? "").trim().replace(/^@/, "");
+  if (!name) return null;
+  switch (a?.platform) {
+    case "Instagram": return `https://www.instagram.com/${name}`;
+    case "X": return `https://x.com/${name}`;
+    case "Threads": return `https://www.threads.net/@${name}`;
+    case "Facebook": return `https://www.facebook.com/${name}`;
+    default: return null;
+  }
+}
+
+/** Имя аккаунта как ссылка (или обычный текст с подсказкой, если ссылки нет). */
+function AccountLink({ account, className }: { account: any; className?: string }) {
+  const url = accountUrl(account);
+  const label = account.account_name || "—";
+  if (!url) {
+    return (
+      <span className={className} title="Ссылка не указана">
+        {label} <Link2 className="inline h-3 w-3 opacity-40" />
+      </span>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className={`${className ?? ""} cursor-pointer hover:underline`} title={url}>
+      {label} <Link2 className="inline h-3 w-3 opacity-70" />
+    </a>
+  );
+}
 
 export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: boolean }) {
   const { data: pixels = [] } = usePixels();
@@ -251,7 +286,7 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
                                       ? "bg-bg3/50 border-dashed border-border text-text2 opacity-70"
                                       : "bg-bg3 border-border text-foreground"
                                   }`}>
-                                  {a.account_name || "—"}
+                                  <AccountLink account={a} />
                                   {a.is_external && <span className="ml-1 text-[10px] text-text3">внешний</span>}
                                 </span>
                               ))}
