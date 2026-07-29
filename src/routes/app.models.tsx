@@ -425,7 +425,7 @@ function Page() {
           accountsById={accountsById}
           transferBySrc={transferBySrc}
           transferByDst={transferByDst}
-          isOwner={isOwner}
+          isOwner={canManageAccounts}
           canManageAccounts={canManageAccounts}
           onEditAccount={(a) => setEditingAccount(a)}
           onStartTransfer={(a) => setTransferForAccount(a)}
@@ -456,7 +456,7 @@ function Page() {
         <TransferDetailModal
           transfer={openTransfer}
           accountsById={accountsById}
-          canEdit={isOwner}
+          canEdit={canManageAccounts}
           onClose={() => setOpenTransfer(null)}
         />
       )}
