@@ -135,6 +135,9 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
         <span className="text-text2">
           Аккаунтов привязано: <span className="text-foreground font-semibold">{links.length}</span> / {accounts.length}
         </span>
+        <span className="text-text3">·</span>
+        <span className="text-text2">Планируется: <span className="text-foreground font-semibold">{planned.length}</span></span>
+
         {canEdit && (
           <button onClick={addPixel}
             className="ml-auto px-3 py-1.5 rounded bg-primary text-primary-foreground font-medium inline-flex items-center gap-1">
