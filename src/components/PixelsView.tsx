@@ -11,15 +11,40 @@ import {
 } from "@/lib/pixels";
 
 import { PIXEL_GROUP_PLATFORMS as GROUP_PLATFORMS, platformIcon } from "@/lib/platforms";
+import { usePlannedAccounts, useInvalidatePlanned, type PlannedAccount } from "@/lib/planned";
+import { PlanAccountModal, ConvertPlannedModal } from "@/components/PlannedAccountModals";
+import { useModels } from "@/lib/lookups";
 
 export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: boolean }) {
   const { data: pixels = [] } = usePixels();
   const { data: profiles = [] } = usePixelProfiles();
   const { data: links = [] } = usePixelProfileAccounts();
+  const { data: planned = [] } = usePlannedAccounts();
+  const { data: models = [] } = useModels({ includeArchived: true });
   const invalidate = useInvalidatePixels();
+  const invalidatePlanned = useInvalidatePlanned();
 
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [editingProfile, setEditingProfile] = useState<{ profile: PixelProfile | null; pixelId: string } | null>(null);
+  const [planning, setPlanning] = useState<{ profileId: string; platform: string } | null>(null);
+  const [converting, setConverting] = useState<PlannedAccount | null>(null);
+
+  const modelName = useMemo(() => new Map(models.map((m: any) => [m.id, m.name])), [models]);
+  const plannedByProfile = useMemo(() => {
+    const m = new Map<string, PlannedAccount[]>();
+    for (const p of planned) {
+      const arr = m.get(p.pixel_profile_id) ?? [];
+      arr.push(p); m.set(p.pixel_profile_id, arr);
+    }
+    return m;
+  }, [planned]);
+
+  async function deletePlanned(id: string) {
+    if (!window.confirm("Удалить запланированный аккаунт?")) return;
+    const { error } = await (supabase as any).from("planned_accounts").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    invalidatePlanned();
+  }
 
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   const profilesByPixel = useMemo(() => {
@@ -110,6 +135,9 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
         <span className="text-text2">
           Аккаунтов привязано: <span className="text-foreground font-semibold">{links.length}</span> / {accounts.length}
         </span>
+        <span className="text-text3">·</span>
+        <span className="text-text2">Планируется: <span className="text-foreground font-semibold">{planned.length}</span></span>
+
         {canEdit && (
           <button onClick={addPixel}
             className="ml-auto px-3 py-1.5 rounded bg-primary text-primary-foreground font-medium inline-flex items-center gap-1">
@@ -210,27 +238,54 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
                       <div className="space-y-1">
                         {platforms.map((pl) => {
                           const list = accs.filter((a: any) => (a.platform ?? "—") === pl);
-                          if (!GROUP_PLATFORMS.includes(pl) && list.length === 0) return null;
+                          const plans = (plannedByProfile.get(p.id) ?? []).filter((x) => x.platform === pl);
+                          if (!GROUP_PLATFORMS.includes(pl) && list.length === 0 && plans.length === 0) return null;
                           return (
-                            <div key={pl} className="text-xs flex flex-wrap gap-1.5">
+                            <div key={pl} className="text-xs flex flex-wrap items-center gap-1.5">
                               <span className="text-text2 w-28 shrink-0">{platformIcon(pl)} {pl}:</span>
-                              {list.length === 0
-                                ? <span className="text-text3">(нет)</span>
-                                : list.map((a: any) => (
-                                  <span key={a.id}
-                                    className={`px-1.5 py-0.5 rounded border ${
-                                      a.is_external
-                                        ? "bg-bg3/50 border-dashed border-border text-text2 opacity-70"
-                                        : "bg-bg3 border-border text-foreground"
-                                    }`}>
-                                    {a.account_name || "—"}
-                                    {a.is_external && <span className="ml-1 text-[10px] text-text3">внешний</span>}
-                                  </span>
-                                ))}
+                              {list.length === 0 && plans.length === 0 && <span className="text-text3">(нет)</span>}
+                              {list.map((a: any) => (
+                                <span key={a.id}
+                                  className={`px-1.5 py-0.5 rounded border ${
+                                    a.is_external
+                                      ? "bg-bg3/50 border-dashed border-border text-text2 opacity-70"
+                                      : "bg-bg3 border-border text-foreground"
+                                  }`}>
+                                  {a.account_name || "—"}
+                                  {a.is_external && <span className="ml-1 text-[10px] text-text3">внешний</span>}
+                                </span>
+                              ))}
+                              {plans.map((pa) => (
+                                <span key={pa.id}
+                                  className="px-1.5 py-0.5 rounded border border-dashed border-border bg-transparent text-text2 inline-flex items-center gap-1">
+                                  🔜 {modelName.get(pa.model_id ?? "") ?? "—"}
+                                  {pa.niche && <span className="text-text3">({pa.niche})</span>}
+                                  <span className="text-[10px] text-text3">планируется</span>
+                                  {canEdit && (
+                                    <>
+                                      <button onClick={() => setConverting(pa)}
+                                        className="text-[10px] underline text-text2 hover:text-foreground">
+                                        Аккаунт создан
+                                      </button>
+                                      <button onClick={() => deletePlanned(pa.id)}
+                                        className="text-text3 hover:text-[color:var(--red)]" title="Удалить">
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </>
+                                  )}
+                                </span>
+                              ))}
+                              {canEdit && (
+                                <button onClick={() => setPlanning({ profileId: p.id, platform: pl })}
+                                  className="px-1.5 py-0.5 rounded border border-dashed border-border text-text3 hover:text-foreground">
+                                  + Создать
+                                </button>
+                              )}
                             </div>
                           );
                         })}
                       </div>
+
                     </div>
                   );
                 })}
@@ -250,6 +305,23 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
           assignedIds={editingProfile.profile ? (accountIdsByProfile.get(editingProfile.profile.id) ?? []) : []}
           onClose={() => setEditingProfile(null)}
           onSaved={() => { setEditingProfile(null); invalidate(); }}
+        />
+      )}
+
+      {planning && (
+        <PlanAccountModal
+          profileId={planning.profileId}
+          platform={planning.platform}
+          onClose={() => setPlanning(null)}
+          onSaved={() => { setPlanning(null); invalidatePlanned(); }}
+        />
+      )}
+
+      {converting && (
+        <ConvertPlannedModal
+          planned={converting}
+          onClose={() => setConverting(null)}
+          onSaved={() => { setConverting(null); invalidatePlanned(); invalidate(); }}
         />
       )}
     </div>

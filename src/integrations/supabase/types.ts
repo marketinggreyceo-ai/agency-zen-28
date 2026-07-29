@@ -718,6 +718,24 @@ export type Database = {
         }
         Relationships: []
       }
+      niches: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           agency_cut_override: number | null
@@ -862,6 +880,57 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      planned_accounts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          model_id: string | null
+          niche: string | null
+          pixel_profile_id: string
+          platform: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model_id?: string | null
+          niche?: string | null
+          pixel_profile_id: string
+          platform: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model_id?: string | null
+          niche?: string | null
+          pixel_profile_id?: string
+          platform?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planned_accounts_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_accounts_pixel_profile_id_fkey"
+            columns: ["pixel_profile_id"]
+            isOneToOne: false
+            referencedRelation: "pixel_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       platforms: {
         Row: {
