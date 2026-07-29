@@ -409,7 +409,10 @@ function Page() {
         </div>
       ) : view === "pixels" ? (
         <PixelsView accounts={accounts} canEdit={canManageAccounts} />
+      ) : view === "plan" ? (
+        <PlannedPlanView canEdit={canManageAccounts} myVaName={isVa ? myAssignee || myName : null} />
       ) : view === "vas" ? (
+
         <VaManager accounts={accounts} canEdit={canManageAccounts} />
       ) : (
         <AccountsTableView
