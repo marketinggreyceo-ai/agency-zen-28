@@ -19,10 +19,32 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
   const { data: pixels = [] } = usePixels();
   const { data: profiles = [] } = usePixelProfiles();
   const { data: links = [] } = usePixelProfileAccounts();
+  const { data: planned = [] } = usePlannedAccounts();
+  const { data: models = [] } = useModels({ includeArchived: true });
   const invalidate = useInvalidatePixels();
+  const invalidatePlanned = useInvalidatePlanned();
 
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [editingProfile, setEditingProfile] = useState<{ profile: PixelProfile | null; pixelId: string } | null>(null);
+  const [planning, setPlanning] = useState<{ profileId: string; platform: string } | null>(null);
+  const [converting, setConverting] = useState<PlannedAccount | null>(null);
+
+  const modelName = useMemo(() => new Map(models.map((m: any) => [m.id, m.name])), [models]);
+  const plannedByProfile = useMemo(() => {
+    const m = new Map<string, PlannedAccount[]>();
+    for (const p of planned) {
+      const arr = m.get(p.pixel_profile_id) ?? [];
+      arr.push(p); m.set(p.pixel_profile_id, arr);
+    }
+    return m;
+  }, [planned]);
+
+  async function deletePlanned(id: string) {
+    if (!window.confirm("Удалить запланированный аккаунт?")) return;
+    const { error } = await (supabase as any).from("planned_accounts").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    invalidatePlanned();
+  }
 
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   const profilesByPixel = useMemo(() => {
