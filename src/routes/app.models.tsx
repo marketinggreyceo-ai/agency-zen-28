@@ -214,12 +214,17 @@ function Page() {
           onClick={() => setView("pixels")}
           className={`text-xs px-3 py-1.5 rounded-md ${view === "pixels" ? "bg-card text-foreground border border-border" : "text-text2"}`}
         >Пиксели</button>
+        <button
+          onClick={() => setView("plan")}
+          className={`text-xs px-3 py-1.5 rounded-md ${view === "plan" ? "bg-card text-foreground border border-border" : "text-text2"}`}
+        >План создания</button>
         {canManageAccounts && (
           <button
             onClick={() => setView("vas")}
             className={`text-xs px-3 py-1.5 rounded-md ${view === "vas" ? "bg-card text-foreground border border-border" : "text-text2"}`}
           >Управление VA</button>
         )}
+
       </div>
 
 
