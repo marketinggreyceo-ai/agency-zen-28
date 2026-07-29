@@ -238,27 +238,54 @@ export function PixelsView({ accounts, canEdit }: { accounts: any[]; canEdit: bo
                       <div className="space-y-1">
                         {platforms.map((pl) => {
                           const list = accs.filter((a: any) => (a.platform ?? "—") === pl);
-                          if (!GROUP_PLATFORMS.includes(pl) && list.length === 0) return null;
+                          const plans = (plannedByProfile.get(p.id) ?? []).filter((x) => x.platform === pl);
+                          if (!GROUP_PLATFORMS.includes(pl) && list.length === 0 && plans.length === 0) return null;
                           return (
-                            <div key={pl} className="text-xs flex flex-wrap gap-1.5">
+                            <div key={pl} className="text-xs flex flex-wrap items-center gap-1.5">
                               <span className="text-text2 w-28 shrink-0">{platformIcon(pl)} {pl}:</span>
-                              {list.length === 0
-                                ? <span className="text-text3">(нет)</span>
-                                : list.map((a: any) => (
-                                  <span key={a.id}
-                                    className={`px-1.5 py-0.5 rounded border ${
-                                      a.is_external
-                                        ? "bg-bg3/50 border-dashed border-border text-text2 opacity-70"
-                                        : "bg-bg3 border-border text-foreground"
-                                    }`}>
-                                    {a.account_name || "—"}
-                                    {a.is_external && <span className="ml-1 text-[10px] text-text3">внешний</span>}
-                                  </span>
-                                ))}
+                              {list.length === 0 && plans.length === 0 && <span className="text-text3">(нет)</span>}
+                              {list.map((a: any) => (
+                                <span key={a.id}
+                                  className={`px-1.5 py-0.5 rounded border ${
+                                    a.is_external
+                                      ? "bg-bg3/50 border-dashed border-border text-text2 opacity-70"
+                                      : "bg-bg3 border-border text-foreground"
+                                  }`}>
+                                  {a.account_name || "—"}
+                                  {a.is_external && <span className="ml-1 text-[10px] text-text3">внешний</span>}
+                                </span>
+                              ))}
+                              {plans.map((pa) => (
+                                <span key={pa.id}
+                                  className="px-1.5 py-0.5 rounded border border-dashed border-border bg-transparent text-text2 inline-flex items-center gap-1">
+                                  🔜 {modelName.get(pa.model_id ?? "") ?? "—"}
+                                  {pa.niche && <span className="text-text3">({pa.niche})</span>}
+                                  <span className="text-[10px] text-text3">планируется</span>
+                                  {canEdit && (
+                                    <>
+                                      <button onClick={() => setConverting(pa)}
+                                        className="text-[10px] underline text-text2 hover:text-foreground">
+                                        Аккаунт создан
+                                      </button>
+                                      <button onClick={() => deletePlanned(pa.id)}
+                                        className="text-text3 hover:text-[color:var(--red)]" title="Удалить">
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </>
+                                  )}
+                                </span>
+                              ))}
+                              {canEdit && (
+                                <button onClick={() => setPlanning({ profileId: p.id, platform: pl })}
+                                  className="px-1.5 py-0.5 rounded border border-dashed border-border text-text3 hover:text-foreground">
+                                  + Создать
+                                </button>
+                              )}
                             </div>
                           );
                         })}
                       </div>
+
                     </div>
                   );
                 })}
