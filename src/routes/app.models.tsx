@@ -356,7 +356,7 @@ function Page() {
                                       <TransferChip acc={a} />
                                       {canEditAll && (
                                         <div className="ml-auto flex items-center gap-2">
-                                          {isOwner && (
+                                          {canManageAccounts && (
                                             <button onClick={() => setTransferForAccount(a)} className="text-text2 hover:text-primary" title="Перелив">
                                               <Shuffle className="h-3.5 w-3.5" />
                                             </button>
