@@ -522,7 +522,6 @@ export type Database = {
           date: string
           day_of_week: number
           id: string
-          model_id: string | null
           page_id: string | null
           sort_order: number
           week_id: string
@@ -532,7 +531,6 @@ export type Database = {
           date: string
           day_of_week: number
           id?: string
-          model_id?: string | null
           page_id?: string | null
           sort_order?: number
           week_id: string
@@ -542,19 +540,11 @@ export type Database = {
           date?: string
           day_of_week?: number
           id?: string
-          model_id?: string | null
           page_id?: string | null
           sort_order?: number
           week_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "fansly_fyp_days_model_id_fkey"
-            columns: ["model_id"]
-            isOneToOne: false
-            referencedRelation: "models"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "fansly_fyp_days_page_id_fkey"
             columns: ["page_id"]
