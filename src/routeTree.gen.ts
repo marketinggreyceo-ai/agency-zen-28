@@ -27,6 +27,7 @@ import { Route as AppModelsRouteImport } from './routes/app.models'
 import { Route as AppGrowthRouteImport } from './routes/app.growth'
 import { Route as AppGoalsRouteImport } from './routes/app.goals'
 import { Route as AppFinanceRouteImport } from './routes/app.finance'
+import { Route as AppFanslyFypRouteImport } from './routes/app.fansly-fyp'
 import { Route as AppCustomsRouteImport } from './routes/app.customs'
 import { Route as AppChattingRouteImport } from './routes/app.chatting'
 import { Route as AppAccessRouteImport } from './routes/app.access'
@@ -125,6 +126,11 @@ const AppFinanceRoute = AppFinanceRouteImport.update({
   path: '/finance',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFanslyFypRoute = AppFanslyFypRouteImport.update({
+  id: '/fansly-fyp',
+  path: '/fansly-fyp',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCustomsRoute = AppCustomsRouteImport.update({
   id: '/customs',
   path: '/customs',
@@ -172,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/app/access': typeof AppAccessRoute
   '/app/chatting': typeof AppChattingRoute
   '/app/customs': typeof AppCustomsRoute
+  '/app/fansly-fyp': typeof AppFanslyFypRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/growth': typeof AppGrowthRoute
@@ -198,6 +205,7 @@ export interface FileRoutesByTo {
   '/app/access': typeof AppAccessRoute
   '/app/chatting': typeof AppChattingRoute
   '/app/customs': typeof AppCustomsRoute
+  '/app/fansly-fyp': typeof AppFanslyFypRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/growth': typeof AppGrowthRoute
@@ -226,6 +234,7 @@ export interface FileRoutesById {
   '/app/access': typeof AppAccessRoute
   '/app/chatting': typeof AppChattingRoute
   '/app/customs': typeof AppCustomsRoute
+  '/app/fansly-fyp': typeof AppFanslyFypRoute
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/growth': typeof AppGrowthRoute
@@ -255,6 +264,7 @@ export interface FileRouteTypes {
     | '/app/access'
     | '/app/chatting'
     | '/app/customs'
+    | '/app/fansly-fyp'
     | '/app/finance'
     | '/app/goals'
     | '/app/growth'
@@ -281,6 +291,7 @@ export interface FileRouteTypes {
     | '/app/access'
     | '/app/chatting'
     | '/app/customs'
+    | '/app/fansly-fyp'
     | '/app/finance'
     | '/app/goals'
     | '/app/growth'
@@ -308,6 +319,7 @@ export interface FileRouteTypes {
     | '/app/access'
     | '/app/chatting'
     | '/app/customs'
+    | '/app/fansly-fyp'
     | '/app/finance'
     | '/app/goals'
     | '/app/growth'
@@ -468,6 +480,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFinanceRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/fansly-fyp': {
+      id: '/app/fansly-fyp'
+      path: '/fansly-fyp'
+      fullPath: '/app/fansly-fyp'
+      preLoaderRoute: typeof AppFanslyFypRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/customs': {
       id: '/app/customs'
       path: '/customs'
@@ -524,6 +543,7 @@ interface AppRouteChildren {
   AppAccessRoute: typeof AppAccessRoute
   AppChattingRoute: typeof AppChattingRoute
   AppCustomsRoute: typeof AppCustomsRoute
+  AppFanslyFypRoute: typeof AppFanslyFypRoute
   AppFinanceRoute: typeof AppFinanceRoute
   AppGoalsRoute: typeof AppGoalsRoute
   AppGrowthRoute: typeof AppGrowthRoute
@@ -543,6 +563,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccessRoute: AppAccessRoute,
   AppChattingRoute: AppChattingRoute,
   AppCustomsRoute: AppCustomsRoute,
+  AppFanslyFypRoute: AppFanslyFypRoute,
   AppFinanceRoute: AppFinanceRoute,
   AppGoalsRoute: AppGoalsRoute,
   AppGrowthRoute: AppGrowthRoute,
@@ -575,13 +596,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

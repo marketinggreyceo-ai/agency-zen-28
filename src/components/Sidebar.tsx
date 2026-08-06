@@ -26,6 +26,7 @@ const GROUPS: Group[] = [
     { to: "/app/goals",        label: "Цели недели",  icon: Target,          page: "goals" },
     { to: "/app/growth",       label: "Рост",         icon: TrendingUp,      page: "growth" },
     { to: "/app/voice-gen",    label: "Голосовые сообщения", icon: Mic,    page: "voice-gen" },
+    { to: "/app/fansly-fyp",   label: "Fansly FYP",   icon: CalendarClock,   page: "fansly-fyp" },
   ]},
   { id: "management", label: "Управление", items: [
     { to: "/app/finance",      label: "Финансы",      icon: DollarSign,      page: "finance" },
