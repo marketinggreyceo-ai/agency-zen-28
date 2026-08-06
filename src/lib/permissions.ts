@@ -44,6 +44,7 @@ export const PAGE_KEYS = [
   { key: "chatting",      label: "Чаттинг" },
   { key: "growth",        label: "Рост" },
   { key: "voice-gen",     label: "Голосовые сообщения" },
+  { key: "fansly-fyp",    label: "Fansly FYP" },
   { key: "team",          label: "Команда" },
   { key: "sops",          label: "SOPs" },
   { key: "models",        label: "Модели" },
