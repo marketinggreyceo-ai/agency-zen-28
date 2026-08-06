@@ -5,18 +5,19 @@ import { PageHeader, Empty, SkeletonPage } from "@/components/ui-shared";
 import { useProfile } from "@/lib/auth";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Plus, X, Copy, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, Copy, CalendarDays, Settings, ArrowUp, ArrowDown, Pencil, Trash2, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/app/fansly-fyp")({
   ssr: false,
   component: Page,
   head: () => ({
     meta: [
-      { title: "Fansly FYP — план тегов по моделям" },
-      { name: "description", content: "Недельный план FYP-тегов Fansly по дням и моделям агентства." },
-      { property: "og:title", content: "Fansly FYP — план тегов по моделям" },
-      { property: "og:description", content: "Недельный план FYP-тегов Fansly по дням и моделям агентства." },
+      { title: "FYP Tags — план тегов по страницам" },
+      { name: "description", content: "Недельный план FYP-тегов по дням и страницам агентства." },
+      { property: "og:title", content: "FYP Tags — план тегов по страницам" },
+      { property: "og:description", content: "Недельный план FYP-тегов по дням и страницам агентства." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/app/fansly-fyp")({
 
 const DAY_NAMES = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 const ALL = "all";
+const NEW = "__new__";
 
 function getMonday(d: Date): Date {
   const x = new Date(d);
@@ -47,26 +49,18 @@ function fmtDay(iso: string) {
   return new Date(y, m - 1, d).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
-type Day = { id: string; week_id: string; day_of_week: number; date: string; sort_order: number; model_id: string | null };
+type Day = { id: string; week_id: string; day_of_week: number; date: string; sort_order: number; page_id: string | null };
 type Tag = { id: string; day_id: string; tag: string };
-type Model = { id: string; name: string };
+type FypPage = { id: string; name: string; sort_order: number };
 
-function useFanslyModels() {
+function useFypPages() {
   return useQuery({
-    queryKey: ["fansly-models"],
+    queryKey: ["fyp-pages"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("models")
-        .select("id, name, platform, platforms, is_archived")
-        .eq("is_archived", false)
-        .order("name");
-      const rows = (data ?? []) as any[];
-      return rows
-        .filter((m) =>
-          String(m.platform ?? "").toLowerCase() === "fansly" ||
-          (Array.isArray(m.platforms) && m.platforms.some((p: string) => String(p).toLowerCase() === "fansly")),
-        )
-        .map((m) => ({ id: m.id as string, name: m.name as string })) as Model[];
+      const { data, error } = await (supabase as any)
+        .from("fyp_pages").select("id, name, sort_order").order("sort_order").order("name");
+      if (error) toast.error(error.message);
+      return (data ?? []) as FypPage[];
     },
   });
 }
@@ -76,16 +70,19 @@ function Page() {
   const qc = useQueryClient();
   const canEdit = profile?.role === "owner" || profile?.role === "production" || profile?.role === "creative";
   const [monday, setMonday] = useState<Date>(getMonday(new Date()));
-  const [modelId, setModelId] = useState<string>(ALL);
+  const [pageId, setPageId] = useState<string>(ALL);
+  const [newName, setNewName] = useState("");
+  const [addingPage, setAddingPage] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
   const weekISO = fmtISO(monday);
   const prevISO = fmtISO(addDays(monday, -7));
 
-  const { data: models = [] } = useFanslyModels();
-  const modelNames = useMemo(() => {
+  const { data: pages = [] } = useFypPages();
+  const pageNames = useMemo(() => {
     const m: Record<string, string> = {};
-    for (const x of models) m[x.id] = x.name;
+    for (const x of pages) m[x.id] = x.name;
     return m;
-  }, [models]);
+  }, [pages]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["fansly-fyp", weekISO],
@@ -110,10 +107,10 @@ function Page() {
 
   const allDays = data?.days ?? [];
   const tags = data?.tags ?? [];
-  const isAll = modelId === ALL;
+  const isAll = pageId === ALL;
   const days = useMemo(
-    () => (isAll ? allDays : allDays.filter((d) => d.model_id === modelId)),
-    [allDays, isAll, modelId],
+    () => (isAll ? allDays : allDays.filter((d) => d.page_id === pageId)),
+    [allDays, isAll, pageId],
   );
 
   const tagsByDay = useMemo(() => {
@@ -122,7 +119,6 @@ function Page() {
     return m;
   }, [tags]);
 
-  // For "Все модели": group day records by day_of_week, then by model.
   const groupedAll = useMemo(() => {
     const byDow: Record<number, Day[]> = {};
     for (const d of allDays) (byDow[d.day_of_week] ??= []).push(d);
@@ -133,6 +129,23 @@ function Page() {
   }, [allDays]);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["fansly-fyp", weekISO] });
+  const refreshPages = () => qc.invalidateQueries({ queryKey: ["fyp-pages"] });
+
+  async function createPage(name: string) {
+    const clean = name.trim();
+    if (!clean) return;
+    const { data: u } = await supabase.auth.getUser();
+    const { data: created, error } = await (supabase as any)
+      .from("fyp_pages")
+      .insert({ name: clean, sort_order: pages.length, created_by: u.user?.id ?? null })
+      .select("id").single();
+    if (error) { toast.error(error.message); return; }
+    setNewName("");
+    setAddingPage(false);
+    await refreshPages();
+    setPageId(created.id as string);
+    toast.success("Страница добавлена");
+  }
 
   async function ensureWeek(iso = weekISO): Promise<string | null> {
     const { data: existing } = await (supabase as any)
@@ -145,11 +158,11 @@ function Page() {
   }
 
   async function addDay(dow: number) {
-    if (isAll) { toast.error("Выберите модель, чтобы добавить день"); return; }
+    if (isAll) { toast.error("Выберите страницу, чтобы добавить день"); return; }
     const weekId = await ensureWeek();
     if (!weekId) return;
     const { error } = await (supabase as any).from("fansly_fyp_days").insert({
-      week_id: weekId, day_of_week: dow, date: fmtISO(addDays(monday, dow)), sort_order: dow, model_id: modelId,
+      week_id: weekId, day_of_week: dow, date: fmtISO(addDays(monday, dow)), sort_order: dow, page_id: pageId,
     });
     if (error) { toast.error(error.message); return; }
     refresh();
@@ -180,7 +193,7 @@ function Page() {
       .from("fansly_fyp_weeks").select("id").eq("week_start_date", prevISO).maybeSingle();
     if (!pw?.id) { toast.error("Прошлая неделя пуста"); return; }
     let q = (supabase as any).from("fansly_fyp_days").select("*").eq("week_id", pw.id);
-    if (!isAll) q = q.eq("model_id", modelId);
+    if (!isAll) q = q.eq("page_id", pageId);
     const { data: pDaysRaw = [] } = await q.order("day_of_week");
     const pDays = pDaysRaw as Day[];
     if (!pDays.length) { toast.error("Прошлая неделя пуста"); return; }
@@ -190,23 +203,23 @@ function Page() {
 
     const weekId = await ensureWeek();
     if (!weekId) return;
-    const key = (dow: number, mid: string | null) => `${dow}|${mid ?? "-"}`;
-    const existing = new Set(allDays.map((d) => key(d.day_of_week, d.model_id)));
-    const toCreate = pDays.filter((d) => !existing.has(key(d.day_of_week, d.model_id)));
+    const key = (dow: number, pid: string | null) => `${dow}|${pid ?? "-"}`;
+    const existing = new Set(allDays.map((d) => key(d.day_of_week, d.page_id)));
+    const toCreate = pDays.filter((d) => !existing.has(key(d.day_of_week, d.page_id)));
     if (!toCreate.length) { toast.error("Все дни уже добавлены"); return; }
     const { data: newDays, error } = await (supabase as any).from("fansly_fyp_days").insert(
       toCreate.map((d) => ({
-        week_id: weekId, day_of_week: d.day_of_week, model_id: d.model_id,
+        week_id: weekId, day_of_week: d.day_of_week, page_id: d.page_id,
         date: fmtISO(addDays(monday, d.day_of_week)), sort_order: d.sort_order,
       })),
-    ).select("id, day_of_week, model_id");
+    ).select("id, day_of_week, page_id");
     if (error) { toast.error(error.message); return; }
 
     const oldByKey: Record<string, string> = {};
-    for (const d of pDays) oldByKey[key(d.day_of_week, d.model_id)] = d.id;
+    for (const d of pDays) oldByKey[key(d.day_of_week, d.page_id)] = d.id;
     const rows: { day_id: string; tag: string }[] = [];
-    for (const nd of (newDays ?? []) as { id: string; day_of_week: number; model_id: string | null }[]) {
-      const oldId = oldByKey[key(nd.day_of_week, nd.model_id)];
+    for (const nd of (newDays ?? []) as { id: string; day_of_week: number; page_id: string | null }[]) {
+      const oldId = oldByKey[key(nd.day_of_week, nd.page_id)];
       for (const t of (pTags ?? []) as { day_id: string; tag: string }[]) {
         if (t.day_id === oldId) rows.push({ day_id: nd.id, tag: t.tag });
       }
@@ -224,7 +237,7 @@ function Page() {
   return (
     <div className="p-4 md:p-6">
       <PageHeader
-        title="Fansly FYP"
+        title="FYP Tags"
         action={canEdit ? (
           <div className="flex items-center gap-2">
             <button onClick={copyPrevWeek}
@@ -236,19 +249,43 @@ function Page() {
         ) : undefined}
       />
 
-      <div className="mb-4 flex items-center gap-2">
-        <label className="text-xs text-text3">Модель</label>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <label className="text-xs text-text3">Страница</label>
         <select
-          value={modelId}
-          onChange={(e) => setModelId(e.target.value)}
+          value={pageId}
+          onChange={(e) => {
+            if (e.target.value === NEW) { setAddingPage(true); return; }
+            setAddingPage(false);
+            setPageId(e.target.value);
+          }}
           className="bg-bg3 border border-border rounded px-2.5 py-1.5 text-sm min-w-[220px]"
         >
-          <option value={ALL}>Все модели</option>
-          {models.map((m) => (
-            <option key={m.id} value={m.id}>{m.name}</option>
+          <option value={ALL}>Все страницы</option>
+          {pages.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
           ))}
+          {canEdit && <option value={NEW}>+ Добавить страницу</option>}
         </select>
-        {models.length === 0 && <span className="text-xs text-text3">Нет моделей с платформой Fansly</span>}
+        {canEdit && (
+          <button onClick={() => setManageOpen(true)} title="Управление страницами"
+            className="p-1.5 rounded border border-border bg-bg3 text-text2 hover:text-foreground">
+            <Settings className="h-4 w-4" />
+          </button>
+        )}
+        {addingPage && canEdit && (
+          <form onSubmit={(e) => { e.preventDefault(); createPage(newName); }} className="flex items-center gap-2">
+            <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)}
+              placeholder="Название страницы"
+              className="bg-bg3 border border-border rounded px-2.5 py-1.5 text-sm" />
+            <button type="submit" disabled={!newName.trim()}
+              className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
+              Добавить
+            </button>
+            <button type="button" onClick={() => { setAddingPage(false); setNewName(""); }}
+              className="px-2 py-1.5 rounded text-xs text-text3 hover:text-foreground">Отмена</button>
+          </form>
+        )}
+        {pages.length === 0 && !addingPage && <span className="text-xs text-text3">Страниц пока нет</span>}
       </div>
 
       <div className="flex items-center justify-between gap-3 mb-6 bg-card border border-border rounded-lg px-3 py-2">
@@ -280,7 +317,7 @@ function Page() {
                   {g.entries.map((e) => (
                     <div key={e.id} className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-text2 min-w-[90px]">
-                        {e.model_id ? (modelNames[e.model_id] ?? "Модель") : "Без модели"}:
+                        {e.page_id ? (pageNames[e.page_id] ?? "Страница") : "Без страницы"}:
                       </span>
                       {(tagsByDay[e.id] ?? []).length === 0 && <span className="text-xs text-text3">Тегов нет</span>}
                       {(tagsByDay[e.id] ?? []).map((t) => (
@@ -307,7 +344,84 @@ function Page() {
           ))}
         </div>
       )}
+
+      <ManagePagesDialog
+        open={manageOpen}
+        onOpenChange={setManageOpen}
+        pages={pages}
+        onChanged={() => { refreshPages(); refresh(); }}
+        onDeleted={(id) => { if (pageId === id) setPageId(ALL); }}
+      />
     </div>
+  );
+}
+
+function ManagePagesDialog({ open, onOpenChange, pages, onChanged, onDeleted }: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  pages: FypPage[];
+  onChanged: () => void;
+  onDeleted: (id: string) => void;
+}) {
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  async function rename(id: string) {
+    const name = editName.trim();
+    if (!name) return;
+    const { error } = await (supabase as any).from("fyp_pages").update({ name }).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    setEditId(null);
+    onChanged();
+  }
+
+  async function remove(id: string) {
+    if (!confirm("Удалить страницу вместе с её днями и тегами?")) return;
+    const { error } = await (supabase as any).from("fyp_pages").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    onDeleted(id);
+    onChanged();
+    toast.success("Страница удалена");
+  }
+
+  async function move(idx: number, dir: -1 | 1) {
+    const a = pages[idx];
+    const b = pages[idx + dir];
+    if (!a || !b) return;
+    await (supabase as any).from("fyp_pages").update({ sort_order: b.sort_order ?? idx + dir }).eq("id", a.id);
+    await (supabase as any).from("fyp_pages").update({ sort_order: a.sort_order ?? idx }).eq("id", b.id);
+    onChanged();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Управление страницами</DialogTitle></DialogHeader>
+        <div className="space-y-2">
+          {pages.length === 0 && <div className="text-sm text-text3">Страниц пока нет</div>}
+          {pages.map((p, i) => (
+            <div key={p.id} className="flex items-center gap-2 border border-border rounded px-2 py-1.5">
+              {editId === p.id ? (
+                <>
+                  <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
+                    className="flex-1 bg-bg3 border border-border rounded px-2 py-1 text-sm" />
+                  <button onClick={() => rename(p.id)} className="p-1 text-text2 hover:text-foreground"><Check className="h-4 w-4" /></button>
+                  <button onClick={() => setEditId(null)} className="p-1 text-text3 hover:text-foreground"><X className="h-4 w-4" /></button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm">{p.name}</span>
+                  <button disabled={i === 0} onClick={() => move(i, -1)} className="p-1 text-text3 hover:text-foreground disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button>
+                  <button disabled={i === pages.length - 1} onClick={() => move(i, 1)} className="p-1 text-text3 hover:text-foreground disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button>
+                  <button onClick={() => { setEditId(p.id); setEditName(p.name); }} className="p-1 text-text3 hover:text-foreground"><Pencil className="h-4 w-4" /></button>
+                  <button onClick={() => remove(p.id)} className="p-1 text-text3 hover:text-red"><Trash2 className="h-4 w-4" /></button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

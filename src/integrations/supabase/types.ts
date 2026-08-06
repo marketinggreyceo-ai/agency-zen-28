@@ -523,6 +523,7 @@ export type Database = {
           day_of_week: number
           id: string
           model_id: string | null
+          page_id: string | null
           sort_order: number
           week_id: string
         }
@@ -532,6 +533,7 @@ export type Database = {
           day_of_week: number
           id?: string
           model_id?: string | null
+          page_id?: string | null
           sort_order?: number
           week_id: string
         }
@@ -541,6 +543,7 @@ export type Database = {
           day_of_week?: number
           id?: string
           model_id?: string | null
+          page_id?: string | null
           sort_order?: number
           week_id?: string
         }
@@ -550,6 +553,13 @@ export type Database = {
             columns: ["model_id"]
             isOneToOne: false
             referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fansly_fyp_days_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "fyp_pages"
             referencedColumns: ["id"]
           },
           {
@@ -640,6 +650,33 @@ export type Database = {
           partner_name?: string
           partner_split_percent?: number
           temik_chatting_percent?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fyp_pages: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
           updated_at?: string
         }
         Relationships: []
