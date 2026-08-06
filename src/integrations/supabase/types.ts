@@ -516,6 +516,88 @@ export type Database = {
         }
         Relationships: []
       }
+      fansly_fyp_days: {
+        Row: {
+          created_at: string
+          date: string
+          day_of_week: number
+          id: string
+          sort_order: number
+          week_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          day_of_week: number
+          id?: string
+          sort_order?: number
+          week_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          day_of_week?: number
+          id?: string
+          sort_order?: number
+          week_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fansly_fyp_days_week_id_fkey"
+            columns: ["week_id"]
+            isOneToOne: false
+            referencedRelation: "fansly_fyp_weeks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fansly_fyp_tags: {
+        Row: {
+          created_at: string
+          day_id: string
+          id: string
+          tag: string
+        }
+        Insert: {
+          created_at?: string
+          day_id: string
+          id?: string
+          tag: string
+        }
+        Update: {
+          created_at?: string
+          day_id?: string
+          id?: string
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fansly_fyp_tags_day_id_fkey"
+            columns: ["day_id"]
+            isOneToOne: false
+            referencedRelation: "fansly_fyp_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fansly_fyp_weeks: {
+        Row: {
+          created_at: string
+          id: string
+          week_start_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          week_start_date: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          week_start_date?: string
+        }
+        Relationships: []
+      }
       finance_settings: {
         Row: {
           chatter_period_mode: string
