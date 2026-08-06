@@ -11,9 +11,20 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export const Route = createFileRoute("/app/fansly-fyp")({
   ssr: false,
   component: Page,
+  head: () => ({
+    meta: [
+      { title: "Fansly FYP — план тегов по моделям" },
+      { name: "description", content: "Недельный план FYP-тегов Fansly по дням и моделям агентства." },
+      { property: "og:title", content: "Fansly FYP — план тегов по моделям" },
+      { property: "og:description", content: "Недельный план FYP-тегов Fansly по дням и моделям агентства." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 const DAY_NAMES = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
+const ALL = "all";
 
 function getMonday(d: Date): Date {
   const x = new Date(d);
@@ -36,16 +47,45 @@ function fmtDay(iso: string) {
   return new Date(y, m - 1, d).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
-type Day = { id: string; week_id: string; day_of_week: number; date: string; sort_order: number };
+type Day = { id: string; week_id: string; day_of_week: number; date: string; sort_order: number; model_id: string | null };
 type Tag = { id: string; day_id: string; tag: string };
+type Model = { id: string; name: string };
+
+function useFanslyModels() {
+  return useQuery({
+    queryKey: ["fansly-models"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("models")
+        .select("id, name, platform, platforms, is_archived")
+        .eq("is_archived", false)
+        .order("name");
+      const rows = (data ?? []) as any[];
+      return rows
+        .filter((m) =>
+          String(m.platform ?? "").toLowerCase() === "fansly" ||
+          (Array.isArray(m.platforms) && m.platforms.some((p: string) => String(p).toLowerCase() === "fansly")),
+        )
+        .map((m) => ({ id: m.id as string, name: m.name as string })) as Model[];
+    },
+  });
+}
 
 function Page() {
   const { data: profile } = useProfile();
   const qc = useQueryClient();
   const canEdit = profile?.role === "owner" || profile?.role === "production" || profile?.role === "creative";
   const [monday, setMonday] = useState<Date>(getMonday(new Date()));
+  const [modelId, setModelId] = useState<string>(ALL);
   const weekISO = fmtISO(monday);
   const prevISO = fmtISO(addDays(monday, -7));
+
+  const { data: models = [] } = useFanslyModels();
+  const modelNames = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const x of models) m[x.id] = x.name;
+    return m;
+  }, [models]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["fansly-fyp", weekISO],
@@ -68,13 +108,29 @@ function Page() {
     },
   });
 
-  const days = data?.days ?? [];
+  const allDays = data?.days ?? [];
   const tags = data?.tags ?? [];
+  const isAll = modelId === ALL;
+  const days = useMemo(
+    () => (isAll ? allDays : allDays.filter((d) => d.model_id === modelId)),
+    [allDays, isAll, modelId],
+  );
+
   const tagsByDay = useMemo(() => {
     const m: Record<string, Tag[]> = {};
     for (const t of tags) (m[t.day_id] ??= []).push(t);
     return m;
   }, [tags]);
+
+  // For "Все модели": group day records by day_of_week, then by model.
+  const groupedAll = useMemo(() => {
+    const byDow: Record<number, Day[]> = {};
+    for (const d of allDays) (byDow[d.day_of_week] ??= []).push(d);
+    return Object.keys(byDow)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((dow) => ({ dow, date: byDow[dow][0].date, entries: byDow[dow] }));
+  }, [allDays]);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["fansly-fyp", weekISO] });
 
@@ -89,10 +145,11 @@ function Page() {
   }
 
   async function addDay(dow: number) {
+    if (isAll) { toast.error("Выберите модель, чтобы добавить день"); return; }
     const weekId = await ensureWeek();
     if (!weekId) return;
     const { error } = await (supabase as any).from("fansly_fyp_days").insert({
-      week_id: weekId, day_of_week: dow, date: fmtISO(addDays(monday, dow)), sort_order: dow,
+      week_id: weekId, day_of_week: dow, date: fmtISO(addDays(monday, dow)), sort_order: dow, model_id: modelId,
     });
     if (error) { toast.error(error.message); return; }
     refresh();
@@ -122,31 +179,34 @@ function Page() {
     const { data: pw } = await (supabase as any)
       .from("fansly_fyp_weeks").select("id").eq("week_start_date", prevISO).maybeSingle();
     if (!pw?.id) { toast.error("Прошлая неделя пуста"); return; }
-    const { data: pDays = [] } = await (supabase as any)
-      .from("fansly_fyp_days").select("*").eq("week_id", pw.id).order("day_of_week");
-    if (!(pDays as Day[]).length) { toast.error("Прошлая неделя пуста"); return; }
-    const pIds = (pDays as Day[]).map((d) => d.id);
+    let q = (supabase as any).from("fansly_fyp_days").select("*").eq("week_id", pw.id);
+    if (!isAll) q = q.eq("model_id", modelId);
+    const { data: pDaysRaw = [] } = await q.order("day_of_week");
+    const pDays = pDaysRaw as Day[];
+    if (!pDays.length) { toast.error("Прошлая неделя пуста"); return; }
+    const pIds = pDays.map((d) => d.id);
     const { data: pTags = [] } = await (supabase as any)
       .from("fansly_fyp_tags").select("day_id, tag").in("day_id", pIds);
 
     const weekId = await ensureWeek();
     if (!weekId) return;
-    const existing = new Set(days.map((d) => d.day_of_week));
-    const toCreate = (pDays as Day[]).filter((d) => !existing.has(d.day_of_week));
+    const key = (dow: number, mid: string | null) => `${dow}|${mid ?? "-"}`;
+    const existing = new Set(allDays.map((d) => key(d.day_of_week, d.model_id)));
+    const toCreate = pDays.filter((d) => !existing.has(key(d.day_of_week, d.model_id)));
     if (!toCreate.length) { toast.error("Все дни уже добавлены"); return; }
     const { data: newDays, error } = await (supabase as any).from("fansly_fyp_days").insert(
       toCreate.map((d) => ({
-        week_id: weekId, day_of_week: d.day_of_week,
+        week_id: weekId, day_of_week: d.day_of_week, model_id: d.model_id,
         date: fmtISO(addDays(monday, d.day_of_week)), sort_order: d.sort_order,
       })),
-    ).select("id, day_of_week");
+    ).select("id, day_of_week, model_id");
     if (error) { toast.error(error.message); return; }
 
-    const oldByDow: Record<number, string> = {};
-    for (const d of pDays as Day[]) oldByDow[d.day_of_week] = d.id;
+    const oldByKey: Record<string, string> = {};
+    for (const d of pDays) oldByKey[key(d.day_of_week, d.model_id)] = d.id;
     const rows: { day_id: string; tag: string }[] = [];
-    for (const nd of (newDays ?? []) as { id: string; day_of_week: number }[]) {
-      const oldId = oldByDow[nd.day_of_week];
+    for (const nd of (newDays ?? []) as { id: string; day_of_week: number; model_id: string | null }[]) {
+      const oldId = oldByKey[key(nd.day_of_week, nd.model_id)];
       for (const t of (pTags ?? []) as { day_id: string; tag: string }[]) {
         if (t.day_id === oldId) rows.push({ day_id: nd.id, tag: t.tag });
       }
@@ -171,10 +231,25 @@ function Page() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-bg3 border border-border text-xs text-text2 hover:text-foreground">
               <Copy className="h-3.5 w-3.5" /> Скопировать прошлую неделю
             </button>
-            <AddDayButton freeDows={freeDows} onPick={addDay} />
+            {!isAll && <AddDayButton freeDows={freeDows} onPick={addDay} />}
           </div>
         ) : undefined}
       />
+
+      <div className="mb-4 flex items-center gap-2">
+        <label className="text-xs text-text3">Модель</label>
+        <select
+          value={modelId}
+          onChange={(e) => setModelId(e.target.value)}
+          className="bg-bg3 border border-border rounded px-2.5 py-1.5 text-sm min-w-[220px]"
+        >
+          <option value={ALL}>Все модели</option>
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
+        {models.length === 0 && <span className="text-xs text-text3">Нет моделей с платформой Fansly</span>}
+      </div>
 
       <div className="flex items-center justify-between gap-3 mb-6 bg-card border border-border rounded-lg px-3 py-2">
         <button onClick={() => setMonday(addDays(monday, -7))}
@@ -193,7 +268,36 @@ function Page() {
         </button>
       </div>
 
-      {days.length === 0 ? (
+      {isAll ? (
+        groupedAll.length === 0 ? (
+          <Empty message="На этой неделе пока нет дней" icon={<CalendarDays className="h-6 w-6 text-text3" />} />
+        ) : (
+          <div className="space-y-4">
+            {groupedAll.map((g) => (
+              <div key={g.dow} className="bg-card border border-border rounded-lg p-4">
+                <div className="text-sm font-semibold mb-3">{DAY_NAMES[g.dow]}, {fmtDay(g.date)}</div>
+                <div className="space-y-2">
+                  {g.entries.map((e) => (
+                    <div key={e.id} className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-text2 min-w-[90px]">
+                        {e.model_id ? (modelNames[e.model_id] ?? "Модель") : "Без модели"}:
+                      </span>
+                      {(tagsByDay[e.id] ?? []).length === 0 && <span className="text-xs text-text3">Тегов нет</span>}
+                      {(tagsByDay[e.id] ?? []).map((t) => (
+                        <span key={t.id}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs border"
+                          style={{ background: "rgba(200,165,102,0.12)", borderColor: "rgba(200,165,102,0.4)", color: "#C8A566" }}>
+                          {t.tag}
+                        </span>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : days.length === 0 ? (
         <Empty message="На этой неделе пока нет дней" icon={<CalendarDays className="h-6 w-6 text-text3" />} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
