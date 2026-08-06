@@ -9,41 +9,36 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SetupRouteImport } from './routes/setup'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/app.index'
-import { Route as SopsCategoryRouteImport } from './routes/sops.$category'
-import { Route as AppVoiceGenRouteImport } from './routes/app.voice-gen'
-import { Route as AppVoiceAccessRouteImport } from './routes/app.voice-access'
-import { Route as AppTelegramRouteImport } from './routes/app.telegram'
-import { Route as AppTeamRouteImport } from './routes/app.team'
-import { Route as AppTasksRouteImport } from './routes/app.tasks'
-import { Route as AppSopsRouteImport } from './routes/app.sops'
-import { Route as AppSecondBrainRouteImport } from './routes/app.second-brain'
-import { Route as AppOverviewRouteImport } from './routes/app.overview'
-import { Route as AppModelsRouteImport } from './routes/app.models'
-import { Route as AppGrowthRouteImport } from './routes/app.growth'
-import { Route as AppGoalsRouteImport } from './routes/app.goals'
-import { Route as AppFinanceRouteImport } from './routes/app.finance'
-import { Route as AppFanslyFypRouteImport } from './routes/app.fansly-fyp'
-import { Route as AppCustomsRouteImport } from './routes/app.customs'
-import { Route as AppChattingRouteImport } from './routes/app.chatting'
 import { Route as AppAccessRouteImport } from './routes/app.access'
-import { Route as ApiPublicWebhookTasksRouteImport } from './routes/api/public/webhook.tasks'
-import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
-import { Route as ApiPublicHooksTelegramDailyTasksRouteImport } from './routes/api/public/hooks/telegram-daily-tasks'
+import { Route as AppChattingRouteImport } from './routes/app.chatting'
+import { Route as AppCustomsRouteImport } from './routes/app.customs'
+import { Route as AppFanslyFypRouteImport } from './routes/app.fansly-fyp'
+import { Route as AppFinanceRouteImport } from './routes/app.finance'
+import { Route as AppGoalsRouteImport } from './routes/app.goals'
+import { Route as AppGrowthRouteImport } from './routes/app.growth'
+import { Route as AppModelsRouteImport } from './routes/app.models'
+import { Route as AppOverviewRouteImport } from './routes/app.overview'
+import { Route as AppSecondBrainRouteImport } from './routes/app.second-brain'
+import { Route as AppSopsRouteImport } from './routes/app.sops'
+import { Route as AppTasksRouteImport } from './routes/app.tasks'
+import { Route as AppTeamRouteImport } from './routes/app.team'
+import { Route as AppTelegramRouteImport } from './routes/app.telegram'
+import { Route as AppVoiceAccessRouteImport } from './routes/app.voice-access'
+import { Route as AppVoiceGenRouteImport } from './routes/app.voice-gen'
+import { Route as SopsCategoryRouteImport } from './routes/sops.$category'
 import { Route as ApiPublicHooksTelegramDailyCustomsRouteImport } from './routes/api/public/hooks/telegram-daily-customs'
+import { Route as ApiPublicHooksTelegramDailyTasksRouteImport } from './routes/api/public/hooks/telegram-daily-tasks'
+import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
+import { Route as ApiPublicWebhookTasksRouteImport } from './routes/api/public/webhook.tasks'
 
-const SetupRoute = SetupRouteImport.update({
-  id: '/setup',
-  path: '/setup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -51,9 +46,14 @@ const AppRoute = AppRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -61,79 +61,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const SopsCategoryRoute = SopsCategoryRouteImport.update({
-  id: '/sops/$category',
-  path: '/sops/$category',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppVoiceGenRoute = AppVoiceGenRouteImport.update({
-  id: '/voice-gen',
-  path: '/voice-gen',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppVoiceAccessRoute = AppVoiceAccessRouteImport.update({
-  id: '/voice-access',
-  path: '/voice-access',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTelegramRoute = AppTelegramRouteImport.update({
-  id: '/telegram',
-  path: '/telegram',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTeamRoute = AppTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTasksRoute = AppTasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSopsRoute = AppSopsRouteImport.update({
-  id: '/sops',
-  path: '/sops',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSecondBrainRoute = AppSecondBrainRouteImport.update({
-  id: '/second-brain',
-  path: '/second-brain',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOverviewRoute = AppOverviewRouteImport.update({
-  id: '/overview',
-  path: '/overview',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppModelsRoute = AppModelsRouteImport.update({
-  id: '/models',
-  path: '/models',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGrowthRoute = AppGrowthRouteImport.update({
-  id: '/growth',
-  path: '/growth',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGoalsRoute = AppGoalsRouteImport.update({
-  id: '/goals',
-  path: '/goals',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFinanceRoute = AppFinanceRouteImport.update({
-  id: '/finance',
-  path: '/finance',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFanslyFypRoute = AppFanslyFypRouteImport.update({
-  id: '/fansly-fyp',
-  path: '/fansly-fyp',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCustomsRoute = AppCustomsRouteImport.update({
-  id: '/customs',
-  path: '/customs',
+const AppAccessRoute = AppAccessRouteImport.update({
+  id: '/access',
+  path: '/access',
   getParentRoute: () => AppRoute,
 } as any)
 const AppChattingRoute = AppChattingRouteImport.update({
@@ -141,20 +71,85 @@ const AppChattingRoute = AppChattingRouteImport.update({
   path: '/chatting',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAccessRoute = AppAccessRouteImport.update({
-  id: '/access',
-  path: '/access',
+const AppCustomsRoute = AppCustomsRouteImport.update({
+  id: '/customs',
+  path: '/customs',
   getParentRoute: () => AppRoute,
 } as any)
-const ApiPublicWebhookTasksRoute = ApiPublicWebhookTasksRouteImport.update({
-  id: '/api/public/webhook/tasks',
-  path: '/api/public/webhook/tasks',
+const AppFanslyFypRoute = AppFanslyFypRouteImport.update({
+  id: '/fansly-fyp',
+  path: '/fansly-fyp',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFinanceRoute = AppFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGoalsRoute = AppGoalsRouteImport.update({
+  id: '/goals',
+  path: '/goals',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGrowthRoute = AppGrowthRouteImport.update({
+  id: '/growth',
+  path: '/growth',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppModelsRoute = AppModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOverviewRoute = AppOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSecondBrainRoute = AppSecondBrainRouteImport.update({
+  id: '/second-brain',
+  path: '/second-brain',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSopsRoute = AppSopsRouteImport.update({
+  id: '/sops',
+  path: '/sops',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTasksRoute = AppTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTeamRoute = AppTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTelegramRoute = AppTelegramRouteImport.update({
+  id: '/telegram',
+  path: '/telegram',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVoiceAccessRoute = AppVoiceAccessRouteImport.update({
+  id: '/voice-access',
+  path: '/voice-access',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVoiceGenRoute = AppVoiceGenRouteImport.update({
+  id: '/voice-gen',
+  path: '/voice-gen',
+  getParentRoute: () => AppRoute,
+} as any)
+const SopsCategoryRoute = SopsCategoryRouteImport.update({
+  id: '/sops/$category',
+  path: '/sops/$category',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicTelegramWebhookRoute =
-  ApiPublicTelegramWebhookRouteImport.update({
-    id: '/api/public/telegram/webhook',
-    path: '/api/public/telegram/webhook',
+const ApiPublicHooksTelegramDailyCustomsRoute =
+  ApiPublicHooksTelegramDailyCustomsRouteImport.update({
+    id: '/api/public/hooks/telegram-daily-customs',
+    path: '/api/public/hooks/telegram-daily-customs',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksTelegramDailyTasksRoute =
@@ -163,12 +158,17 @@ const ApiPublicHooksTelegramDailyTasksRoute =
     path: '/api/public/hooks/telegram-daily-tasks',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksTelegramDailyCustomsRoute =
-  ApiPublicHooksTelegramDailyCustomsRouteImport.update({
-    id: '/api/public/hooks/telegram-daily-customs',
-    path: '/api/public/hooks/telegram-daily-customs',
+const ApiPublicTelegramWebhookRoute =
+  ApiPublicTelegramWebhookRouteImport.update({
+    id: '/api/public/telegram/webhook',
+    path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicWebhookTasksRoute = ApiPublicWebhookTasksRouteImport.update({
+  id: '/api/public/webhook/tasks',
+  path: '/api/public/webhook/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -354,18 +354,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/setup': {
-      id: '/setup'
-      path: '/setup'
-      fullPath: '/setup'
-      preLoaderRoute: typeof SetupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -375,11 +368,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -389,109 +389,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/sops/$category': {
-      id: '/sops/$category'
-      path: '/sops/$category'
-      fullPath: '/sops/$category'
-      preLoaderRoute: typeof SopsCategoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/voice-gen': {
-      id: '/app/voice-gen'
-      path: '/voice-gen'
-      fullPath: '/app/voice-gen'
-      preLoaderRoute: typeof AppVoiceGenRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/voice-access': {
-      id: '/app/voice-access'
-      path: '/voice-access'
-      fullPath: '/app/voice-access'
-      preLoaderRoute: typeof AppVoiceAccessRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/telegram': {
-      id: '/app/telegram'
-      path: '/telegram'
-      fullPath: '/app/telegram'
-      preLoaderRoute: typeof AppTelegramRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/team': {
-      id: '/app/team'
-      path: '/team'
-      fullPath: '/app/team'
-      preLoaderRoute: typeof AppTeamRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/tasks': {
-      id: '/app/tasks'
-      path: '/tasks'
-      fullPath: '/app/tasks'
-      preLoaderRoute: typeof AppTasksRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/sops': {
-      id: '/app/sops'
-      path: '/sops'
-      fullPath: '/app/sops'
-      preLoaderRoute: typeof AppSopsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/second-brain': {
-      id: '/app/second-brain'
-      path: '/second-brain'
-      fullPath: '/app/second-brain'
-      preLoaderRoute: typeof AppSecondBrainRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/overview': {
-      id: '/app/overview'
-      path: '/overview'
-      fullPath: '/app/overview'
-      preLoaderRoute: typeof AppOverviewRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/models': {
-      id: '/app/models'
-      path: '/models'
-      fullPath: '/app/models'
-      preLoaderRoute: typeof AppModelsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/growth': {
-      id: '/app/growth'
-      path: '/growth'
-      fullPath: '/app/growth'
-      preLoaderRoute: typeof AppGrowthRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/goals': {
-      id: '/app/goals'
-      path: '/goals'
-      fullPath: '/app/goals'
-      preLoaderRoute: typeof AppGoalsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/finance': {
-      id: '/app/finance'
-      path: '/finance'
-      fullPath: '/app/finance'
-      preLoaderRoute: typeof AppFinanceRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/fansly-fyp': {
-      id: '/app/fansly-fyp'
-      path: '/fansly-fyp'
-      fullPath: '/app/fansly-fyp'
-      preLoaderRoute: typeof AppFanslyFypRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/customs': {
-      id: '/app/customs'
-      path: '/customs'
-      fullPath: '/app/customs'
-      preLoaderRoute: typeof AppCustomsRouteImport
+    '/app/access': {
+      id: '/app/access'
+      path: '/access'
+      fullPath: '/app/access'
+      preLoaderRoute: typeof AppAccessRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/chatting': {
@@ -501,25 +403,116 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChattingRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/access': {
-      id: '/app/access'
-      path: '/access'
-      fullPath: '/app/access'
-      preLoaderRoute: typeof AppAccessRouteImport
+    '/app/customs': {
+      id: '/app/customs'
+      path: '/customs'
+      fullPath: '/app/customs'
+      preLoaderRoute: typeof AppCustomsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/api/public/webhook/tasks': {
-      id: '/api/public/webhook/tasks'
-      path: '/api/public/webhook/tasks'
-      fullPath: '/api/public/webhook/tasks'
-      preLoaderRoute: typeof ApiPublicWebhookTasksRouteImport
+    '/app/fansly-fyp': {
+      id: '/app/fansly-fyp'
+      path: '/fansly-fyp'
+      fullPath: '/app/fansly-fyp'
+      preLoaderRoute: typeof AppFanslyFypRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/finance': {
+      id: '/app/finance'
+      path: '/finance'
+      fullPath: '/app/finance'
+      preLoaderRoute: typeof AppFinanceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/goals': {
+      id: '/app/goals'
+      path: '/goals'
+      fullPath: '/app/goals'
+      preLoaderRoute: typeof AppGoalsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/growth': {
+      id: '/app/growth'
+      path: '/growth'
+      fullPath: '/app/growth'
+      preLoaderRoute: typeof AppGrowthRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/models': {
+      id: '/app/models'
+      path: '/models'
+      fullPath: '/app/models'
+      preLoaderRoute: typeof AppModelsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/overview': {
+      id: '/app/overview'
+      path: '/overview'
+      fullPath: '/app/overview'
+      preLoaderRoute: typeof AppOverviewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/second-brain': {
+      id: '/app/second-brain'
+      path: '/second-brain'
+      fullPath: '/app/second-brain'
+      preLoaderRoute: typeof AppSecondBrainRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/sops': {
+      id: '/app/sops'
+      path: '/sops'
+      fullPath: '/app/sops'
+      preLoaderRoute: typeof AppSopsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/tasks': {
+      id: '/app/tasks'
+      path: '/tasks'
+      fullPath: '/app/tasks'
+      preLoaderRoute: typeof AppTasksRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/team': {
+      id: '/app/team'
+      path: '/team'
+      fullPath: '/app/team'
+      preLoaderRoute: typeof AppTeamRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/telegram': {
+      id: '/app/telegram'
+      path: '/telegram'
+      fullPath: '/app/telegram'
+      preLoaderRoute: typeof AppTelegramRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/voice-access': {
+      id: '/app/voice-access'
+      path: '/voice-access'
+      fullPath: '/app/voice-access'
+      preLoaderRoute: typeof AppVoiceAccessRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/voice-gen': {
+      id: '/app/voice-gen'
+      path: '/voice-gen'
+      fullPath: '/app/voice-gen'
+      preLoaderRoute: typeof AppVoiceGenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/sops/$category': {
+      id: '/sops/$category'
+      path: '/sops/$category'
+      fullPath: '/sops/$category'
+      preLoaderRoute: typeof SopsCategoryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/telegram/webhook': {
-      id: '/api/public/telegram/webhook'
-      path: '/api/public/telegram/webhook'
-      fullPath: '/api/public/telegram/webhook'
-      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
+    '/api/public/hooks/telegram-daily-customs': {
+      id: '/api/public/hooks/telegram-daily-customs'
+      path: '/api/public/hooks/telegram-daily-customs'
+      fullPath: '/api/public/hooks/telegram-daily-customs'
+      preLoaderRoute: typeof ApiPublicHooksTelegramDailyCustomsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/telegram-daily-tasks': {
@@ -529,11 +522,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksTelegramDailyTasksRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/telegram-daily-customs': {
-      id: '/api/public/hooks/telegram-daily-customs'
-      path: '/api/public/hooks/telegram-daily-customs'
-      fullPath: '/api/public/hooks/telegram-daily-customs'
-      preLoaderRoute: typeof ApiPublicHooksTelegramDailyCustomsRouteImport
+    '/api/public/telegram/webhook': {
+      id: '/api/public/telegram/webhook'
+      path: '/api/public/telegram/webhook'
+      fullPath: '/api/public/telegram/webhook'
+      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhook/tasks': {
+      id: '/api/public/webhook/tasks'
+      path: '/api/public/webhook/tasks'
+      fullPath: '/api/public/webhook/tasks'
+      preLoaderRoute: typeof ApiPublicWebhookTasksRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
