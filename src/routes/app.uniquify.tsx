@@ -19,10 +19,10 @@ function Page() {
   return (
     <div className="w-full">
       <iframe
-        src="/uniquify.html"
+        src="https://144-172-94-152.sslip.io"
         title="Reel Uniquifier"
         className="w-full block"
-        style={{ border: "none", minHeight: 1200, height: "100vh" }}
+        style={{ border: "none", minHeight: 1400, height: "100vh" }}
       />
     </div>
   );
