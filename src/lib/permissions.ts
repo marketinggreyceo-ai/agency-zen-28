@@ -45,6 +45,7 @@ export const PAGE_KEYS = [
   { key: "growth",        label: "Рост" },
   { key: "voice-gen",     label: "Голосовые сообщения" },
   { key: "fansly-fyp",    label: "Fansly FYP" },
+  { key: "uniquify",      label: "Уникализатор" },
   { key: "team",          label: "Команда" },
   { key: "sops",          label: "SOPs" },
   { key: "models",        label: "Модели" },
