@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UniquifyRouteImport } from './routes/uniquify'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/app'
@@ -17,6 +18,7 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as SopsCategoryRouteImport } from './routes/sops.$category'
 import { Route as AppVoiceGenRouteImport } from './routes/app.voice-gen'
 import { Route as AppVoiceAccessRouteImport } from './routes/app.voice-access'
+import { Route as AppUniquifyRouteImport } from './routes/app.uniquify'
 import { Route as AppTelegramRouteImport } from './routes/app.telegram'
 import { Route as AppTeamRouteImport } from './routes/app.team'
 import { Route as AppTasksRouteImport } from './routes/app.tasks'
@@ -36,6 +38,11 @@ import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/publi
 import { Route as ApiPublicHooksTelegramDailyTasksRouteImport } from './routes/api/public/hooks/telegram-daily-tasks'
 import { Route as ApiPublicHooksTelegramDailyCustomsRouteImport } from './routes/api/public/hooks/telegram-daily-customs'
 
+const UniquifyRoute = UniquifyRouteImport.update({
+  id: '/uniquify',
+  path: '/uniquify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
   path: '/setup',
@@ -74,6 +81,11 @@ const AppVoiceGenRoute = AppVoiceGenRouteImport.update({
 const AppVoiceAccessRoute = AppVoiceAccessRouteImport.update({
   id: '/voice-access',
   path: '/voice-access',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUniquifyRoute = AppUniquifyRouteImport.update({
+  id: '/uniquify',
+  path: '/uniquify',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTelegramRoute = AppTelegramRouteImport.update({
@@ -175,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/setup': typeof SetupRoute
+  '/uniquify': typeof UniquifyRoute
   '/app/access': typeof AppAccessRoute
   '/app/chatting': typeof AppChattingRoute
   '/app/customs': typeof AppCustomsRoute
@@ -189,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/app/tasks': typeof AppTasksRoute
   '/app/team': typeof AppTeamRoute
   '/app/telegram': typeof AppTelegramRoute
+  '/app/uniquify': typeof AppUniquifyRoute
   '/app/voice-access': typeof AppVoiceAccessRoute
   '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
@@ -202,6 +216,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/setup': typeof SetupRoute
+  '/uniquify': typeof UniquifyRoute
   '/app/access': typeof AppAccessRoute
   '/app/chatting': typeof AppChattingRoute
   '/app/customs': typeof AppCustomsRoute
@@ -216,6 +231,7 @@ export interface FileRoutesByTo {
   '/app/tasks': typeof AppTasksRoute
   '/app/team': typeof AppTeamRoute
   '/app/telegram': typeof AppTelegramRoute
+  '/app/uniquify': typeof AppUniquifyRoute
   '/app/voice-access': typeof AppVoiceAccessRoute
   '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
@@ -231,6 +247,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/setup': typeof SetupRoute
+  '/uniquify': typeof UniquifyRoute
   '/app/access': typeof AppAccessRoute
   '/app/chatting': typeof AppChattingRoute
   '/app/customs': typeof AppCustomsRoute
@@ -245,6 +262,7 @@ export interface FileRoutesById {
   '/app/tasks': typeof AppTasksRoute
   '/app/team': typeof AppTeamRoute
   '/app/telegram': typeof AppTelegramRoute
+  '/app/uniquify': typeof AppUniquifyRoute
   '/app/voice-access': typeof AppVoiceAccessRoute
   '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
@@ -261,6 +279,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/auth'
     | '/setup'
+    | '/uniquify'
     | '/app/access'
     | '/app/chatting'
     | '/app/customs'
@@ -275,6 +294,7 @@ export interface FileRouteTypes {
     | '/app/tasks'
     | '/app/team'
     | '/app/telegram'
+    | '/app/uniquify'
     | '/app/voice-access'
     | '/app/voice-gen'
     | '/sops/$category'
@@ -288,6 +308,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/setup'
+    | '/uniquify'
     | '/app/access'
     | '/app/chatting'
     | '/app/customs'
@@ -302,6 +323,7 @@ export interface FileRouteTypes {
     | '/app/tasks'
     | '/app/team'
     | '/app/telegram'
+    | '/app/uniquify'
     | '/app/voice-access'
     | '/app/voice-gen'
     | '/sops/$category'
@@ -316,6 +338,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/auth'
     | '/setup'
+    | '/uniquify'
     | '/app/access'
     | '/app/chatting'
     | '/app/customs'
@@ -330,6 +353,7 @@ export interface FileRouteTypes {
     | '/app/tasks'
     | '/app/team'
     | '/app/telegram'
+    | '/app/uniquify'
     | '/app/voice-access'
     | '/app/voice-gen'
     | '/sops/$category'
@@ -345,6 +369,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
   SetupRoute: typeof SetupRoute
+  UniquifyRoute: typeof UniquifyRoute
   SopsCategoryRoute: typeof SopsCategoryRoute
   ApiPublicHooksTelegramDailyCustomsRoute: typeof ApiPublicHooksTelegramDailyCustomsRoute
   ApiPublicHooksTelegramDailyTasksRoute: typeof ApiPublicHooksTelegramDailyTasksRoute
@@ -354,6 +379,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/uniquify': {
+      id: '/uniquify'
+      path: '/uniquify'
+      fullPath: '/uniquify'
+      preLoaderRoute: typeof UniquifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/setup': {
       id: '/setup'
       path: '/setup'
@@ -408,6 +440,13 @@ declare module '@tanstack/react-router' {
       path: '/voice-access'
       fullPath: '/app/voice-access'
       preLoaderRoute: typeof AppVoiceAccessRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/uniquify': {
+      id: '/app/uniquify'
+      path: '/uniquify'
+      fullPath: '/app/uniquify'
+      preLoaderRoute: typeof AppUniquifyRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/telegram': {
@@ -554,6 +593,7 @@ interface AppRouteChildren {
   AppTasksRoute: typeof AppTasksRoute
   AppTeamRoute: typeof AppTeamRoute
   AppTelegramRoute: typeof AppTelegramRoute
+  AppUniquifyRoute: typeof AppUniquifyRoute
   AppVoiceAccessRoute: typeof AppVoiceAccessRoute
   AppVoiceGenRoute: typeof AppVoiceGenRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -574,6 +614,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTasksRoute: AppTasksRoute,
   AppTeamRoute: AppTeamRoute,
   AppTelegramRoute: AppTelegramRoute,
+  AppUniquifyRoute: AppUniquifyRoute,
   AppVoiceAccessRoute: AppVoiceAccessRoute,
   AppVoiceGenRoute: AppVoiceGenRoute,
   AppIndexRoute: AppIndexRoute,
@@ -586,6 +627,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
   SetupRoute: SetupRoute,
+  UniquifyRoute: UniquifyRoute,
   SopsCategoryRoute: SopsCategoryRoute,
   ApiPublicHooksTelegramDailyCustomsRoute:
     ApiPublicHooksTelegramDailyCustomsRoute,
