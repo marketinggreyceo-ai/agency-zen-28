@@ -8,7 +8,7 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import { MobileMenuDrawer } from "@/components/MobileMenu";
 import {
   LayoutDashboard, Brain, DollarSign, ListTodo, TrendingUp,
-  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu, Send, Video, MessageCircle, Mic, CalendarClock,
+  Users, FileText, UserCircle, Shield, LogOut, Search, Target, Menu, Send, Video, MessageCircle, Mic, CalendarClock, Film,
 } from "lucide-react";
 
 type Item = { to: string; label: string; icon: any; page: string };
@@ -27,6 +27,7 @@ const GROUPS: Group[] = [
     { to: "/app/growth",       label: "Рост",         icon: TrendingUp,      page: "growth" },
     { to: "/app/voice-gen",    label: "Голосовые сообщения", icon: Mic,    page: "voice-gen" },
     { to: "/app/fansly-fyp",   label: "Fansly FYP",   icon: CalendarClock,   page: "fansly-fyp" },
+    { to: "/app/uniquify",     label: "Уникализатор", icon: Film,            page: "uniquify" },
   ]},
   { id: "management", label: "Управление", items: [
     { to: "/app/finance",      label: "Финансы",      icon: DollarSign,      page: "finance" },
