@@ -180,11 +180,25 @@ async function ensureFF(){
   ffmpeg=new FFmpeg();
   ffmpeg.on('log',({message})=>{if(message&&!message.startsWith('frame='))log(message);});
   ffmpeg.on('progress',({progress})=>{$('prog').style.width=Math.min(100,Math.round(progress*90))+'%';});
-  log('Loading video engine…');
-  const base='https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
-  await ffmpeg.load({coreURL:await toBlobURL(`${base}/ffmpeg-core.js`,'text/javascript'),
-    wasmURL:await toBlobURL(`${base}/ffmpeg-core.wasm`,'application/wasm')});
-  loaded=true;log('Engine ready.');
+  log('Loading video engine… (first time can take ~20s)');
+  // Try unpkg first, then jsDelivr. classWorkerURL is required when loading from a CDN,
+  // otherwise the browser blocks the cross-origin worker and load() fails.
+  const CDNS=[
+    {core:'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm', pkg:'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm'},
+    {core:'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm', pkg:'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm'},
+  ];
+  let lastErr=null;
+  for(const cdn of CDNS){
+    try{
+      await ffmpeg.load({
+        classWorkerURL: await toBlobURL(`${cdn.pkg}/worker.js`,'text/javascript'),
+        coreURL: await toBlobURL(`${cdn.core}/ffmpeg-core.js`,'text/javascript'),
+        wasmURL: await toBlobURL(`${cdn.core}/ffmpeg-core.wasm`,'application/wasm'),
+      });
+      loaded=true; log('Engine ready.'); return;
+    }catch(e){ lastErr=e; console.error('FFmpeg load failed via',cdn.pkg,e); log('Retrying from a backup source…'); }
+  }
+  throw lastErr||new Error('Could not load the video engine.');
 }
 
 function num(id){return parseFloat($(id).value);}
@@ -234,8 +248,8 @@ $('run').onclick=async()=>{
     log('Scoring difference…');
     showDiff(await scoreDiff(file,blob));
     $('prog').style.width='100%';$('result').style.display='block';$('result').scrollIntoView({behavior:'smooth'});
-  }catch(err){log('Error: '+(err?.message||err));
-    alert('Error. If you opened this by double-clicking a local file, host it on https (your site) instead — browsers block the video engine on local files.');}
+  }catch(err){console.error(err);log('Error: '+(err?.message||err));
+    alert('Could not process the video.\n\nDetails: '+(err?.message||err)+'\n\nIf this keeps happening, send this message text.');}
   finally{$('run').disabled=false;}
 };
 
