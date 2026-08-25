@@ -1,0 +1,461 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { PageHeader, Empty, SkeletonPage } from "@/components/ui-shared";
+import { useProfile } from "@/lib/auth";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Plus, X, Trash2, Pencil, TrendingUp, TrendingDown, Minus, Target } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+
+export const Route = createFileRoute("/app/kpi")({
+  ssr: false,
+  component: Page,
+  head: () => ({
+    meta: [
+      { title: "KPI — метрики моделей агентства" },
+      { name: "description", content: "Целевые показатели моделей: текущее значение, прогресс и динамика по неделям и месяцам." },
+      { property: "og:title", content: "KPI — метрики моделей агентства" },
+      { property: "og:description", content: "Целевые показатели моделей: текущее значение, прогресс и динамика." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+});
+
+const ALL = "all";
+const UNITS = ["$", "количество", "%"];
+
+type Model = { id: string; name: string };
+type Kpi = { id: string; model_id: string; name: string; target_value: number; unit: string; period: string };
+type Val = { id: string; kpi_id: string; value: number; date: string };
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function fmtDate(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+function fmtVal(v: number, unit: string) {
+  const n = Math.round(v * 100) / 100;
+  const s = n.toLocaleString("ru-RU");
+  if (unit === "$") return "$" + s;
+  if (unit === "%") return s + "%";
+  if (unit === "количество") return s;
+  return `${s} ${unit}`;
+}
+
+function useModels() {
+  return useQuery({
+    queryKey: ["kpi-models"],
+    queryFn: async () => {
+      const { data } = await supabase.from("models").select("id,name").eq("is_archived", false).order("name");
+      return (data ?? []) as Model[];
+    },
+  });
+}
+function useKpis() {
+  return useQuery({
+    queryKey: ["kpis"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("kpis").select("id,model_id,name,target_value,unit,period").order("created_at");
+      if (error) throw error;
+      return (data ?? []).map((k: any) => ({ ...k, target_value: Number(k.target_value) })) as Kpi[];
+    },
+  });
+}
+function useValues() {
+  return useQuery({
+    queryKey: ["kpi_values"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("kpi_values").select("id,kpi_id,value,date").order("date");
+      if (error) throw error;
+      return (data ?? []).map((v: any) => ({ ...v, value: Number(v.value) })) as Val[];
+    },
+  });
+}
+
+function Page() {
+  const { data: profile } = useProfile();
+  const role = profile?.role;
+  const canEdit = role === "owner" || role === "production" || role === "creative";
+
+  const [modelId, setModelId] = useState<string>(ALL);
+  const [kpiModalOpen, setKpiModalOpen] = useState(false);
+  const [editKpi, setEditKpi] = useState<Kpi | null>(null);
+
+  const { data: models = [], isLoading: lm } = useModels();
+  const { data: kpis = [], isLoading: lk } = useKpis();
+  const { data: values = [], isLoading: lv } = useValues();
+
+  const modelName = useMemo(() => Object.fromEntries(models.map((m) => [m.id, m.name])), [models]);
+  const shown = modelId === ALL ? kpis : kpis.filter((k) => k.model_id === modelId);
+
+  if (lm || lk || lv) return <SkeletonPage />;
+
+  return (
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <PageHeader
+        title="KPI"
+        action={
+          canEdit && (
+            <button
+              onClick={() => { setEditKpi(null); setKpiModalOpen(true); }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium"
+            >
+              <Plus className="h-4 w-4" /> Новый KPI
+            </button>
+          )
+        }
+      />
+
+      <div className="mb-6">
+        <select
+          value={modelId}
+          onChange={(e) => setModelId(e.target.value)}
+          className="px-3 py-2 rounded-md bg-bg3 border border-border text-sm min-w-[220px]"
+        >
+          <option value={ALL}>Все модели</option>
+          {models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+      </div>
+
+      {kpis.length === 0 ? (
+        <Empty message="KPI ещё не созданы" icon={<Target className="h-8 w-8" />} />
+      ) : modelId === ALL ? (
+        <OverviewTable models={models} kpis={kpis} values={values} />
+      ) : shown.length === 0 ? (
+        <Empty message="Для этой модели пока нет KPI" icon={<Target className="h-8 w-8" />} />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {shown.map((k) => (
+            <KpiCard
+              key={k.id}
+              kpi={k}
+              modelName={modelName[k.model_id] ?? "—"}
+              values={values.filter((v) => v.kpi_id === k.id)}
+              canEdit={canEdit}
+              onEdit={() => { setEditKpi(k); setKpiModalOpen(true); }}
+            />
+          ))}
+        </div>
+      )}
+
+      {kpiModalOpen && (
+        <KpiModal models={models} kpi={editKpi} defaultModel={modelId === ALL ? "" : modelId} onClose={() => setKpiModalOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+function statusColor(pct: number) {
+  if (pct >= 100) return "var(--green)";
+  if (pct >= 80) return "var(--amber)";
+  return "var(--red)";
+}
+
+function KpiCard({ kpi, modelName, values, canEdit, onEdit }: {
+  kpi: Kpi; modelName: string; values: Val[]; canEdit: boolean; onEdit: () => void;
+}) {
+  const qc = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
+
+  const sorted = [...values].sort((a, b) => a.date.localeCompare(b.date));
+  const limit = kpi.period === "monthly" ? 6 : 8;
+  const chartData = sorted.slice(-limit).map((v) => ({ name: fmtDate(v.date), value: v.value }));
+  const latest = sorted.length ? sorted[sorted.length - 1].value : 0;
+  const prev = sorted.length > 1 ? sorted[sorted.length - 2].value : null;
+  const pct = kpi.target_value > 0 ? (latest / kpi.target_value) * 100 : 0;
+  const color = statusColor(pct);
+  const diff = prev === null ? 0 : latest - prev;
+
+  async function removeKpi() {
+    if (!confirm(`Удалить KPI «${kpi.name}»?`)) return;
+    const { error } = await supabase.from("kpis").delete().eq("id", kpi.id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["kpis"] });
+    qc.invalidateQueries({ queryKey: ["kpi_values"] });
+    toast.success("KPI удалён");
+  }
+
+  async function removeValue(id: string) {
+    const { error } = await supabase.from("kpi_values").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["kpi_values"] });
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-sm font-semibold">{kpi.name}</div>
+          <div className="text-xs text-text2">
+            {modelName} · {kpi.period === "monthly" ? "Ежемесячно" : "Еженедельно"}
+          </div>
+        </div>
+        {canEdit && (
+          <div className="flex items-center gap-1">
+            <button onClick={onEdit} className="p-1.5 text-text2 hover:text-foreground rounded"><Pencil className="h-3.5 w-3.5" /></button>
+            <button onClick={removeKpi} className="p-1.5 text-text2 hover:text-foreground rounded"><Trash2 className="h-3.5 w-3.5" /></button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <div className="text-[10px] uppercase tracking-wide text-text2">Текущее значение</div>
+          <div className="text-2xl font-semibold flex items-center gap-2" style={{ color }}>
+            {fmtVal(latest, kpi.unit)}
+            {prev !== null && (
+              diff > 0 ? <TrendingUp className="h-4 w-4" style={{ color: "var(--green)" }} />
+              : diff < 0 ? <TrendingDown className="h-4 w-4" style={{ color: "var(--red)" }} />
+              : <Minus className="h-4 w-4 text-text2" />
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] uppercase tracking-wide text-text2">Целевое значение</div>
+          <div className="text-sm">{fmtVal(kpi.target_value, kpi.unit)}</div>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between text-[11px] text-text2 mb-1">
+          <span>Прогресс</span>
+          <span style={{ color }}>{Math.round(pct)}%</span>
+        </div>
+        <div className="h-2 rounded-full bg-bg3 overflow-hidden">
+          <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: color }} />
+        </div>
+      </div>
+
+      <div className="h-[160px]">
+        {chartData.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-xs text-text2">Нет данных</div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 5, right: 8, bottom: 0, left: -20 }}>
+              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text2)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "var(--text2)" }} axisLine={false} tickLine={false} width={44} />
+              <Tooltip
+                contentStyle={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                labelStyle={{ color: "var(--text2)" }}
+                formatter={(v: any) => [fmtVal(Number(v), kpi.unit), kpi.name]}
+              />
+              <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {canEdit && (
+        <button
+          onClick={() => setAddOpen(true)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-bg3 border border-border text-xs hover:text-foreground text-text2"
+        >
+          <Plus className="h-3.5 w-3.5" /> Добавить значение
+        </button>
+      )}
+
+      {sorted.length > 0 && (
+        <div className="border-t border-border pt-3">
+          <div className="text-[10px] uppercase tracking-wide text-text2 mb-2">Последние записи</div>
+          <ul className="space-y-1">
+            {sorted.slice(-5).reverse().map((v) => (
+              <li key={v.id} className="flex items-center justify-between text-xs">
+                <span className="text-text2">{fmtDate(v.date)}</span>
+                <span className="flex items-center gap-2">
+                  <span>{fmtVal(v.value, kpi.unit)}</span>
+                  {canEdit && (
+                    <button onClick={() => removeValue(v.id)} className="text-text3 hover:text-foreground">
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {addOpen && <ValueModal kpi={kpi} onClose={() => setAddOpen(false)} />}
+    </div>
+  );
+}
+
+function ValueModal({ kpi, onClose }: { kpi: Kpi; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [value, setValue] = useState("");
+  const [date, setDate] = useState(todayISO());
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    const n = Number(value);
+    if (!value || Number.isNaN(n)) return toast.error("Введите значение");
+    setSaving(true);
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await supabase.from("kpi_values").insert({ kpi_id: kpi.id, value: n, date, created_by: u.user?.id ?? null });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["kpi_values"] });
+    toast.success("Значение добавлено");
+    onClose();
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Добавить значение — {kpi.name}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <Field label="Значение">
+            <input type="number" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} className={inputCls} autoFocus />
+          </Field>
+          <Field label="Дата">
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+          </Field>
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={onClose} className="px-3 py-1.5 text-sm text-text2">Отмена</button>
+            <button onClick={save} disabled={saving} className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+              Сохранить
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const inputCls = "w-full px-3 py-2 rounded-md bg-bg3 border border-border text-sm";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-xs text-text2">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function KpiModal({ models, kpi, defaultModel, onClose }: {
+  models: Model[]; kpi: Kpi | null; defaultModel: string; onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [modelId, setModelId] = useState(kpi?.model_id ?? defaultModel ?? "");
+  const [name, setName] = useState(kpi?.name ?? "");
+  const [target, setTarget] = useState(kpi ? String(kpi.target_value) : "");
+  const presetUnit = kpi ? (UNITS.includes(kpi.unit) ? kpi.unit : "custom") : "$";
+  const [unitKind, setUnitKind] = useState(presetUnit);
+  const [customUnit, setCustomUnit] = useState(presetUnit === "custom" ? (kpi?.unit ?? "") : "");
+  const [period, setPeriod] = useState(kpi?.period ?? "weekly");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    const unit = unitKind === "custom" ? customUnit.trim() : unitKind;
+    if (!modelId) return toast.error("Выберите модель");
+    if (!name.trim()) return toast.error("Введите название KPI");
+    if (!unit) return toast.error("Укажите единицу измерения");
+    setSaving(true);
+    const payload = { model_id: modelId, name: name.trim(), target_value: Number(target) || 0, unit, period };
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = kpi
+      ? await supabase.from("kpis").update(payload).eq("id", kpi.id)
+      : await supabase.from("kpis").insert({ ...payload, created_by: u.user?.id ?? null });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["kpis"] });
+    toast.success(kpi ? "KPI обновлён" : "KPI создан");
+    onClose();
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>{kpi ? "Редактировать KPI" : "Новый KPI"}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <Field label="Модель">
+            <select value={modelId} onChange={(e) => setModelId(e.target.value)} className={inputCls}>
+              <option value="">— выберите —</option>
+              {models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Название KPI">
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Page revenue" className={inputCls} />
+          </Field>
+          <Field label="Целевое значение">
+            <input type="number" step="0.01" value={target} onChange={(e) => setTarget(e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="Единица измерения">
+            <select value={unitKind} onChange={(e) => setUnitKind(e.target.value)} className={inputCls}>
+              {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+              <option value="custom">Другое…</option>
+            </select>
+          </Field>
+          {unitKind === "custom" && (
+            <input value={customUnit} onChange={(e) => setCustomUnit(e.target.value)} placeholder="напр. подписчиков" className={inputCls} />
+          )}
+          <Field label="Период">
+            <select value={period} onChange={(e) => setPeriod(e.target.value)} className={inputCls}>
+              <option value="weekly">Еженедельно</option>
+              <option value="monthly">Ежемесячно</option>
+            </select>
+          </Field>
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={onClose} className="px-3 py-1.5 text-sm text-text2">Отмена</button>
+            <button onClick={save} disabled={saving} className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+              Сохранить
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function OverviewTable({ models, kpis, values }: { models: Model[]; kpis: Kpi[]; values: Val[] }) {
+  const names = useMemo(() => Array.from(new Set(kpis.map((k) => k.name))), [kpis]);
+  const modelsWithKpis = models.filter((m) => kpis.some((k) => k.model_id === m.id));
+
+  function cell(modelId: string, kpiName: string) {
+    const kpi = kpis.find((k) => k.model_id === modelId && k.name === kpiName);
+    if (!kpi) return <span className="text-text3">—</span>;
+    const vs = values.filter((v) => v.kpi_id === kpi.id).sort((a, b) => a.date.localeCompare(b.date));
+    const latest = vs.length ? vs[vs.length - 1].value : 0;
+    const pct = kpi.target_value > 0 ? (latest / kpi.target_value) * 100 : 0;
+    const color = statusColor(pct);
+    return (
+      <span className="inline-flex flex-col">
+        <span className="text-sm font-medium" style={{ color }}>{fmtVal(latest, kpi.unit)}</span>
+        <span className="text-[10px] text-text2">цель {fmtVal(kpi.target_value, kpi.unit)} · {Math.round(pct)}%</span>
+      </span>
+    );
+  }
+
+  if (modelsWithKpis.length === 0) return <Empty message="KPI ещё не созданы" icon={<Target className="h-8 w-8" />} />;
+
+  return (
+    <div className="rounded-lg border border-border bg-card overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border">
+            <th className="text-left px-4 py-2 text-xs uppercase tracking-wide text-text2">Модель</th>
+            {names.map((n) => (
+              <th key={n} className="text-left px-4 py-2 text-xs uppercase tracking-wide text-text2 whitespace-nowrap">{n}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {modelsWithKpis.map((m) => (
+            <tr key={m.id} className="border-b border-border last:border-0">
+              <td className="px-4 py-3 font-medium whitespace-nowrap">{m.name}</td>
+              {names.map((n) => <td key={n} className="px-4 py-3">{cell(m.id, n)}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
