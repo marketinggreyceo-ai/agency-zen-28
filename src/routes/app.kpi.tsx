@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Plus, X, Trash2, Pencil, TrendingUp, TrendingDown, Minus, Target } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 
 export const Route = createFileRoute("/app/kpi")({
   ssr: false,
@@ -157,20 +157,32 @@ function statusColor(pct: number) {
   return "var(--red)";
 }
 
+function fmtDelta(d: number, unit: string) {
+  const sign = d > 0 ? "+" : d < 0 ? "−" : "";
+  return sign + fmtVal(Math.abs(d), unit);
+}
+
 function KpiCard({ kpi, modelName, values, canEdit, onEdit }: {
   kpi: Kpi; modelName: string; values: Val[]; canEdit: boolean; onEdit: () => void;
 }) {
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  const [editVal, setEditVal] = useState<Val | null>(null);
 
   const sorted = [...values].sort((a, b) => a.date.localeCompare(b.date));
-  const limit = kpi.period === "monthly" ? 6 : 8;
-  const chartData = sorted.slice(-limit).map((v) => ({ name: fmtDate(v.date), value: v.value }));
+  const rows = sorted.map((v, i) => {
+    const prevV = i > 0 ? sorted[i - 1].value : null;
+    const diff = prevV === null ? null : v.value - prevV;
+    const pctChange = prevV === null || prevV === 0 ? null : ((v.value - prevV) / Math.abs(prevV)) * 100;
+    return { ...v, diff, pctChange };
+  });
+  const chartData = sorted.map((v) => ({ name: fmtDate(v.date), value: v.value }));
   const latest = sorted.length ? sorted[sorted.length - 1].value : 0;
-  const prev = sorted.length > 1 ? sorted[sorted.length - 2].value : null;
+  const lastRow = rows.length ? rows[rows.length - 1] : null;
+  const diff = lastRow?.diff ?? null;
   const pct = kpi.target_value > 0 ? (latest / kpi.target_value) * 100 : 0;
   const color = statusColor(pct);
-  const diff = prev === null ? 0 : latest - prev;
+  const diffColor = diff === null ? "var(--text2)" : diff > 0 ? "var(--green)" : diff < 0 ? "var(--red)" : "var(--text2)";
 
   async function removeKpi() {
     if (!confirm(`Удалить KPI «${kpi.name}»?`)) return;
@@ -209,11 +221,16 @@ function KpiCard({ kpi, modelName, values, canEdit, onEdit }: {
           <div className="text-[10px] uppercase tracking-wide text-text2">Текущее значение</div>
           <div className="text-2xl font-semibold flex items-center gap-2" style={{ color }}>
             {fmtVal(latest, kpi.unit)}
-            {prev !== null && (
+            {diff !== null && (
               diff > 0 ? <TrendingUp className="h-4 w-4" style={{ color: "var(--green)" }} />
               : diff < 0 ? <TrendingDown className="h-4 w-4" style={{ color: "var(--red)" }} />
               : <Minus className="h-4 w-4 text-text2" />
             )}
+          </div>
+          <div className="text-xs mt-0.5" style={{ color: diffColor }}>
+            {diff === null
+              ? "Изменение: —"
+              : `Изменение: ${fmtDelta(diff, kpi.unit)}${lastRow?.pctChange != null ? ` (${lastRow.pctChange > 0 ? "+" : "−"}${Math.abs(lastRow.pctChange).toFixed(1)}%)` : ""}`}
           </div>
         </div>
         <div className="text-right">
@@ -225,27 +242,41 @@ function KpiCard({ kpi, modelName, values, canEdit, onEdit }: {
       <div>
         <div className="flex items-center justify-between text-[11px] text-text2 mb-1">
           <span>Прогресс</span>
-          <span style={{ color }}>{Math.round(pct)}%</span>
+          <span style={{ color }}>{fmtVal(latest, kpi.unit)} / {fmtVal(kpi.target_value, kpi.unit)} · {Math.round(pct)}%</span>
         </div>
         <div className="h-2 rounded-full bg-bg3 overflow-hidden">
           <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: color }} />
         </div>
       </div>
 
-      <div className="h-[160px]">
+      <div className="h-[180px]">
         {chartData.length === 0 ? (
           <div className="h-full flex items-center justify-center text-xs text-text2">Нет данных</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 8, bottom: 0, left: -20 }}>
+            <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--text2)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "var(--text2)" }} axisLine={false} tickLine={false} width={44} />
+              <YAxis
+                tick={{ fontSize: 10, fill: "var(--text2)" }}
+                axisLine={false}
+                tickLine={false}
+                width={44}
+                domain={[0, (max: number) => Math.max(max, kpi.target_value) * 1.1]}
+              />
               <Tooltip
                 contentStyle={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                 labelStyle={{ color: "var(--text2)" }}
                 formatter={(v: any) => [fmtVal(Number(v), kpi.unit), kpi.name]}
               />
+              {kpi.target_value > 0 && (
+                <ReferenceLine
+                  y={kpi.target_value}
+                  stroke="var(--amber)"
+                  strokeDasharray="5 4"
+                  label={{ value: "Цель", position: "insideTopRight", fontSize: 10, fill: "var(--amber)" }}
+                />
+              )}
               <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
@@ -261,59 +292,81 @@ function KpiCard({ kpi, modelName, values, canEdit, onEdit }: {
         </button>
       )}
 
-      {sorted.length > 0 && (
-        <div className="border-t border-border pt-3">
-          <div className="text-[10px] uppercase tracking-wide text-text2 mb-2">Последние записи</div>
-          <ul className="space-y-1">
-            {sorted.slice(-5).reverse().map((v) => (
-              <li key={v.id} className="flex items-center justify-between text-xs">
-                <span className="text-text2">{fmtDate(v.date)}</span>
-                <span className="flex items-center gap-2">
-                  <span>{fmtVal(v.value, kpi.unit)}</span>
-                  {canEdit && (
-                    <button onClick={() => removeValue(v.id)} className="text-text3 hover:text-foreground">
-                      <X className="h-3 w-3" />
-                    </button>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
+      {rows.length > 0 && (
+        <div className="border-t border-border pt-3 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-text2">
+                <th className="text-left font-normal pb-1">Дата</th>
+                <th className="text-right font-normal pb-1">Значение</th>
+                <th className="text-right font-normal pb-1">Изменение</th>
+                <th className="text-right font-normal pb-1">%</th>
+                {canEdit && <th className="pb-1" />}
+              </tr>
+            </thead>
+            <tbody>
+              {[...rows].reverse().map((r) => {
+                const c = r.diff == null ? "var(--text2)" : r.diff > 0 ? "var(--green)" : r.diff < 0 ? "var(--red)" : "var(--text2)";
+                return (
+                  <tr key={r.id} className="border-t border-border">
+                    <td className="py-1.5 text-text2">{fmtDate(r.date)}</td>
+                    <td className="py-1.5 text-right">{fmtVal(r.value, kpi.unit)}</td>
+                    <td className="py-1.5 text-right" style={{ color: c }}>{r.diff == null ? "—" : fmtDelta(r.diff, kpi.unit)}</td>
+                    <td className="py-1.5 text-right" style={{ color: c }}>
+                      {r.pctChange == null ? "—" : `${r.pctChange > 0 ? "+" : r.pctChange < 0 ? "−" : ""}${Math.abs(r.pctChange).toFixed(1)}%`}
+                    </td>
+                    {canEdit && (
+                      <td className="py-1.5 text-right whitespace-nowrap">
+                        <button onClick={() => setEditVal(r)} className="p-1 text-text3 hover:text-foreground"><Pencil className="h-3 w-3" /></button>
+                        <button onClick={() => removeValue(r.id)} className="p-1 text-text3 hover:text-foreground"><X className="h-3 w-3" /></button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
       {addOpen && <ValueModal kpi={kpi} onClose={() => setAddOpen(false)} />}
+      {editVal && <ValueModal kpi={kpi} entry={editVal} onClose={() => setEditVal(null)} />}
     </div>
   );
 }
 
-function ValueModal({ kpi, onClose }: { kpi: Kpi; onClose: () => void }) {
+function ValueModal({ kpi, entry, onClose }: { kpi: Kpi; entry?: Val; onClose: () => void }) {
   const qc = useQueryClient();
-  const [value, setValue] = useState("");
-  const [date, setDate] = useState(todayISO());
+  const [value, setValue] = useState(entry ? String(entry.value) : "");
+  const [date, setDate] = useState(entry?.date ?? todayISO());
   const [saving, setSaving] = useState(false);
 
   async function save() {
     const n = Number(value);
-    if (!value || Number.isNaN(n)) return toast.error("Введите значение");
+    if (value === "" || Number.isNaN(n)) return toast.error("Введите значение");
     setSaving(true);
     const { data: u } = await supabase.auth.getUser();
-    const { error } = await supabase.from("kpi_values").insert({ kpi_id: kpi.id, value: n, date, created_by: u.user?.id ?? null });
+    const { error } = entry
+      ? await supabase.from("kpi_values").update({ value: n, date }).eq("id", entry.id)
+      : await supabase.from("kpi_values").insert({ kpi_id: kpi.id, value: n, date, created_by: u.user?.id ?? null });
     setSaving(false);
     if (error) return toast.error(error.message);
     qc.invalidateQueries({ queryKey: ["kpi_values"] });
-    toast.success("Значение добавлено");
+    toast.success(entry ? "Значение обновлено" : "Значение добавлено");
     onClose();
   }
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Добавить значение — {kpi.name}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{entry ? "Изменить значение" : "Добавить значение"} — {kpi.name}</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
-          <Field label="Значение">
+          <Field label="Новое общее значение">
             <input type="number" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} className={inputCls} autoFocus />
           </Field>
+          <p className="text-[11px] text-text2">Вводите текущий общий показатель — прирост считается автоматически.</p>
           <Field label="Дата">
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
           </Field>
@@ -351,6 +404,7 @@ function KpiModal({ models, kpi, defaultModel, onClose }: {
   const [unitKind, setUnitKind] = useState(presetUnit);
   const [customUnit, setCustomUnit] = useState(presetUnit === "custom" ? (kpi?.unit ?? "") : "");
   const [period, setPeriod] = useState(kpi?.period ?? "weekly");
+  const [startValue, setStartValue] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -361,11 +415,23 @@ function KpiModal({ models, kpi, defaultModel, onClose }: {
     setSaving(true);
     const payload = { model_id: modelId, name: name.trim(), target_value: Number(target) || 0, unit, period };
     const { data: u } = await supabase.auth.getUser();
-    const { error } = kpi
-      ? await supabase.from("kpis").update(payload).eq("id", kpi.id)
-      : await supabase.from("kpis").insert({ ...payload, created_by: u.user?.id ?? null });
-    setSaving(false);
-    if (error) return toast.error(error.message);
+    if (kpi) {
+      const { error } = await supabase.from("kpis").update(payload).eq("id", kpi.id);
+      setSaving(false);
+      if (error) return toast.error(error.message);
+    } else {
+      const { data: created, error } = await supabase
+        .from("kpis").insert({ ...payload, created_by: u.user?.id ?? null }).select("id").single();
+      if (error) { setSaving(false); return toast.error(error.message); }
+      const start = Number(startValue);
+      if (startValue !== "" && !Number.isNaN(start) && created) {
+        const { error: ve } = await supabase.from("kpi_values")
+          .insert({ kpi_id: created.id, value: start, date: todayISO(), created_by: u.user?.id ?? null });
+        if (ve) toast.error(ve.message);
+        qc.invalidateQueries({ queryKey: ["kpi_values"] });
+      }
+      setSaving(false);
+    }
     qc.invalidateQueries({ queryKey: ["kpis"] });
     toast.success(kpi ? "KPI обновлён" : "KPI создан");
     onClose();
@@ -385,6 +451,11 @@ function KpiModal({ models, kpi, defaultModel, onClose }: {
           <Field label="Название KPI">
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Page revenue" className={inputCls} />
           </Field>
+          {!kpi && (
+            <Field label="Текущий показатель">
+              <input type="number" step="0.01" value={startValue} onChange={(e) => setStartValue(e.target.value)} placeholder="напр. 487" className={inputCls} />
+            </Field>
+          )}
           <Field label="Целевое значение">
             <input type="number" step="0.01" value={target} onChange={(e) => setTarget(e.target.value)} className={inputCls} />
           </Field>
