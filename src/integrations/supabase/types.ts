@@ -671,6 +671,85 @@ export type Database = {
         }
         Relationships: []
       }
+      kpi_values: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date: string
+          id: string
+          kpi_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          kpi_id: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          id?: string
+          kpi_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_values_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpis: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          model_id: string
+          name: string
+          period: string
+          target_value: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model_id: string
+          name: string
+          period?: string
+          target_value?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model_id?: string
+          name?: string
+          period?: string
+          target_value?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpis_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       model_accounts: {
         Row: {
           account_name: string | null
