@@ -451,6 +451,11 @@ function KpiModal({ models, kpi, defaultModel, onClose }: {
           <Field label="Название KPI">
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Page revenue" className={inputCls} />
           </Field>
+          {!kpi && (
+            <Field label="Текущий показатель">
+              <input type="number" step="0.01" value={startValue} onChange={(e) => setStartValue(e.target.value)} placeholder="напр. 487" className={inputCls} />
+            </Field>
+          )}
           <Field label="Целевое значение">
             <input type="number" step="0.01" value={target} onChange={(e) => setTarget(e.target.value)} className={inputCls} />
           </Field>
