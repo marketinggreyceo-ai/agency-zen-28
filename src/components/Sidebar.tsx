@@ -24,6 +24,7 @@ const GROUPS: Group[] = [
     { to: "/app/customs",      label: "Кастомы",      icon: Video,           page: "customs" },
     { to: "/app/chatting",     label: "Чаттинг",      icon: MessageCircle,   page: "chatting" },
     { to: "/app/goals",        label: "Цели недели",  icon: Target,          page: "goals" },
+    { to: "/app/kpi",          label: "KPI",          icon: BarChart3,       page: "kpi" },
     { to: "/app/growth",       label: "Рост",         icon: TrendingUp,      page: "growth" },
     { to: "/app/voice-gen",    label: "Голосовые сообщения", icon: Mic,    page: "voice-gen" },
     { to: "/app/fansly-fyp",   label: "Fansly FYP",   icon: CalendarClock,   page: "fansly-fyp" },

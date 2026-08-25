@@ -26,6 +26,7 @@ import { Route as AppSopsRouteImport } from './routes/app.sops'
 import { Route as AppSecondBrainRouteImport } from './routes/app.second-brain'
 import { Route as AppOverviewRouteImport } from './routes/app.overview'
 import { Route as AppModelsRouteImport } from './routes/app.models'
+import { Route as AppKpiRouteImport } from './routes/app.kpi'
 import { Route as AppGrowthRouteImport } from './routes/app.growth'
 import { Route as AppGoalsRouteImport } from './routes/app.goals'
 import { Route as AppFinanceRouteImport } from './routes/app.finance'
@@ -123,6 +124,11 @@ const AppModelsRoute = AppModelsRouteImport.update({
   path: '/models',
   getParentRoute: () => AppRoute,
 } as any)
+const AppKpiRoute = AppKpiRouteImport.update({
+  id: '/kpi',
+  path: '/kpi',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppGrowthRoute = AppGrowthRouteImport.update({
   id: '/growth',
   path: '/growth',
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/growth': typeof AppGrowthRoute
+  '/app/kpi': typeof AppKpiRoute
   '/app/models': typeof AppModelsRoute
   '/app/overview': typeof AppOverviewRoute
   '/app/second-brain': typeof AppSecondBrainRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/growth': typeof AppGrowthRoute
+  '/app/kpi': typeof AppKpiRoute
   '/app/models': typeof AppModelsRoute
   '/app/overview': typeof AppOverviewRoute
   '/app/second-brain': typeof AppSecondBrainRoute
@@ -255,6 +263,7 @@ export interface FileRoutesById {
   '/app/finance': typeof AppFinanceRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/growth': typeof AppGrowthRoute
+  '/app/kpi': typeof AppKpiRoute
   '/app/models': typeof AppModelsRoute
   '/app/overview': typeof AppOverviewRoute
   '/app/second-brain': typeof AppSecondBrainRoute
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/app/finance'
     | '/app/goals'
     | '/app/growth'
+    | '/app/kpi'
     | '/app/models'
     | '/app/overview'
     | '/app/second-brain'
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
     | '/app/finance'
     | '/app/goals'
     | '/app/growth'
+    | '/app/kpi'
     | '/app/models'
     | '/app/overview'
     | '/app/second-brain'
@@ -346,6 +357,7 @@ export interface FileRouteTypes {
     | '/app/finance'
     | '/app/goals'
     | '/app/growth'
+    | '/app/kpi'
     | '/app/models'
     | '/app/overview'
     | '/app/second-brain'
@@ -498,6 +510,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppModelsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/kpi': {
+      id: '/app/kpi'
+      path: '/kpi'
+      fullPath: '/app/kpi'
+      preLoaderRoute: typeof AppKpiRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/growth': {
       id: '/app/growth'
       path: '/growth'
@@ -586,6 +605,7 @@ interface AppRouteChildren {
   AppFinanceRoute: typeof AppFinanceRoute
   AppGoalsRoute: typeof AppGoalsRoute
   AppGrowthRoute: typeof AppGrowthRoute
+  AppKpiRoute: typeof AppKpiRoute
   AppModelsRoute: typeof AppModelsRoute
   AppOverviewRoute: typeof AppOverviewRoute
   AppSecondBrainRoute: typeof AppSecondBrainRoute
@@ -607,6 +627,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFinanceRoute: AppFinanceRoute,
   AppGoalsRoute: AppGoalsRoute,
   AppGrowthRoute: AppGrowthRoute,
+  AppKpiRoute: AppKpiRoute,
   AppModelsRoute: AppModelsRoute,
   AppOverviewRoute: AppOverviewRoute,
   AppSecondBrainRoute: AppSecondBrainRoute,
