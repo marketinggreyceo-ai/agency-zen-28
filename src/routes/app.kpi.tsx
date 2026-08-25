@@ -404,6 +404,7 @@ function KpiModal({ models, kpi, defaultModel, onClose }: {
   const [unitKind, setUnitKind] = useState(presetUnit);
   const [customUnit, setCustomUnit] = useState(presetUnit === "custom" ? (kpi?.unit ?? "") : "");
   const [period, setPeriod] = useState(kpi?.period ?? "weekly");
+  const [startValue, setStartValue] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -414,11 +415,23 @@ function KpiModal({ models, kpi, defaultModel, onClose }: {
     setSaving(true);
     const payload = { model_id: modelId, name: name.trim(), target_value: Number(target) || 0, unit, period };
     const { data: u } = await supabase.auth.getUser();
-    const { error } = kpi
-      ? await supabase.from("kpis").update(payload).eq("id", kpi.id)
-      : await supabase.from("kpis").insert({ ...payload, created_by: u.user?.id ?? null });
-    setSaving(false);
-    if (error) return toast.error(error.message);
+    if (kpi) {
+      const { error } = await supabase.from("kpis").update(payload).eq("id", kpi.id);
+      setSaving(false);
+      if (error) return toast.error(error.message);
+    } else {
+      const { data: created, error } = await supabase
+        .from("kpis").insert({ ...payload, created_by: u.user?.id ?? null }).select("id").single();
+      if (error) { setSaving(false); return toast.error(error.message); }
+      const start = Number(startValue);
+      if (startValue !== "" && !Number.isNaN(start) && created) {
+        const { error: ve } = await supabase.from("kpi_values")
+          .insert({ kpi_id: created.id, value: start, date: todayISO(), created_by: u.user?.id ?? null });
+        if (ve) toast.error(ve.message);
+        qc.invalidateQueries({ queryKey: ["kpi_values"] });
+      }
+      setSaving(false);
+    }
     qc.invalidateQueries({ queryKey: ["kpis"] });
     toast.success(kpi ? "KPI обновлён" : "KPI создан");
     onClose();
