@@ -10,6 +10,7 @@ const COLOR_OWNER = "#34B98A";
 const COLOR_PARTNER = "#5B8DE1";
 const COLOR_EXPENSE = "#D8683F";
 const COLOR_RED = "#E15B5B";
+const COLOR_REVENUE = "#22c55e";
 
 const tooltipStyle = { background: "#1A181C", border: "1px solid #333", borderRadius: 8, fontSize: 12, color: "#fff" };
 const tooltipItemStyle = { color: "#fff" };
