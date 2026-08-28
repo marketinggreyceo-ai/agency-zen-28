@@ -77,7 +77,7 @@ export function FinanceCharts({
       [partnerName]: Math.round(profit * partnerPct / 100),
       Прибыль: Math.round(profit),
       Расходы: Math.round(spent),
-      Доход: Math.round(received),
+      "Получено от моделей": Math.round(received),
       expensePct: received > 0 ? Math.round((spent / received) * 100) : 0,
     };
   }), [monthsList, payments, expensesAll, ownerPct, partnerPct, partnerName, year]);
