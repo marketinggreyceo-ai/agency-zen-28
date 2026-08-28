@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader, Empty } from "@/components/ui-shared";
+import { FinanceCharts } from "@/components/FinanceCharts";
+
 import { useProfile } from "@/lib/auth";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -256,7 +258,19 @@ function Page() {
               </div>
             )}
           </Section>
+
+          <FinanceCharts
+            payments={payments}
+            expensesAll={expensesAll}
+            categories={categories}
+            month={month}
+            year={year}
+            partnerName={partnerName}
+            partnerPct={partnerPct}
+            currency={currency}
+          />
         </>
+
       ) : (
         <HistoryTab
           payments={payments}
