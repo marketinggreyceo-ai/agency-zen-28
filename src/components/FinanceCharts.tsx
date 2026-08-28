@@ -156,7 +156,7 @@ export function FinanceCharts({
               <YAxis tick={{ fontSize: 11, fill: "#8C887E" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} formatter={money} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="Доход" fill={COLOR_OWNER} radius={[3,3,0,0]} maxBarSize={26} />
+              <Bar dataKey="Получено от моделей" fill={COLOR_REVENUE} radius={[3,3,0,0]} maxBarSize={26} />
               <Bar dataKey="Расходы" fill={COLOR_EXPENSE} radius={[3,3,0,0]} maxBarSize={26}>
                 <LabelList dataKey="expensePct" position="top" formatter={(v: number) => v ? `${v}%` : ""} fill="#fff" fontSize={10} />
               </Bar>
