@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine, Cell,
+  ResponsiveContainer, ReferenceLine, Cell, LabelList,
 } from "recharts";
 
 const RU_MONTHS_SHORT = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
@@ -11,7 +11,9 @@ const COLOR_PARTNER = "#5B8DE1";
 const COLOR_EXPENSE = "#D8683F";
 const COLOR_RED = "#E15B5B";
 
-const tooltipStyle = { background: "#1A181C", border: "1px solid #333", borderRadius: 8, fontSize: 12 };
+const tooltipStyle = { background: "#1A181C", border: "1px solid #333", borderRadius: 8, fontSize: 12, color: "#fff" };
+const tooltipItemStyle = { color: "#fff" };
+const tooltipLabelStyle = { color: "#fff" };
 
 function prevYM(y: number, m: number): [number, number] {
   return m === 1 ? [y - 1, 12] : [y, m - 1];
@@ -74,6 +76,8 @@ export function FinanceCharts({
       [partnerName]: Math.round(profit * partnerPct / 100),
       Прибыль: Math.round(profit),
       Расходы: Math.round(spent),
+      Доход: Math.round(received),
+      expensePct: received > 0 ? Math.round((spent / received) * 100) : 0,
     };
   }), [monthsList, payments, expensesAll, ownerPct, partnerPct, partnerName, year]);
 
@@ -122,7 +126,7 @@ export function FinanceCharts({
             <BarChart data={rows} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#8C887E" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "#8C887E" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} formatter={money} />
+              <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} formatter={money} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="Твоя доля" fill={COLOR_OWNER} radius={[3,3,0,0]} maxBarSize={26} />
               <Bar dataKey={partnerName} fill={COLOR_PARTNER} radius={[3,3,0,0]} maxBarSize={26} />
@@ -135,7 +139,7 @@ export function FinanceCharts({
             <LineChart data={rows} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#8C887E" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "#8C887E" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} formatter={money} />
+              <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} formatter={money} />
               <ReferenceLine y={0} stroke="#5A564C" strokeDasharray="3 3" />
               <Line type="monotone" dataKey="Прибыль" strokeWidth={2}
                 stroke={profitPositive ? COLOR_OWNER : COLOR_RED}
@@ -146,11 +150,15 @@ export function FinanceCharts({
 
         <ChartCard title="Расходы по месяцам">
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={rows} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
+            <BarChart data={rows} margin={{ top: 20, right: 4, left: -18, bottom: 0 }}>
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#8C887E" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "#8C887E" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} formatter={money} />
-              <Bar dataKey="Расходы" fill={COLOR_EXPENSE} radius={[3,3,0,0]} maxBarSize={30} />
+              <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} formatter={money} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="Доход" fill={COLOR_OWNER} radius={[3,3,0,0]} maxBarSize={26} />
+              <Bar dataKey="Расходы" fill={COLOR_EXPENSE} radius={[3,3,0,0]} maxBarSize={26}>
+                <LabelList dataKey="expensePct" position="top" formatter={(v: number) => v ? `${v}%` : ""} fill="#fff" fontSize={10} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -164,7 +172,7 @@ export function FinanceCharts({
                 <XAxis type="number" tick={{ fontSize: 11, fill: "#8C887E" }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" width={110}
                   tick={{ fontSize: 11, fill: "#8C887E" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} formatter={money} />
+                <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} formatter={money} />
                 <Bar dataKey="amount" name="Сумма" radius={[0,3,3,0]} maxBarSize={22}>
                   {catRows.map((c, i) => <Cell key={i} fill={c.color} />)}
                 </Bar>
