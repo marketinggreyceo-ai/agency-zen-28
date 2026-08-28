@@ -256,7 +256,19 @@ function Page() {
               </div>
             )}
           </Section>
+
+          <FinanceCharts
+            payments={payments}
+            expensesAll={expensesAll}
+            categories={categories}
+            month={month}
+            year={year}
+            partnerName={partnerName}
+            partnerPct={partnerPct}
+            currency={currency}
+          />
         </>
+
       ) : (
         <HistoryTab
           payments={payments}
