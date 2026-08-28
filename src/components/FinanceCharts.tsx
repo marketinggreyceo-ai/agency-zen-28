@@ -10,6 +10,7 @@ const COLOR_OWNER = "#34B98A";
 const COLOR_PARTNER = "#5B8DE1";
 const COLOR_EXPENSE = "#D8683F";
 const COLOR_RED = "#E15B5B";
+const COLOR_REVENUE = "#22c55e";
 
 const tooltipStyle = { background: "#1A181C", border: "1px solid #333", borderRadius: 8, fontSize: 12, color: "#fff" };
 const tooltipItemStyle = { color: "#fff" };
@@ -76,7 +77,7 @@ export function FinanceCharts({
       [partnerName]: Math.round(profit * partnerPct / 100),
       Прибыль: Math.round(profit),
       Расходы: Math.round(spent),
-      Доход: Math.round(received),
+      "Получено от моделей": Math.round(received),
       expensePct: received > 0 ? Math.round((spent / received) * 100) : 0,
     };
   }), [monthsList, payments, expensesAll, ownerPct, partnerPct, partnerName, year]);
@@ -155,7 +156,7 @@ export function FinanceCharts({
               <YAxis tick={{ fontSize: 11, fill: "#8C887E" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: "rgba(255,255,255,0.04)" }} formatter={money} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="Доход" fill={COLOR_OWNER} radius={[3,3,0,0]} maxBarSize={26} />
+              <Bar dataKey="Получено от моделей" fill={COLOR_REVENUE} radius={[3,3,0,0]} maxBarSize={26} />
               <Bar dataKey="Расходы" fill={COLOR_EXPENSE} radius={[3,3,0,0]} maxBarSize={26}>
                 <LabelList dataKey="expensePct" position="top" formatter={(v: number) => v ? `${v}%` : ""} fill="#fff" fontSize={10} />
               </Bar>
