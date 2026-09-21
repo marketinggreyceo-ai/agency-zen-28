@@ -13,7 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertTriangle, Plus, Trash2, Send, Eye } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, Send, Eye, ListChecks } from "lucide-react";
 
 type TeamMemberRow = {
   id: string;
@@ -25,9 +25,12 @@ type TeamMemberRow = {
   task_wip_limit: number | null;
   is_archived: boolean;
   telegram_chat_id: string | null;
+  report_what: string | null;
+  report_how: string | null;
+  report_action: string | null;
 };
 
-type TaskItem = { id?: string; description: string; hours: number; frequency: "daily" | "weekly" | "situational" };
+type TaskItem = { id?: string; description: string; hours: number; frequency: "daily" | "weekly" | "situational"; instructions: string };
 type MetricItem = { id?: string; label: string; value: string };
 type ReportRow = { id: string; team_member_id: string | null; sender_name: string | null; recipient_id: string | null; content: string; created_at: string };
 
@@ -135,31 +138,54 @@ function MemberCard({
 }
 
 function TaskListEditor({ tasks, setTasks }: { tasks: TaskItem[]; setTasks: (t: TaskItem[]) => void }) {
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const update = (i: number, patch: Partial<TaskItem>) =>
     setTasks(tasks.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
   const remove = (i: number) => setTasks(tasks.filter((_, idx) => idx !== i));
-  const add = () => setTasks([...tasks, { description: "", hours: 1, frequency: "weekly" }]);
+  const add = () => setTasks([...tasks, { description: "", hours: 1, frequency: "weekly", instructions: "" }]);
+  const toggle = (i: number) => {
+    const next = new Set(expanded);
+    if (next.has(i)) next.delete(i); else next.add(i);
+    setExpanded(next);
+  };
 
   return (
     <div className="space-y-2">
       {tasks.map((t, i) => (
-        <div key={i} className="flex gap-2 items-center">
-          <span className="text-xs text-text2 w-4">{i + 1}.</span>
-          <Input className="flex-1" placeholder="Описание задачи" value={t.description}
-            onChange={(e) => update(i, { description: e.target.value })} />
-          <Input type="number" step="0.5" className="w-16" value={t.hours}
-            onChange={(e) => update(i, { hours: Number(e.target.value) })} />
-          <Select value={t.frequency} onValueChange={(v) => update(i, { frequency: v as TaskItem["frequency"] })}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="daily">ч/день</SelectItem>
-              <SelectItem value="weekly">ч/неделю</SelectItem>
-              <SelectItem value="situational">по ситуации</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => remove(i)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
+        <div key={i} className="space-y-1.5">
+          <div className="flex gap-2 items-center">
+            <span className="text-xs text-text2 w-4">{i + 1}.</span>
+            <Input className="flex-1" placeholder="Описание задачи" value={t.description}
+              onChange={(e) => update(i, { description: e.target.value })} />
+            <Input type="number" step="0.5" className="w-16" value={t.hours}
+              onChange={(e) => update(i, { hours: Number(e.target.value) })} />
+            <Select value={t.frequency} onValueChange={(v) => update(i, { frequency: v as TaskItem["frequency"] })}>
+              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">ч/день</SelectItem>
+                <SelectItem value="weekly">ч/неделю</SelectItem>
+                <SelectItem value="situational">по ситуации</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="ghost" size="icon" className="shrink-0"
+              onClick={() => toggle(i)}
+              title="Инструкция по задаче"
+            >
+              <ListChecks className={`h-4 w-4 ${t.instructions ? "text-teal" : ""}`} />
+            </Button>
+            <Button variant="ghost" size="icon" className="shrink-0" onClick={() => remove(i)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+          {expanded.has(i) && (
+            <Textarea
+              className="ml-6" rows={3}
+              placeholder={"Пошаговая инструкция, каждый пункт с новой строки:\n1. ...\n2. ...\n3. ..."}
+              value={t.instructions}
+              onChange={(e) => update(i, { instructions: e.target.value })}
+            />
+          )}
         </div>
       ))}
       <div className="flex items-center justify-between pt-1">
@@ -229,6 +255,9 @@ function MemberDetailDialog({
   const [responsibilities, setResponsibilities] = useState("");
   const [wipLimit, setWipLimit] = useState(3);
   const [managerId, setManagerId] = useState<string>("__none__");
+  const [reportWhat, setReportWhat] = useState("");
+  const [reportHow, setReportHow] = useState("");
+  const [reportAction, setReportAction] = useState("");
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [metrics, setMetrics] = useState<MetricItem[]>([]);
   const [reportsFrom, setReportsFrom] = useState<Set<string>>(new Set());
@@ -260,7 +289,10 @@ function MemberDetailDialog({
     setResponsibilities(member.responsibilities || "");
     setWipLimit(member.task_wip_limit ?? 3);
     setManagerId(member.manager_id || "__none__");
-    setTasks(existingTasks.map((t) => ({ description: t.description, hours: t.hours, frequency: t.frequency })));
+    setReportWhat(member.report_what || "");
+    setReportHow(member.report_how || "");
+    setReportAction(member.report_action || "");
+    setTasks(existingTasks.map((t) => ({ description: t.description, hours: t.hours, frequency: t.frequency, instructions: (t as any).instructions || "" })));
     setMetrics(existingMetrics.map((m) => ({ label: m.label, value: m.value })));
     setReportsFrom(new Set(allMembers.filter((m) => m.manager_id === member.id).map((m) => m.id)));
     setLoadedFor(member.id);
@@ -277,6 +309,9 @@ function MemberDetailDialog({
       responsibilities,
       task_wip_limit: wipLimit,
       manager_id: managerId === "__none__" ? null : managerId,
+      report_what: reportWhat,
+      report_how: reportHow,
+      report_action: reportAction,
     }).eq("id", member.id);
 
     // Sync direct-report changes: anyone added now points to me; anyone
@@ -296,7 +331,7 @@ function MemberDetailDialog({
       await (supabase as any).from("role_tasks").insert(
         tasks.filter((t) => t.description.trim()).map((t, i) => ({
           team_member_id: member.id, description: t.description, hours: t.hours,
-          frequency: t.frequency, sort_order: i,
+          frequency: t.frequency, sort_order: i, instructions: t.instructions,
         }))
       );
     }
@@ -380,6 +415,25 @@ function MemberDetailDialog({
           <div>
             <label className="text-xs text-text2 block mb-1.5">Метрики</label>
             <MetricListEditor metrics={metrics} setMetrics={setMetrics} />
+          </div>
+
+          <div className="border-t border-border pt-3 space-y-3">
+            <p className="text-xs font-medium text-fg">Отчётность</p>
+            <div>
+              <label className="text-xs text-text2">Что репортить</label>
+              <Textarea rows={2} value={reportWhat} onChange={(e) => setReportWhat(e.target.value)}
+                placeholder="Например: статус аккаунтов, баны, блокеры" />
+            </div>
+            <div>
+              <label className="text-xs text-text2">Как репортить</label>
+              <Textarea rows={2} value={reportHow} onChange={(e) => setReportHow(e.target.value)}
+                placeholder="Например: тегом #отчет в чат, ежедневно к 20:00" />
+            </div>
+            <div>
+              <label className="text-xs text-text2">Что делать с этим отчётом (получателю)</label>
+              <Textarea rows={2} value={reportAction} onChange={(e) => setReportAction(e.target.value)}
+                placeholder="Например: проверить баны, при 2+ банах эскалировать Alex" />
+            </div>
           </div>
 
           <div>
@@ -473,9 +527,14 @@ function ProfileDialog({
           {tasks.length > 0 && (
             <div>
               <p className="text-xs text-text2 mb-1">Задачи</p>
-              <ol className="list-decimal list-inside space-y-0.5">
+              <ol className="list-decimal list-inside space-y-1.5">
                 {tasks.map((t, i) => (
-                  <li key={i}>{t.description} — {t.hours}ч ({t.frequency === "daily" ? "в день" : t.frequency === "weekly" ? "в неделю" : "по ситуации"})</li>
+                  <li key={i}>
+                    {t.description} — {t.hours}ч ({t.frequency === "daily" ? "в день" : t.frequency === "weekly" ? "в неделю" : "по ситуации"})
+                    {(t as any).instructions && (
+                      <div className="ml-5 mt-0.5 text-xs text-text2 whitespace-pre-wrap">{(t as any).instructions}</div>
+                    )}
+                  </li>
                 ))}
               </ol>
               <p className="text-xs text-text2 mt-1">Итого в неделю: ~{weeklyTotal(tasks)}ч</p>
@@ -488,6 +547,15 @@ function ProfileDialog({
               <ul className="space-y-0.5">
                 {metrics.map((m, i) => <li key={i}>• {m.label}{m.value ? `: ${m.value}` : ""}</li>)}
               </ul>
+            </div>
+          )}
+
+          {(member.report_what || member.report_how || member.report_action) && (
+            <div className="border-t border-border pt-3 space-y-1.5">
+              <p className="text-xs text-text2">Отчётность</p>
+              {member.report_what && <p><span className="text-text2">Что:</span> {member.report_what}</p>}
+              {member.report_how && <p><span className="text-text2">Как:</span> {member.report_how}</p>}
+              {member.report_action && <p><span className="text-text2">Действие получателя:</span> {member.report_action}</p>}
             </div>
           )}
 

@@ -30,7 +30,7 @@ export const Route = createFileRoute("/api/team/notify")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const { data: member } = await (supabaseAdmin as any).from("team_members")
-          .select("id, name, role_label, responsibilities, telegram_chat_id")
+          .select("id, name, role_label, responsibilities, telegram_chat_id, report_what, report_how, report_action")
           .eq("id", parsed.data.team_member_id).maybeSingle();
         if (!member) return Response.json({ error: "Member not found" }, { status: 404 });
         if (!member.telegram_chat_id) {
@@ -41,11 +41,11 @@ export const Route = createFileRoute("/api/team/notify")({
         }
 
         const { data: tasks } = await (supabaseAdmin as any).from("role_tasks")
-          .select("description, hours, frequency").eq("team_member_id", member.id).order("sort_order");
+          .select("description, hours, frequency, instructions").eq("team_member_id", member.id).order("sort_order");
         const { data: metrics } = await (supabaseAdmin as any).from("role_metrics")
           .select("label, value").eq("team_member_id", member.id).order("sort_order");
 
-        const taskList = (tasks ?? []) as { description: string; hours: number; frequency: string }[];
+        const taskList = (tasks ?? []) as { description: string; hours: number; frequency: string; instructions: string | null }[];
         const metricList = (metrics ?? []) as { label: string; value: string | null }[];
         const total = weeklyHours(taskList);
 
@@ -55,12 +55,20 @@ export const Route = createFileRoute("/api/team/notify")({
           text += `\nЗадачи:\n`;
           taskList.forEach((t, i) => {
             text += `${i + 1}. ${t.description} — ${t.hours}ч (${FREQ_LABEL[t.frequency] ?? t.frequency})\n`;
+            if (t.instructions) {
+              text += t.instructions.split("\n").map((line) => `   ${line}`).join("\n") + "\n";
+            }
           });
           text += `\nИтого в неделю: ~${total}ч\n`;
         }
         if (metricList.length > 0) {
           text += `\nМетрики:\n`;
           metricList.forEach((m) => { text += `• ${m.label}${m.value ? `: ${m.value}` : ""}\n`; });
+        }
+        if (member.report_what || member.report_how) {
+          text += `\nОтчётность:\n`;
+          if (member.report_what) text += `Что репортить: ${member.report_what}\n`;
+          if (member.report_how) text += `Как: ${member.report_how}\n`;
         }
 
         const { data: settings } = await supabaseAdmin.from("telegram_settings")
