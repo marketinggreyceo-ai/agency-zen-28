@@ -81,6 +81,14 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           { onConflict: "chat_id" }
         );
 
+        // Auto-capture this member's private chat id, so we can message them
+        // directly later (e.g. sending role/task updates).
+        if (chat.type === "private" && msg.from?.username) {
+          await (supabaseAdmin as any).from("team_members")
+            .update({ telegram_chat_id: String(chat.id) })
+            .ilike("telegram_handle", msg.from.username);
+        }
+
         const { data: settings } = await supabaseAdmin.from("telegram_settings")
           .select("auto_tasks_enabled, bot_token").limit(1).maybeSingle();
         const botToken: string | null = settings?.bot_token ?? null;

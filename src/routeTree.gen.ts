@@ -34,6 +34,7 @@ import { Route as AppFanslyFypRouteImport } from './routes/app.fansly-fyp'
 import { Route as AppCustomsRouteImport } from './routes/app.customs'
 import { Route as AppChattingRouteImport } from './routes/app.chatting'
 import { Route as AppAccessRouteImport } from './routes/app.access'
+import { Route as ApiTeamNotifyRouteImport } from './routes/api/team.notify'
 import { Route as ApiPublicWebhookTasksRouteImport } from './routes/api/public/webhook.tasks'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram.webhook'
 import { Route as ApiPublicHooksTelegramDailyTasksRouteImport } from './routes/api/public/hooks/telegram-daily-tasks'
@@ -164,6 +165,11 @@ const AppAccessRoute = AppAccessRouteImport.update({
   path: '/access',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiTeamNotifyRoute = ApiTeamNotifyRouteImport.update({
+  id: '/api/team/notify',
+  path: '/api/team/notify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWebhookTasksRoute = ApiPublicWebhookTasksRouteImport.update({
   id: '/api/public/webhook/tasks',
   path: '/api/public/webhook/tasks',
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
+  '/api/team/notify': typeof ApiTeamNotifyRoute
   '/api/public/hooks/telegram-daily-customs': typeof ApiPublicHooksTelegramDailyCustomsRoute
   '/api/public/hooks/telegram-daily-tasks': typeof ApiPublicHooksTelegramDailyTasksRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -244,6 +251,7 @@ export interface FileRoutesByTo {
   '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app': typeof AppIndexRoute
+  '/api/team/notify': typeof ApiTeamNotifyRoute
   '/api/public/hooks/telegram-daily-customs': typeof ApiPublicHooksTelegramDailyCustomsRoute
   '/api/public/hooks/telegram-daily-tasks': typeof ApiPublicHooksTelegramDailyTasksRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/app/voice-gen': typeof AppVoiceGenRoute
   '/sops/$category': typeof SopsCategoryRoute
   '/app/': typeof AppIndexRoute
+  '/api/team/notify': typeof ApiTeamNotifyRoute
   '/api/public/hooks/telegram-daily-customs': typeof ApiPublicHooksTelegramDailyCustomsRoute
   '/api/public/hooks/telegram-daily-tasks': typeof ApiPublicHooksTelegramDailyTasksRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -309,6 +318,7 @@ export interface FileRouteTypes {
     | '/app/voice-gen'
     | '/sops/$category'
     | '/app/'
+    | '/api/team/notify'
     | '/api/public/hooks/telegram-daily-customs'
     | '/api/public/hooks/telegram-daily-tasks'
     | '/api/public/telegram/webhook'
@@ -339,6 +349,7 @@ export interface FileRouteTypes {
     | '/app/voice-gen'
     | '/sops/$category'
     | '/app'
+    | '/api/team/notify'
     | '/api/public/hooks/telegram-daily-customs'
     | '/api/public/hooks/telegram-daily-tasks'
     | '/api/public/telegram/webhook'
@@ -370,6 +381,7 @@ export interface FileRouteTypes {
     | '/app/voice-gen'
     | '/sops/$category'
     | '/app/'
+    | '/api/team/notify'
     | '/api/public/hooks/telegram-daily-customs'
     | '/api/public/hooks/telegram-daily-tasks'
     | '/api/public/telegram/webhook'
@@ -383,6 +395,7 @@ export interface RootRouteChildren {
   SetupRoute: typeof SetupRoute
   UniquifyRoute: typeof UniquifyRoute
   SopsCategoryRoute: typeof SopsCategoryRoute
+  ApiTeamNotifyRoute: typeof ApiTeamNotifyRoute
   ApiPublicHooksTelegramDailyCustomsRoute: typeof ApiPublicHooksTelegramDailyCustomsRoute
   ApiPublicHooksTelegramDailyTasksRoute: typeof ApiPublicHooksTelegramDailyTasksRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
@@ -566,6 +579,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccessRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/team/notify': {
+      id: '/api/team/notify'
+      path: '/api/team/notify'
+      fullPath: '/api/team/notify'
+      preLoaderRoute: typeof ApiTeamNotifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhook/tasks': {
       id: '/api/public/webhook/tasks'
       path: '/api/public/webhook/tasks'
@@ -650,6 +670,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupRoute: SetupRoute,
   UniquifyRoute: UniquifyRoute,
   SopsCategoryRoute: SopsCategoryRoute,
+  ApiTeamNotifyRoute: ApiTeamNotifyRoute,
   ApiPublicHooksTelegramDailyCustomsRoute:
     ApiPublicHooksTelegramDailyCustomsRoute,
   ApiPublicHooksTelegramDailyTasksRoute: ApiPublicHooksTelegramDailyTasksRoute,
