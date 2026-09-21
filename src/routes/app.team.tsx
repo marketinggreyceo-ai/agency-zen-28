@@ -16,6 +16,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { StructureTab } from "@/components/team/StructureTab";
 
 export const Route = createFileRoute("/app/team")({ ssr: false, component: Page });
 
@@ -90,34 +92,47 @@ function Page() {
         )}
       </div>
 
-      {isOwner && <PendingInvites members={members} />}
-      <CancelInviteHandler />
+      <Tabs defaultValue="members">
+        <TabsList>
+          <TabsTrigger value="members">Список</TabsTrigger>
+          <TabsTrigger value="structure">Структура</TabsTrigger>
+        </TabsList>
 
-      <section className="rounded-lg border border-border bg-card overflow-x-auto">
-        <table className="w-full text-sm min-w-[820px]">
-          <thead className="text-xs text-text2 uppercase border-b border-border">
-            <tr>
-              <th className="text-left p-3 font-normal">Имя</th>
-              <th className="text-left p-3 font-normal">Email</th>
-              <th className="text-left p-3 font-normal">Роль</th>
-              <th className="text-left p-3 font-normal">Telegram</th>
-              <th className="text-left p-3 font-normal">Статус</th>
-              <th className="text-right p-3 font-normal">Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleProfiles.map((p) => (
-              <ProfileRowView key={p.id} p={p} isOwner={isOwner}
-                isSelf={p.id === profile?.id}
-                onDelete={() => setConfirmDelete(p)}
-                onSaved={refresh} />
-            ))}
-            {!isLoading && visibleProfiles.length === 0 && (
-              <tr><td colSpan={6} className="p-6"><Empty message="Пока никого" /></td></tr>
-            )}
-          </tbody>
-        </table>
-      </section>
+        <TabsContent value="members" className="space-y-6 pt-4">
+          {isOwner && <PendingInvites members={members} />}
+          <CancelInviteHandler />
+
+          <section className="rounded-lg border border-border bg-card overflow-x-auto">
+            <table className="w-full text-sm min-w-[820px]">
+              <thead className="text-xs text-text2 uppercase border-b border-border">
+                <tr>
+                  <th className="text-left p-3 font-normal">Имя</th>
+                  <th className="text-left p-3 font-normal">Email</th>
+                  <th className="text-left p-3 font-normal">Роль</th>
+                  <th className="text-left p-3 font-normal">Telegram</th>
+                  <th className="text-left p-3 font-normal">Статус</th>
+                  <th className="text-right p-3 font-normal">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleProfiles.map((p) => (
+                  <ProfileRowView key={p.id} p={p} isOwner={isOwner}
+                    isSelf={p.id === profile?.id}
+                    onDelete={() => setConfirmDelete(p)}
+                    onSaved={refresh} />
+                ))}
+                {!isLoading && visibleProfiles.length === 0 && (
+                  <tr><td colSpan={6} className="p-6"><Empty message="Пока никого" /></td></tr>
+                )}
+              </tbody>
+            </table>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="structure" className="pt-4">
+          <StructureTab />
+        </TabsContent>
+      </Tabs>
 
       <InviteByEmailModal open={inviteOpen} onClose={() => setInviteOpen(false)}
         onSent={(r) => { setInviteOpen(false); setLinkModal(r); refresh(); }} />
