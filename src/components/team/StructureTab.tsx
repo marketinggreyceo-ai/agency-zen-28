@@ -204,6 +204,7 @@ function MetricListEditor({ metrics, setMetrics }: { metrics: MetricItem[]; setM
 function MemberDetailDialog({
   member, allMembers, open, onOpenChange,
 }: { member: TreeNode | null; allMembers: TeamMemberRow[]; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const directReports = member ? allMembers.filter((m) => m.manager_id === member.id) : [];
   const qc = useQueryClient();
   const [roleLabel, setRoleLabel] = useState("");
   const [responsibilities, setResponsibilities] = useState("");
@@ -326,6 +327,12 @@ function MemberDetailDialog({
               </Select>
             </div>
           </div>
+
+          {directReports.length > 0 && (
+            <div className="text-xs text-text2">
+              Получает отчёты от: <span className="text-fg">{directReports.map((m) => m.name).join(", ")}</span>
+            </div>
+          )}
 
           <div>
             <label className="text-xs text-text2">Зона ответственности</label>

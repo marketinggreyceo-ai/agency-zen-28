@@ -96,6 +96,7 @@ function AddReportDialog({ members, onAdded }: { members: TeamMemberLite[]; onAd
 
 export function ReportsTab() {
   const qc = useQueryClient();
+  const [filterSender, setFilterSender] = useState<string>("__all__");
   const [filterRecipient, setFilterRecipient] = useState<string>("__all__");
 
   const { data: members = [] } = useQuery({
@@ -108,9 +109,10 @@ export function ReportsTab() {
   });
 
   const { data: reports = [], isLoading } = useQuery({
-    queryKey: ["reports", filterRecipient],
+    queryKey: ["reports", filterSender, filterRecipient],
     queryFn: async () => {
       let q = (supabase as any).from("reports").select("*").order("created_at", { ascending: false });
+      if (filterSender !== "__all__") q = q.eq("team_member_id", filterSender);
       if (filterRecipient !== "__all__") q = q.eq("recipient_id", filterRecipient);
       const { data } = await q;
       return (data ?? []) as ReportRow[];
@@ -126,13 +128,28 @@ export function ReportsTab() {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <Select value={filterRecipient} onValueChange={setFilterRecipient}>
-          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Все получатели</SelectItem>
-            {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2 items-center flex-wrap">
+          <div>
+            <span className="text-xs text-text2 block mb-1">От кого</span>
+            <Select value={filterSender} onValueChange={setFilterSender}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Все отправители</SelectItem>
+                {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <span className="text-xs text-text2 block mb-1">Кому</span>
+            <Select value={filterRecipient} onValueChange={setFilterRecipient}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Все получатели</SelectItem>
+                {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <AddReportDialog members={members} onAdded={refresh} />
       </div>
 
