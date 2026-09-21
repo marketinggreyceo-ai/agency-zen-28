@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -10,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { AlertTriangle } from "lucide-react";
 
 type TeamMemberRow = {
   id: string;
@@ -25,20 +25,45 @@ type TeamMemberRow = {
 
 type TreeNode = TeamMemberRow & { children: TreeNode[]; activeCount: number };
 
-function buildTree(members: TeamMemberRow[], activeCounts: Record<string, number>): TreeNode[] {
+function initials(name: string) {
+  return name
+    .replace(/\(.*?\)/g, "")
+    .trim()
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function buildTree(members: TeamMemberRow[], activeCounts: Record<string, number>) {
   const map = new Map<string, TreeNode>();
   members.forEach((m) =>
     map.set(m.id, { ...m, children: [], activeCount: activeCounts[m.name] || 0 })
   );
   const roots: TreeNode[] = [];
+  const orphans: TreeNode[] = [];
   map.forEach((node) => {
     if (node.manager_id && map.has(node.manager_id)) {
       map.get(node.manager_id)!.children.push(node);
-    } else {
+    } else if (node.manager_id === null && roots.length === 0) {
       roots.push(node);
+    } else {
+      orphans.push(node);
     }
   });
-  return roots;
+  return { roots, orphans };
+}
+
+function Avatar({ name, size = 40 }: { name: string; size?: number }) {
+  return (
+    <div
+      className="rounded-full bg-bg3 border border-border flex items-center justify-center text-xs font-medium shrink-0"
+      style={{ width: size, height: size }}
+    >
+      {initials(name)}
+    </div>
+  );
 }
 
 function MemberCard({ node, onSelect }: { node: TreeNode; onSelect: (n: TreeNode) => void }) {
@@ -46,26 +71,40 @@ function MemberCard({ node, onSelect }: { node: TreeNode; onSelect: (n: TreeNode
   const over = node.activeCount >= limit;
   return (
     <div className="flex flex-col items-center">
-      <Card
-        className="w-48 cursor-pointer hover:border-teal transition-colors"
+      <button
         onClick={() => onSelect(node)}
+        className="w-52 rounded-lg border border-border bg-card p-4 text-left hover:border-teal transition-colors flex gap-3 items-start"
       >
-        <CardHeader className="p-3 pb-1">
-          <CardTitle className="text-sm">{node.name}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 pt-0 space-y-1">
-          <p className="text-xs text-text2">{node.role_label || "Роль не указана"}</p>
-          <Badge variant={over ? "destructive" : "secondary"}>
+        <Avatar name={node.name} />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium truncate">{node.name}</div>
+          <div className="text-xs text-text2 truncate mb-2">
+            {node.role_label || "Роль не указана"}
+          </div>
+          <Badge variant={over ? "destructive" : "secondary"} className="text-[10px]">
             {node.activeCount}/{limit} задач
           </Badge>
-        </CardContent>
-      </Card>
-      {node.children.length > 0 && (
-        <div className="flex gap-6 mt-6 border-t border-border pt-6">
-          {node.children.map((c) => (
-            <MemberCard key={c.id} node={c} onSelect={onSelect} />
-          ))}
         </div>
+      </button>
+
+      {node.children.length > 0 && (
+        <>
+          <div className="w-px h-6 bg-border" />
+          <div className="flex gap-8 relative">
+            {node.children.length > 1 && (
+              <div
+                className="absolute top-0 h-px bg-border"
+                style={{ left: "6.5rem", right: "6.5rem" }}
+              />
+            )}
+            {node.children.map((c) => (
+              <div key={c.id} className="flex flex-col items-center">
+                <div className="w-px h-6 bg-border" />
+                <MemberCard node={c} onSelect={onSelect} />
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -120,7 +159,10 @@ function MemberDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{member.name}</DialogTitle>
+          <div className="flex items-center gap-3">
+            <Avatar name={member.name} size={44} />
+            <DialogTitle>{member.name}</DialogTitle>
+          </div>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -135,13 +177,15 @@ function MemberDetailDialog({
             <label className="text-xs text-text2">Задачи</label>
             <Textarea rows={5} value={weeklyTasks} onChange={(e) => setWeeklyTasks(e.target.value)} />
           </div>
-          <div>
-            <label className="text-xs text-text2">Метрика недели</label>
-            <Input value={weeklyMetric} onChange={(e) => setWeeklyMetric(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs text-text2">Лимит задач</label>
-            <Input type="number" value={wipLimit} onChange={(e) => setWipLimit(Number(e.target.value))} />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-text2">Метрика недели</label>
+              <Input value={weeklyMetric} onChange={(e) => setWeeklyMetric(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-text2">Лимит задач</label>
+              <Input type="number" value={wipLimit} onChange={(e) => setWipLimit(Number(e.target.value))} />
+            </div>
           </div>
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving ? "Сохранение..." : "Сохранить"}
@@ -179,19 +223,29 @@ export function StructureTab() {
 
   if (isLoading) return <p className="text-sm text-text2 p-4">Загрузка...</p>;
 
-  const tree = buildTree(members, activeCounts);
+  const { roots, orphans } = buildTree(members, activeCounts);
+  const handleSelect = (n: TreeNode) => { setSelected(n); setDialogOpen(true); };
 
   return (
-    <div className="overflow-x-auto pb-4">
-      <div className="flex gap-8 min-w-max p-2">
-        {tree.map((root) => (
-          <MemberCard
-            key={root.id}
-            node={root}
-            onSelect={(n) => { setSelected(n); setDialogOpen(true); }}
-          />
-        ))}
+    <div>
+      {orphans.length > 0 && (
+        <div className="mb-6 rounded-lg border border-amber/40 bg-amber/5 p-3 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <span className="text-amber font-medium">Без руководителя ({orphans.length}):</span>{" "}
+            {orphans.map((o) => o.name).join(", ")} — у них не указан менеджер, они не попали в дерево ниже.
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto pb-4">
+        <div className="flex gap-12 min-w-max p-2 justify-center">
+          {roots.map((root) => (
+            <MemberCard key={root.id} node={root} onSelect={handleSelect} />
+          ))}
+        </div>
       </div>
+
       <MemberDetailDialog member={selected} open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
