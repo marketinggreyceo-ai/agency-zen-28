@@ -42,6 +42,17 @@ function parseCustomMessage(text: string) {
   return { nickname, modelHint, description, price };
 }
 
+// Parses: "#отчет [@получатель] текст отчёта"
+function parseReportMessage(text: string) {
+  const m = text.match(/#отчет\s+(.+)/i);
+  if (!m) return null;
+  let rest = m[1].trim();
+  const recipientMatch = rest.match(/@(\S+)/);
+  const recipientHandle = recipientMatch?.[1] ?? null;
+  if (recipientMatch) rest = rest.replace(recipientMatch[0], "").replace(/\s{2,}/g, " ").trim();
+  return { content: rest, recipientHandle };
+}
+
 async function sendTelegramMessage(token: string, chatId: string | number, text: string) {
   try {
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -101,6 +112,52 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
                 `✅ Кастом добавлен для ${modelName ?? parsed.modelHint ?? "—"} от ${parsed.nickname}. Статус: Новый`);
             }
             return Response.json({ ok: true, type: "custom" });
+          }
+        }
+
+        // Report detection
+        if (/#отчет/i.test(text)) {
+          const parsed = parseReportMessage(text);
+          if (parsed && parsed.content) {
+            const senderHandle = msg.from?.username ?? null;
+            const senderName = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ")
+              || senderHandle || chatTitle;
+
+            let sender: { id: string; manager_id: string | null; name: string } | null = null;
+            if (senderHandle) {
+              const { data: s } = await (supabaseAdmin as any).from("team_members")
+                .select("id, manager_id, name").ilike("telegram_handle", senderHandle).maybeSingle();
+              sender = (s as any) ?? null;
+            }
+
+            let recipientId: string | null = null;
+            let recipientName: string | null = null;
+            if (parsed.recipientHandle) {
+              const { data: r } = await (supabaseAdmin as any).from("team_members")
+                .select("id, name").ilike("telegram_handle", parsed.recipientHandle).maybeSingle();
+              if (r) { recipientId = r.id; recipientName = r.name; }
+            } else if (sender?.manager_id) {
+              const { data: r } = await (supabaseAdmin as any).from("team_members")
+                .select("id, name").eq("id", sender.manager_id).maybeSingle();
+              if (r) { recipientId = r.id; recipientName = r.name; }
+            }
+
+            await (supabaseAdmin as any).from("reports").insert({
+              team_member_id: sender?.id ?? null,
+              sender_name: senderName,
+              recipient_id: recipientId,
+              content: parsed.content,
+              telegram_chat_id: String(chat.id),
+              telegram_message_id: String(msg.message_id ?? ""),
+            });
+
+            if (botToken) {
+              await sendTelegramMessage(botToken, chat.id,
+                recipientName
+                  ? `✅ Отчёт отправлен: ${recipientName}`
+                  : `✅ Отчёт получен (получатель не определён — укажите @ник вручную или задайте руководителя в Структуре)`);
+            }
+            return Response.json({ ok: true, type: "report" });
           }
         }
 

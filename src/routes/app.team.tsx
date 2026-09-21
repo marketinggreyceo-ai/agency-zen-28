@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StructureTab } from "@/components/team/StructureTab";
+import { ReportsTab } from "@/components/team/ReportsTab";
 
 export const Route = createFileRoute("/app/team")({ ssr: false, component: Page });
 
@@ -96,6 +97,7 @@ function Page() {
         <TabsList>
           <TabsTrigger value="members">Список</TabsTrigger>
           <TabsTrigger value="structure">Структура</TabsTrigger>
+          <TabsTrigger value="reports">Отчёты</TabsTrigger>
         </TabsList>
 
         <TabsContent value="members" className="space-y-6 pt-4">
@@ -131,6 +133,10 @@ function Page() {
 
         <TabsContent value="structure" className="pt-4">
           <StructureTab />
+        </TabsContent>
+
+        <TabsContent value="reports" className="pt-4">
+          <ReportsTab />
         </TabsContent>
       </Tabs>
 

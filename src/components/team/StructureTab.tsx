@@ -8,6 +8,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 
@@ -26,14 +29,20 @@ type TeamMemberRow = {
 type TreeNode = TeamMemberRow & { children: TreeNode[]; activeCount: number };
 
 function initials(name: string) {
-  return name
-    .replace(/\(.*?\)/g, "")
-    .trim()
-    .split(/\s+/)
-    .map((p) => p[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  return name.replace(/\(.*?\)/g, "").trim().split(/\s+/)
+    .map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+}
+
+// Rough role → accent color, so the tree reads at a glance like
+// color-coded sticky notes (mirroring the Miro board categories).
+function roleAccent(roleLabel: string | null): string {
+  const r = (roleLabel || "").toLowerCase();
+  if (r.includes("owner") || r.includes("владел")) return "#C8A566"; // gold
+  if (r.includes("менеджер") || r.includes("manager")) return "#E07856"; // orange-red
+  if (r.includes("editor") || r.includes("монтаж")) return "#8B7FD6"; // violet
+  if (r.includes("va") || r.includes("постер") || r.includes("poster")) return "#5FB0A8"; // teal
+  if (r.includes("chatter") || r.includes("чаттер")) return "#D6597F"; // rose
+  return "#6B7280"; // neutral gray
 }
 
 function buildTree(members: TeamMemberRow[], activeCounts: Record<string, number>) {
@@ -55,11 +64,11 @@ function buildTree(members: TeamMemberRow[], activeCounts: Record<string, number
   return { roots, orphans };
 }
 
-function Avatar({ name, size = 40 }: { name: string; size?: number }) {
+function Avatar({ name, color, size = 40 }: { name: string; color: string; size?: number }) {
   return (
     <div
-      className="rounded-full bg-bg3 border border-border flex items-center justify-center text-xs font-medium shrink-0"
-      style={{ width: size, height: size }}
+      className="rounded-full flex items-center justify-center text-xs font-medium shrink-0 text-white"
+      style={{ width: size, height: size, backgroundColor: color }}
     >
       {initials(name)}
     </div>
@@ -69,13 +78,15 @@ function Avatar({ name, size = 40 }: { name: string; size?: number }) {
 function MemberCard({ node, onSelect }: { node: TreeNode; onSelect: (n: TreeNode) => void }) {
   const limit = node.task_wip_limit ?? 3;
   const over = node.activeCount >= limit;
+  const color = roleAccent(node.role_label);
   return (
     <div className="flex flex-col items-center">
       <button
         onClick={() => onSelect(node)}
-        className="w-52 rounded-lg border border-border bg-card p-4 text-left hover:border-teal transition-colors flex gap-3 items-start"
+        className="w-52 rounded-lg border border-border bg-card p-4 text-left hover:brightness-110 transition-all flex gap-3 items-start"
+        style={{ borderLeft: `3px solid ${color}` }}
       >
-        <Avatar name={node.name} />
+        <Avatar name={node.name} color={color} />
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium truncate">{node.name}</div>
           <div className="text-xs text-text2 truncate mb-2">
@@ -92,10 +103,7 @@ function MemberCard({ node, onSelect }: { node: TreeNode; onSelect: (n: TreeNode
           <div className="w-px h-6 bg-border" />
           <div className="flex gap-8 relative">
             {node.children.length > 1 && (
-              <div
-                className="absolute top-0 h-px bg-border"
-                style={{ left: "6.5rem", right: "6.5rem" }}
-              />
+              <div className="absolute top-0 h-px bg-border" style={{ left: "6.5rem", right: "6.5rem" }} />
             )}
             {node.children.map((c) => (
               <div key={c.id} className="flex flex-col items-center">
@@ -111,14 +119,18 @@ function MemberCard({ node, onSelect }: { node: TreeNode; onSelect: (n: TreeNode
 }
 
 function MemberDetailDialog({
-  member, open, onOpenChange,
-}: { member: TreeNode | null; open: boolean; onOpenChange: (o: boolean) => void }) {
+  member, allMembers, open, onOpenChange,
+}: {
+  member: TreeNode | null; allMembers: TeamMemberRow[];
+  open: boolean; onOpenChange: (o: boolean) => void;
+}) {
   const qc = useQueryClient();
   const [roleLabel, setRoleLabel] = useState("");
   const [responsibilities, setResponsibilities] = useState("");
   const [weeklyTasks, setWeeklyTasks] = useState("");
   const [weeklyMetric, setWeeklyMetric] = useState("");
   const [wipLimit, setWipLimit] = useState(3);
+  const [managerId, setManagerId] = useState<string>("__none__");
   const [saving, setSaving] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
@@ -128,10 +140,13 @@ function MemberDetailDialog({
     setWeeklyTasks(member.weekly_tasks || "");
     setWeeklyMetric(member.weekly_metric_label || "");
     setWipLimit(member.task_wip_limit ?? 3);
+    setManagerId(member.manager_id || "__none__");
     setLoadedFor(member.id);
   }
 
   if (!member) return null;
+
+  const managerOptions = allMembers.filter((m) => m.id !== member.id);
 
   const handleSave = async () => {
     setSaving(true);
@@ -143,6 +158,7 @@ function MemberDetailDialog({
         weekly_tasks: weeklyTasks,
         weekly_metric_label: weeklyMetric,
         task_wip_limit: wipLimit,
+        manager_id: managerId === "__none__" ? null : managerId,
       })
       .eq("id", member.id);
     setSaving(false);
@@ -160,14 +176,28 @@ function MemberDetailDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <Avatar name={member.name} size={44} />
+            <Avatar name={member.name} color={roleAccent(roleLabel)} size={44} />
             <DialogTitle>{member.name}</DialogTitle>
           </div>
         </DialogHeader>
         <div className="space-y-3">
-          <div>
-            <label className="text-xs text-text2">Роль</label>
-            <Input value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-text2">Роль</label>
+              <Input value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-text2">Руководитель</label>
+              <Select value={managerId} onValueChange={setManagerId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Нет (верхний уровень)</SelectItem>
+                  {managerOptions.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div>
             <label className="text-xs text-text2">Зона ответственности</label>
@@ -233,7 +263,7 @@ export function StructureTab() {
           <AlertTriangle className="h-4 w-4 text-amber shrink-0 mt-0.5" />
           <div className="text-sm">
             <span className="text-amber font-medium">Без руководителя ({orphans.length}):</span>{" "}
-            {orphans.map((o) => o.name).join(", ")} — у них не указан менеджер, они не попали в дерево ниже.
+            {orphans.map((o) => o.name).join(", ")} — нажмите на карточку и укажите руководителя.
           </div>
         </div>
       )}
@@ -246,7 +276,10 @@ export function StructureTab() {
         </div>
       </div>
 
-      <MemberDetailDialog member={selected} open={dialogOpen} onOpenChange={setDialogOpen} />
+      <MemberDetailDialog
+        member={selected} allMembers={members}
+        open={dialogOpen} onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }
