@@ -8,11 +8,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertTriangle, Plus, Trash2, Send } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, Send, Eye } from "lucide-react";
 
 type TeamMemberRow = {
   id: string;
@@ -28,10 +29,9 @@ type TeamMemberRow = {
 
 type TaskItem = { id?: string; description: string; hours: number; frequency: "daily" | "weekly" | "situational" };
 type MetricItem = { id?: string; label: string; value: string };
+type ReportRow = { id: string; team_member_id: string | null; sender_name: string | null; recipient_id: string | null; content: string; created_at: string };
 
 type TreeNode = TeamMemberRow & { children: TreeNode[]; activeCount: number };
-
-const FREQ_LABEL: Record<string, string> = { daily: "в день", weekly: "в неделю", situational: "по ситуации" };
 
 function initials(name: string) {
   return name.replace(/\(.*?\)/g, "").trim().split(/\s+/)
@@ -48,7 +48,7 @@ function roleAccent(roleLabel: string | null): string {
   return "#6B7280";
 }
 
-function weeklyTotal(tasks: TaskItem[]) {
+function weeklyTotal(tasks: { hours: number; frequency: string }[]) {
   return tasks.reduce((sum, t) => {
     if (t.frequency === "daily") return sum + t.hours * 7;
     if (t.frequency === "weekly") return sum + t.hours;
@@ -84,26 +84,36 @@ function Avatar({ name, color, size = 40 }: { name: string; color: string; size?
   );
 }
 
-function MemberCard({ node, onSelect }: { node: TreeNode; onSelect: (n: TreeNode) => void }) {
+function MemberCard({
+  node, onEdit, onProfile,
+}: { node: TreeNode; onEdit: (n: TreeNode) => void; onProfile: (n: TreeNode) => void }) {
   const limit = node.task_wip_limit ?? 3;
   const over = node.activeCount >= limit;
   const color = roleAccent(node.role_label);
   return (
     <div className="flex flex-col items-center">
-      <button
-        onClick={() => onSelect(node)}
-        className="w-52 rounded-lg border border-border bg-card p-4 text-left hover:brightness-110 transition-all flex gap-3 items-start"
+      <div
+        className="w-52 rounded-lg border border-border bg-card p-4 hover:brightness-110 transition-all relative group"
         style={{ borderLeft: `3px solid ${color}` }}
       >
-        <Avatar name={node.name} color={color} />
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium truncate">{node.name}</div>
-          <div className="text-xs text-text2 truncate mb-2">{node.role_label || "Роль не указана"}</div>
-          <Badge variant={over ? "destructive" : "secondary"} className="text-[10px]">
-            {node.activeCount}/{limit} задач
-          </Badge>
-        </div>
-      </button>
+        <button
+          onClick={() => onProfile(node)}
+          className="absolute top-2 right-2 p-1 rounded hover:bg-bg3 opacity-60 hover:opacity-100"
+          title="Профиль"
+        >
+          <Eye className="h-3.5 w-3.5" />
+        </button>
+        <button onClick={() => onEdit(node)} className="flex gap-3 items-start text-left w-full">
+          <Avatar name={node.name} color={color} />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium truncate pr-4">{node.name}</div>
+            <div className="text-xs text-text2 truncate mb-2">{node.role_label || "Роль не указана"}</div>
+            <Badge variant={over ? "destructive" : "secondary"} className="text-[10px]">
+              {node.activeCount}/{limit} задач
+            </Badge>
+          </div>
+        </button>
+      </div>
       {node.children.length > 0 && (
         <>
           <div className="w-px h-6 bg-border" />
@@ -114,7 +124,7 @@ function MemberCard({ node, onSelect }: { node: TreeNode; onSelect: (n: TreeNode
             {node.children.map((c) => (
               <div key={c.id} className="flex flex-col items-center">
                 <div className="w-px h-6 bg-border" />
-                <MemberCard node={c} onSelect={onSelect} />
+                <MemberCard node={c} onEdit={onEdit} onProfile={onProfile} />
               </div>
             ))}
           </div>
@@ -135,17 +145,10 @@ function TaskListEditor({ tasks, setTasks }: { tasks: TaskItem[]; setTasks: (t: 
       {tasks.map((t, i) => (
         <div key={i} className="flex gap-2 items-center">
           <span className="text-xs text-text2 w-4">{i + 1}.</span>
-          <Input
-            className="flex-1"
-            placeholder="Описание задачи"
-            value={t.description}
-            onChange={(e) => update(i, { description: e.target.value })}
-          />
-          <Input
-            type="number" step="0.5" className="w-16"
-            value={t.hours}
-            onChange={(e) => update(i, { hours: Number(e.target.value) })}
-          />
+          <Input className="flex-1" placeholder="Описание задачи" value={t.description}
+            onChange={(e) => update(i, { description: e.target.value })} />
+          <Input type="number" step="0.5" className="w-16" value={t.hours}
+            onChange={(e) => update(i, { hours: Number(e.target.value) })} />
           <Select value={t.frequency} onValueChange={(v) => update(i, { frequency: v as TaskItem["frequency"] })}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -181,14 +184,10 @@ function MetricListEditor({ metrics, setMetrics }: { metrics: MetricItem[]; setM
     <div className="space-y-2">
       {metrics.map((m, i) => (
         <div key={i} className="flex gap-2 items-center">
-          <Input
-            className="flex-1" placeholder="Название метрики"
-            value={m.label} onChange={(e) => update(i, { label: e.target.value })}
-          />
-          <Input
-            className="w-32" placeholder="Значение"
-            value={m.value} onChange={(e) => update(i, { value: e.target.value })}
-          />
+          <Input className="flex-1" placeholder="Название метрики" value={m.label}
+            onChange={(e) => update(i, { label: e.target.value })} />
+          <Input className="w-32" placeholder="Значение" value={m.value}
+            onChange={(e) => update(i, { value: e.target.value })} />
           <Button variant="ghost" size="icon" className="shrink-0" onClick={() => remove(i)}>
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -201,10 +200,30 @@ function MetricListEditor({ metrics, setMetrics }: { metrics: MetricItem[]; setM
   );
 }
 
+function DirectReportsPicker({
+  candidates, selected, setSelected,
+}: { candidates: TeamMemberRow[]; selected: Set<string>; setSelected: (s: Set<string>) => void }) {
+  const toggle = (id: string) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelected(next);
+  };
+  if (candidates.length === 0) return <p className="text-xs text-text2">Нет доступных людей</p>;
+  return (
+    <div className="grid grid-cols-2 gap-1.5 max-h-32 overflow-y-auto border border-border rounded-md p-2">
+      {candidates.map((c) => (
+        <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer">
+          <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggle(c.id)} />
+          {c.name}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function MemberDetailDialog({
   member, allMembers, open, onOpenChange,
 }: { member: TreeNode | null; allMembers: TeamMemberRow[]; open: boolean; onOpenChange: (o: boolean) => void }) {
-  const directReports = member ? allMembers.filter((m) => m.manager_id === member.id) : [];
   const qc = useQueryClient();
   const [roleLabel, setRoleLabel] = useState("");
   const [responsibilities, setResponsibilities] = useState("");
@@ -212,6 +231,7 @@ function MemberDetailDialog({
   const [managerId, setManagerId] = useState<string>("__none__");
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [metrics, setMetrics] = useState<MetricItem[]>([]);
+  const [reportsFrom, setReportsFrom] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
@@ -242,11 +262,13 @@ function MemberDetailDialog({
     setManagerId(member.manager_id || "__none__");
     setTasks(existingTasks.map((t) => ({ description: t.description, hours: t.hours, frequency: t.frequency })));
     setMetrics(existingMetrics.map((m) => ({ label: m.label, value: m.value })));
+    setReportsFrom(new Set(allMembers.filter((m) => m.manager_id === member.id).map((m) => m.id)));
     setLoadedFor(member.id);
   }
 
   if (!member) return null;
   const managerOptions = allMembers.filter((m) => m.id !== member.id);
+  const reportCandidates = allMembers.filter((m) => m.id !== member.id && m.id !== managerId);
 
   const handleSave = async () => {
     setSaving(true);
@@ -256,6 +278,18 @@ function MemberDetailDialog({
       task_wip_limit: wipLimit,
       manager_id: managerId === "__none__" ? null : managerId,
     }).eq("id", member.id);
+
+    // Sync direct-report changes: anyone added now points to me; anyone
+    // removed who was pointing to me is cleared (their manager, not others').
+    const before = new Set(allMembers.filter((m) => m.manager_id === member.id).map((m) => m.id));
+    const toAdd = [...reportsFrom].filter((id) => !before.has(id));
+    const toRemove = [...before].filter((id) => !reportsFrom.has(id));
+    for (const id of toAdd) {
+      await (supabase as any).from("team_members").update({ manager_id: member.id }).eq("id", id);
+    }
+    for (const id of toRemove) {
+      await (supabase as any).from("team_members").update({ manager_id: null }).eq("id", id);
+    }
 
     await (supabase as any).from("role_tasks").delete().eq("team_member_id", member.id);
     if (tasks.length > 0) {
@@ -317,7 +351,7 @@ function MemberDetailDialog({
               <Input value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)} />
             </div>
             <div>
-              <label className="text-xs text-text2">Руководитель</label>
+              <label className="text-xs text-text2">Отчитывается перед (TO)</label>
               <Select value={managerId} onValueChange={setManagerId}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -328,11 +362,10 @@ function MemberDetailDialog({
             </div>
           </div>
 
-          {directReports.length > 0 && (
-            <div className="text-xs text-text2">
-              Получает отчёты от: <span className="text-fg">{directReports.map((m) => m.name).join(", ")}</span>
-            </div>
-          )}
+          <div>
+            <label className="text-xs text-text2 block mb-1.5">Получает отчёты от (FROM)</label>
+            <DirectReportsPicker candidates={reportCandidates} selected={reportsFrom} setSelected={setReportsFrom} />
+          </div>
 
           <div>
             <label className="text-xs text-text2">Зона ответственности</label>
@@ -372,6 +405,114 @@ function MemberDetailDialog({
   );
 }
 
+function ProfileDialog({
+  member, allMembers, open, onOpenChange,
+}: { member: TeamMemberRow | null; allMembers: TeamMemberRow[]; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["role_tasks", "profile", member?.id],
+    enabled: !!member,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("role_tasks")
+        .select("*").eq("team_member_id", member!.id).order("sort_order");
+      return (data ?? []) as TaskItem[];
+    },
+  });
+  const { data: metrics = [] } = useQuery({
+    queryKey: ["role_metrics", "profile", member?.id],
+    enabled: !!member,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("role_metrics")
+        .select("*").eq("team_member_id", member!.id).order("sort_order");
+      return (data ?? []) as MetricItem[];
+    },
+  });
+  const { data: reports = [] } = useQuery({
+    queryKey: ["reports", "profile", member?.id],
+    enabled: !!member,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("reports")
+        .select("*").or(`team_member_id.eq.${member!.id},recipient_id.eq.${member!.id}`)
+        .order("created_at", { ascending: false }).limit(5);
+      return (data ?? []) as ReportRow[];
+    },
+  });
+
+  if (!member) return null;
+  const managerName = allMembers.find((m) => m.id === member.manager_id)?.name;
+  const directReports = allMembers.filter((m) => m.manager_id === member.id);
+  const nameById = new Map(allMembers.map((m) => [m.id, m.name]));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <Avatar name={member.name} color={roleAccent(member.role_label)} size={48} />
+            <div>
+              <DialogTitle>{member.name}</DialogTitle>
+              <p className="text-xs text-text2">{member.role_label || "Роль не указана"}</p>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="space-y-4 text-sm">
+          {member.responsibilities && (
+            <p className="text-text2">{member.responsibilities}</p>
+          )}
+
+          <div className="flex gap-6">
+            <div>
+              <p className="text-xs text-text2 mb-0.5">Отчитывается перед</p>
+              <p>{managerName || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-text2 mb-0.5">Получает отчёты от</p>
+              <p>{directReports.length > 0 ? directReports.map((m) => m.name).join(", ") : "—"}</p>
+            </div>
+          </div>
+
+          {tasks.length > 0 && (
+            <div>
+              <p className="text-xs text-text2 mb-1">Задачи</p>
+              <ol className="list-decimal list-inside space-y-0.5">
+                {tasks.map((t, i) => (
+                  <li key={i}>{t.description} — {t.hours}ч ({t.frequency === "daily" ? "в день" : t.frequency === "weekly" ? "в неделю" : "по ситуации"})</li>
+                ))}
+              </ol>
+              <p className="text-xs text-text2 mt-1">Итого в неделю: ~{weeklyTotal(tasks)}ч</p>
+            </div>
+          )}
+
+          {metrics.length > 0 && (
+            <div>
+              <p className="text-xs text-text2 mb-1">Метрики</p>
+              <ul className="space-y-0.5">
+                {metrics.map((m, i) => <li key={i}>• {m.label}{m.value ? `: ${m.value}` : ""}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {reports.length > 0 && (
+            <div>
+              <p className="text-xs text-text2 mb-1">Последние отчёты</p>
+              <div className="space-y-1.5">
+                {reports.map((r) => (
+                  <div key={r.id} className="rounded border border-border p-2 text-xs">
+                    <div className="text-text2 mb-0.5">
+                      {r.team_member_id === member.id ? "→ " + (nameById.get(r.recipient_id || "") || "—") : (nameById.get(r.team_member_id || "") || r.sender_name || "—") + " →"}
+                      {" · "}{new Date(r.created_at).toLocaleDateString("ru-RU")}
+                    </div>
+                    <div>{r.content}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function StructureTab() {
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["team_structure", "members"],
@@ -392,12 +533,15 @@ export function StructureTab() {
   });
 
   const [selected, setSelected] = useState<TreeNode | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [profileMember, setProfileMember] = useState<TeamMemberRow | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   if (isLoading) return <p className="text-sm text-text2 p-4">Загрузка...</p>;
 
   const { roots, orphans } = buildTree(members, activeCounts);
-  const handleSelect = (n: TreeNode) => { setSelected(n); setDialogOpen(true); };
+  const handleEdit = (n: TreeNode) => { setSelected(n); setEditOpen(true); };
+  const handleProfile = (n: TreeNode) => { setProfileMember(n); setProfileOpen(true); };
 
   return (
     <div>
@@ -412,10 +556,11 @@ export function StructureTab() {
       )}
       <div className="overflow-x-auto pb-4">
         <div className="flex gap-12 min-w-max p-2 justify-center">
-          {roots.map((root) => <MemberCard key={root.id} node={root} onSelect={handleSelect} />)}
+          {roots.map((root) => <MemberCard key={root.id} node={root} onEdit={handleEdit} onProfile={handleProfile} />)}
         </div>
       </div>
-      <MemberDetailDialog member={selected} allMembers={members} open={dialogOpen} onOpenChange={setDialogOpen} />
+      <MemberDetailDialog member={selected} allMembers={members} open={editOpen} onOpenChange={setEditOpen} />
+      <ProfileDialog member={profileMember} allMembers={members} open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
   );
 }
